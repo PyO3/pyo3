@@ -39,17 +39,17 @@ mod inner {
 
     #[macro_export]
     macro_rules! py_assert {
-        ($py:expr, $($val:ident)+, $assertion:literal) => {
+        ($py:expr_2021, $($val:ident)+, $assertion:literal) => {
             pyo3::py_run!($py, $($val)+, concat!("assert ", $assertion))
         };
-        ($py:expr, *$dict:expr, $assertion:literal) => {
+        ($py:expr_2021, *$dict:expr_2021, $assertion:literal) => {
             pyo3::py_run!($py, *$dict, concat!("assert ", $assertion))
         };
     }
 
     #[macro_export]
     macro_rules! assert_py_eq {
-        ($val:expr, $expected:expr) => {
+        ($val:expr_2021, $expected:expr_2021) => {
             assert!($val.eq($expected).unwrap());
         };
     }
@@ -57,14 +57,14 @@ mod inner {
     #[macro_export]
     macro_rules! py_expect_exception {
         // Case1: idents & no err_msg
-        ($py:expr, $($val:ident)+, $code:expr, $err:ident) => {{
+        ($py:expr_2021, $($val:ident)+, $code:expr_2021, $err:ident) => {{
             use pyo3::types::IntoPyDict;
             use pyo3::BoundObject;
             let d = [$((stringify!($val), (&$val).into_pyobject($py).unwrap().into_any().into_bound()),)+].into_py_dict($py).unwrap();
             py_expect_exception!($py, *d, $code, $err)
         }};
         // Case2: dict & no err_msg
-        ($py:expr, *$dict:expr, $code:expr, $err:ident) => {{
+        ($py:expr_2021, *$dict:expr_2021, $code:expr_2021, $err:ident) => {{
             extern crate alloc;
             let res = $py.run(&alloc::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed()));
             let err = res.expect_err(&format!("Did not raise {}", stringify!($err)));
@@ -74,7 +74,7 @@ mod inner {
             err
         }};
         // Case3: idents & err_msg
-        ($py:expr, $($val:ident)+, $code:expr, $err:ident, $err_msg:literal $(,$notes:literal)*) => {{
+        ($py:expr_2021, $($val:ident)+, $code:expr_2021, $err:ident, $err_msg:literal $(,$notes:literal)*) => {{
             let err = py_expect_exception!($py, $($val)+, $code, $err);
             // Suppose that the error message looks like 'TypeError: ~'
             assert_eq!(format!("Py{}", err), concat!(stringify!($err), ": ", $err_msg));
@@ -88,7 +88,7 @@ mod inner {
             err
         }};
         // Case4: dict & err_msg
-        ($py:expr, *$dict:expr, $code:expr, $err:ident, $err_msg:literal) => {{
+        ($py:expr_2021, *$dict:expr_2021, $code:expr_2021, $err:ident, $err_msg:literal) => {{
             let err = py_expect_exception!($py, *$dict, $code, $err);
             assert_eq!(format!("Py{}", err), concat!(stringify!($err), ": ", $err_msg));
             err
@@ -97,12 +97,12 @@ mod inner {
 
     #[macro_export]
     macro_rules! py_expect_warning {
-        ($py:expr, $($val:ident)+, $code:expr, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
+        ($py:expr_2021, $($val:ident)+, $code:expr_2021, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
             use pyo3::types::IntoPyDict;
             let d = [$((stringify!($val), ($val.as_ref() as &Bound<'_, PyAny>).into_pyobject($py).expect("Failed to create test dict element")),)+].into_py_dict($py).expect("Failed to create test dict");
             py_expect_warning!($py, *d, $code, [$(($warning_msg, $warning_category)),+])
         }};
-        ($py:expr, *$dict:expr, $code:expr, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
+        ($py:expr_2021, *$dict:expr_2021, $code:expr_2021, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
             $crate::test_utils::CatchWarnings::enter($py, |warning_record| {
                 extern crate alloc;
                 $py.run(&alloc::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed())).expect("Failed to run warning testing code");
@@ -258,7 +258,7 @@ mod inner {
     }
 
     macro_rules! assert_warnings {
-        ($py:expr, $body:expr, [$(($category:ty, $message:literal)),+] $(,)? ) => {{
+        ($py:expr_2021, $body:expr_2021, [$(($category:ty, $message:literal)),+] $(,)? ) => {{
             $crate::test_utils::CatchWarnings::enter($py, |w| {
                 use $crate::types::{PyListMethods, PyStringMethods};
                 $body;

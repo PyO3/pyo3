@@ -243,7 +243,7 @@ macro_rules! __pyo3_pymodexport {
 macro_rules! __pyo3_pyinit {
     ($symbol:literal, $def:path) => {
         #[doc(hidden)]
-        #[export_name = $symbol]
+        #[unsafe(export_name = $symbol)]
         pub unsafe extern "C" fn __pyo3_init() -> *mut $crate::ffi::PyObject {
             $def.init_multi_phase()
         }

@@ -195,7 +195,7 @@ impl FieldAttributes {
             ($key:ident) => {
                 set_option!($key, concat!("`", stringify!($key), "` may only be specified once"))
             };
-            ($key:ident, $msg: expr) => {{
+            ($key:ident, $msg: expr_2021) => {{
                 ensure_spanned!(
                     self.$key.is_none(),
                     $key.span() => $msg

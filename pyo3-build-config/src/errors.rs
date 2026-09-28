@@ -9,7 +9,7 @@ macro_rules! bail {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! ensure {
-    ($condition:expr, $($args: tt)+) => { if !($condition) { bail!($($args)+) } };
+    ($condition:expr_2021, $($args: tt)+) => { if !($condition) { bail!($($args)+) } };
 }
 
 /// Show warning.

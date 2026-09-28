@@ -86,17 +86,17 @@
 #[macro_export]
 macro_rules! py_run {
     // unindent the code at compile time
-    ($py:expr, $($val:ident)+, $code:literal) => {{
+    ($py:expr_2021, $($val:ident)+, $code:literal) => {{
         $crate::py_run_impl!($py, $($val)+, $crate::impl_::unindent::unindent!($code))
     }};
-    ($py:expr, *$dict:expr, $code:literal) => {{
+    ($py:expr_2021, *$dict:expr_2021, $code:literal) => {{
         $crate::py_run_impl!($py, *$dict, $crate::impl_::unindent::unindent!($code))
     }};
     // unindent the code at runtime
-    ($py:expr, $($val:ident)+, $code:expr) => {{
+    ($py:expr_2021, $($val:ident)+, $code:expr_2021) => {{
         $crate::py_run_impl!($py, $($val)+, $crate::impl_::unindent::unindent($code))
     }};
-    ($py:expr, *$dict:expr, $code:expr) => {{
+    ($py:expr_2021, *$dict:expr_2021, $code:expr_2021) => {{
         $crate::py_run_impl!($py, *$dict, $crate::impl_::unindent::unindent($code))
     }};
 }
@@ -109,14 +109,14 @@ macro_rules! py_run {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! py_run_impl {
-    ($py:expr, $($val:ident)+, $code:expr) => {{
+    ($py:expr_2021, $($val:ident)+, $code:expr_2021) => {{
         use $crate::types::IntoPyDict;
         use $crate::conversion::IntoPyObject;
         use $crate::BoundObject;
         let d = [$((stringify!($val), (&$val).into_pyobject($py).unwrap().into_any().into_bound()),)+].into_py_dict($py).unwrap();
         $crate::py_run_impl!($py, *d, $code)
     }};
-    ($py:expr, *$dict:expr, $code:expr) => {{
+    ($py:expr_2021, *$dict:expr_2021, $code:expr_2021) => {{
         use ::core::option::Option::*;
         if let ::core::result::Result::Err(e) = $py.run(&$crate::impl_::alloc::ffi::CString::new($code).unwrap(), None, Some(&$dict)) {
             e.print($py);
@@ -180,7 +180,7 @@ macro_rules! wrap_pyfunction {
             )
         }
     };
-    ($function:path, $py_or_module:expr) => {{
+    ($function:path, $py_or_module:expr_2021) => {{
         use $function as wrapped_pyfunction;
         $crate::impl_::pyfunction::WrapPyFunctionArg::wrap_pyfunction(
             $py_or_module,

@@ -823,7 +823,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
 }
 
 macro_rules! implement_binop {
-    ($name:ident, $c_api:ident, $op:expr) => {
+    ($name:ident, $c_api:ident, $op:expr_2021) => {
         #[doc = concat!("Computes `self ", $op, " other`.")]
         fn $name<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
         where
@@ -1430,23 +1430,23 @@ impl<'py> Bound<'py, PyAny> {
     {
         let py = self.py();
         let self_type = self.get_type();
-        let attr = if let Ok(attr) = self_type.getattr(attr_name) {
+        let attr = match self_type.getattr(attr_name) { Ok(attr) => {
             attr
-        } else {
+        } _ => {
             return Ok(None);
-        };
+        }};
 
         // Manually resolve descriptor protocol. (Faster than going through Python.)
-        if let Some(descr_get) = attr.get_type().get_slot(TP_DESCR_GET) {
+        match attr.get_type().get_slot(TP_DESCR_GET) { Some(descr_get) => {
             // attribute is a descriptor, resolve it
             unsafe {
                 descr_get(attr.as_ptr(), self.as_ptr(), self_type.as_ptr())
                     .assume_owned_or_err(py)
                     .map(Some)
             }
-        } else {
+        } _ => {
             Ok(Some(attr))
-        }
+        }}
     }
 
     #[inline]
