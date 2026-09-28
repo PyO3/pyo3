@@ -675,9 +675,10 @@ unsafe extern "C" fn capsule_destructor<
 }
 
 fn ensure_no_error(py: Python<'_>) -> PyResult<()> {
-    match PyErr::take(py) {
-        Some(err) => Err(err),
-        _ => Ok(()),
+    if let Some(err) = PyErr::take(py) {
+        Err(err)
+    } else {
+        Ok(())
     }
 }
 

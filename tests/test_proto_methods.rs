@@ -599,17 +599,14 @@ struct GetItem {}
 #[pymethods]
 impl GetItem {
     fn __getitem__(&self, idx: &Bound<'_, PyAny>) -> PyResult<&'static str> {
-        match idx.cast::<PySlice>() {
-            Ok(slice) => {
-                let indices = slice.indices(1000)?;
-                if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
-                    return Ok("slice");
-                }
+        if let Ok(slice) = idx.cast::<PySlice>() {
+            let indices = slice.indices(1000)?;
+            if indices.start == 100 && indices.stop == 200 && indices.step == 1 {
+                return Ok("slice");
             }
-            _ => {
-                if let Ok(1) = idx.extract::<isize>() {
-                    return Ok("int");
-                }
+        } else if let Ok(idx) = idx.extract::<isize>() {
+            if idx == 1 {
+                return Ok("int");
             }
         }
         Err(PyValueError::new_err("error"))

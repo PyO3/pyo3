@@ -2598,15 +2598,15 @@ pub fn find_interpreter() -> Result<PathBuf> {
         ["python", "python3"]
             .iter()
             .find(|bin| {
-                match Command::new(bin).arg("--version").output() {
-                    Ok(out) => {
+                Command::new(bin)
+                    .arg("--version")
+                    .output()
+                    .is_ok_and(|out| {
                         // begin with `Python 3.X.X :: additional info`
                         out.stdout.starts_with(b"Python 3")
                             || out.stderr.starts_with(b"Python 3")
                             || out.stdout.starts_with(b"GraalPy 3")
-                    }
-                    _ => false,
-                }
+                    })
             })
             .map(PathBuf::from)
             .ok_or_else(|| "no Python 3.x interpreter found".into())

@@ -263,12 +263,12 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
         obj: Borrowed<'_, 'py, PyAny>,
         _: crate::conversion::private::Token,
     ) -> Option<impl FromPyObjectSequence<Target = u8>> {
-        match obj.cast::<PyBytes>() {
-            Ok(bytes) => Some(BytesSequenceExtractor::Bytes(bytes)),
-            _ => match obj.cast::<PyByteArray>() {
-                Ok(byte_array) => Some(BytesSequenceExtractor::ByteArray(byte_array)),
-                _ => None,
-            },
+        if let Ok(bytes) = obj.cast::<PyBytes>() {
+            Some(BytesSequenceExtractor::Bytes(bytes))
+        } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
+            Some(BytesSequenceExtractor::ByteArray(byte_array))
+        } else {
+            None
         }
     }
 }

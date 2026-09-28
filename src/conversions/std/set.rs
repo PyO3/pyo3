@@ -71,16 +71,17 @@ where
                 }
                 Ok(result)
             }
-            Err(err) => match ob.cast::<PyFrozenSet>() {
-                Ok(frozen_set) => {
+            Err(err) => {
+                if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
                     let mut result = Self::with_capacity_and_hasher(frozen_set.len(), S::default());
                     for item in frozen_set.iter() {
                         result.insert(item.extract().map_err(Into::into)?);
                     }
                     Ok(result)
+                } else {
+                    Err(PyErr::from(err))
                 }
-                _ => Err(PyErr::from(err)),
-            },
+            }
         }
     }
 }
@@ -136,16 +137,17 @@ where
                 }
                 Ok(values.into_iter().collect())
             }
-            Err(err) => match ob.cast::<PyFrozenSet>() {
-                Ok(frozen_set) => {
+            Err(err) => {
+                if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
                     let mut values = Vec::with_capacity(frozen_set.len());
                     for item in frozen_set.iter() {
                         values.push(item.extract().map_err(Into::into)?);
                     }
                     Ok(values.into_iter().collect())
+                } else {
+                    Err(PyErr::from(err))
                 }
-                _ => Err(PyErr::from(err)),
-            },
+            }
         }
     }
 }

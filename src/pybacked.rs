@@ -296,23 +296,23 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyBackedBytes {
     const INPUT_TYPE: PyStaticExpr = type_hint_union!(PyBytes::TYPE_HINT, PyByteArray::TYPE_HINT);
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
-        match obj.cast::<PyBytes>() {
-            Ok(bytes) => Ok(Self::from(bytes.to_owned())),
-            _ => match obj.cast::<PyByteArray>() {
-                Ok(bytearray) => Ok(Self::from(bytearray.to_owned())),
-                _ => Err(CastError::new(
-                    obj,
-                    PyTuple::new(
-                        obj.py(),
-                        [
-                            PyBytes::type_object(obj.py()),
-                            PyByteArray::type_object(obj.py()),
-                        ],
-                    )
-                    .unwrap()
-                    .into_any(),
-                )),
-            },
+        if let Ok(bytes) = obj.cast::<PyBytes>() {
+            Ok(Self::from(bytes.to_owned()))
+        } else if let Ok(bytearray) = obj.cast::<PyByteArray>() {
+            Ok(Self::from(bytearray.to_owned()))
+        } else {
+            Err(CastError::new(
+                obj,
+                PyTuple::new(
+                    obj.py(),
+                    [
+                        PyBytes::type_object(obj.py()),
+                        PyByteArray::type_object(obj.py()),
+                    ],
+                )
+                .unwrap()
+                .into_any(),
+            ))
         }
     }
 }

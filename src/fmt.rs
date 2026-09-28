@@ -87,13 +87,14 @@ impl<'py> PyUnicodeWriter<'py> {
     #[inline]
     pub fn into_py_string(mut self) -> PyResult<Bound<'py, PyString>> {
         let py = self.python;
-        match self.take_error() {
-            Some(error) => Err(error),
-            _ => unsafe {
+        if let Some(error) = self.take_error() {
+            Err(error)
+        } else {
+            unsafe {
                 PyUnicodeWriter_Finish(ManuallyDrop::new(self).as_ptr())
                     .assume_owned_or_err(py)
                     .cast_into_unchecked()
-            },
+            }
         }
     }
 

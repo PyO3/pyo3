@@ -404,11 +404,10 @@ mod tests {
 
     #[test]
     fn test_from_err() {
-        Python::attach(|py| match PyByteArray::from(py.None().bind(py)) {
-            Err(err) => {
+        Python::attach(|py| {
+            if let Err(err) = PyByteArray::from(py.None().bind(py)) {
                 assert!(err.is_instance_of::<exceptions::PyTypeError>(py));
-            }
-            _ => {
+            } else {
                 panic!("error");
             }
         });
