@@ -6,18 +6,17 @@ use crate::impl_::callback::IntoPyCallbackOutput;
 #[cfg(feature = "experimental-inspect")]
 use crate::impl_::introspection::PyReturnType;
 use crate::impl_::panic::PanicTrap;
-use crate::impl_::pycell::PyClassObjectBaseLayout;
 use crate::impl_::pyclass::PyClassDict as _;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+use crate::instance::PyBorrowedUnbound;
 use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
 use crate::internal::pyclass_init::PyClassInit;
 use crate::internal::state::ForbidAttaching;
-use crate::pycell::impl_::{PyClassBorrowChecker as _, PyClassObjectLayout};
+use crate::pycell::impl_::PyClassObjectLayout;
+use crate::pyclass::gc::{PyClassTraverseGuard, PyTraverseError, PyVisit};
 use crate::types::PyType;
-use crate::{
-    ffi, Borrowed, Bound, Py, PyAny, PyClass, PyErr, PyResult, PyTraverseError, PyVisit, Python,
-};
+use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyErr, PyResult, Python};
 use core::ffi::CStr;
 use core::ffi::{c_int, c_void};
 use core::fmt;
@@ -373,6 +372,13 @@ where
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
     let lock = ForbidAttaching::during_traverse();
 
+    // SAFETY: Python will always call `tp_traverse` with a non-null pointer
+    // to a valid instance of `T`. The borrowed lifetime is only passed to
+    // `traverse_impl`; it does not widen outside this function call.
+    let slf = unsafe {
+        PyBorrowedUnbound::from_non_null(NonNull::new_unchecked(slf)).cast_unchecked::<T>()
+    };
+
     let retval = unsafe { traverse_impl(slf, impl_, visit, arg, current_traverse) };
 
     // Drop lock before trap just in case dropping lock panics
@@ -389,7 +395,7 @@ where
 /// - Must only be called from `_call_traverse`, which holds the `PanicTrap` and `ForbidAttaching`
 ///   lock this relies on.
 unsafe fn traverse_impl<T>(
-    slf: *mut ffi::PyObject,
+    slf: PyBorrowedUnbound<'_, T>,
     impl_: fn(&T, PyVisit<'_>) -> Result<(), PyTraverseError>,
     visit: ffi::visitproc,
     arg: *mut c_void,
@@ -399,42 +405,26 @@ where
     T: PyClass,
 {
     // A non-zero return means a `visitproc` has asked us to stop the traversal.
-    let super_retval = unsafe { call_super_traverse(slf, visit, arg, current_traverse) };
+    let super_retval = unsafe { call_super_traverse(slf.as_ptr(), visit, arg, current_traverse) };
     if super_retval != 0 {
         return super_retval;
     }
 
-    // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
-    // traversal is running so no mutations can occur.
-    let class_object: &<T as PyClassImpl>::Layout = unsafe { &*slf.cast() };
-
     // The `__dict__` is not Rust data, so it is visited without the thread and borrow checks
     // below: it must stay reachable to the GC even when the pyclass data cannot be traversed.
-    let dict_retval = unsafe { class_object.contents().dict.traverse_dict(visit, arg) };
+    let dict_retval = unsafe {
+        T::Layout::contents_during_gc(slf)
+            .dict
+            .traverse_dict(visit, arg)
+    };
     if dict_retval != 0 {
         return dict_retval;
     }
 
-    // `#[pyclass(unsendable)]` types can only be deallocated by their own thread, so do not
-    // traverse them if not on their owning thread :(
-    // ... and we cannot traverse a type which might be being mutated by a Rust thread.
-    if class_object.check_threadsafe().is_err()
-        || class_object.borrow_checker().try_borrow().is_err()
-    {
+    // If we cannot safely obtain Rust state to traverse, we cannot traverse the object.
+    let Some(guard) = PyClassTraverseGuard::<T>::try_from_class_object(slf) else {
         return 0;
-    }
-
-    struct TraverseGuard<'a, T: PyClassImpl>(&'a T::Layout);
-    impl<T: PyClassImpl> Drop for TraverseGuard<'_, T> {
-        fn drop(&mut self) {
-            self.0.borrow_checker().release_borrow()
-        }
-    }
-
-    // `.try_borrow()` above created a borrow, we need to release it when we're done
-    // traversing the object. This allows us to read `instance` safely.
-    let _guard = TraverseGuard::<T>(class_object);
-    let instance = unsafe { &*class_object.contents().value.get() };
+    };
 
     let visit = PyVisit {
         visit,
@@ -442,7 +432,7 @@ where
         _guard: PhantomData,
     };
 
-    match catch_unwind(AssertUnwindSafe(move || impl_(instance, visit))) {
+    match catch_unwind(AssertUnwindSafe(move || impl_(&guard, visit))) {
         Ok(Ok(())) => 0,
         Ok(Err(traverse_error)) => traverse_error.into_inner(),
         Err(_err) => -1,
@@ -548,10 +538,16 @@ where
         return super_retval;
     }
 
-    // SAFETY: `slf` is a valid pointer to an instance of `T`, and traversal is running so no
-    // mutations can occur. The `__dict__` is not Rust data, so needs no thread or borrow check.
-    let class_object: &<T as PyClassImpl>::Layout = unsafe { &*slf.cast() };
-    unsafe { class_object.contents().dict.traverse_dict(visit, arg) }
+    // SAFETY: `slf` is a valid pointer to an instance of `T`, borrowed only for this call.
+    // The `__dict__` is not Rust data, so needs no thread or borrow check.
+    let slf = unsafe {
+        PyBorrowedUnbound::from_non_null(NonNull::new_unchecked(slf)).cast_unchecked::<T>()
+    };
+    unsafe {
+        T::Layout::contents_during_gc(slf)
+            .dict
+            .traverse_dict(visit, arg)
+    }
 }
 
 /// `tp_clear` for a `#[pyclass]` which defines no `__clear__` of its own: calls the base type
