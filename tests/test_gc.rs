@@ -610,7 +610,7 @@ fn unsendable_are_not_traversed_on_foreign_thread() {
         assert!(!obj.borrow().traversed.get());
 
         // traversal on home thread still works
-        assert_eq!(traverse_object(&obj, novisit), 0);
+        assert_eq!(traverse_object(obj, novisit), 0);
 
         assert!(obj.borrow().traversed.get());
     });
@@ -1100,10 +1100,11 @@ fn test_gc_during_classattr_initialization() {
     impl GcDuringClassattr {
         #[classattr]
         fn instance(py: Python<'_>) -> PyResult<Py<PyAny>> {
-            if CLASSATTR_CALLED.swap(true, Ordering::SeqCst) {
-                // Prevent infinite recursion of new threads & nested GC traversals.
-                panic!("class attribute initializer called more than once");
-            }
+            // Prevent infinite recursion of new threads & nested GC traversals.
+            assert!(
+                !CLASSATTR_CALLED.swap(true, Ordering::SeqCst),
+                "class attribute initializer called more than once",
+            );
 
             let instance = Py::new(py, Self)?;
 
@@ -1194,6 +1195,7 @@ where
 }
 
 // a dummy visitor function
+#[expect(clippy::unnecessary_wraps)]
 fn novisit(_obj: Borrowed<'_, '_, PyAny>) -> Result<(), NonZero<c_int>> {
     Ok(())
 }
