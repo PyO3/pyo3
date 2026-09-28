@@ -16,6 +16,7 @@ use crate::{
     sealed::Sealed,
     types::{PyAny, PyString},
 };
+use core::ops::Deref;
 use core::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit};
 
 pub mod critical_section;
@@ -796,10 +797,13 @@ mod rwlock_ext_sealed {
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 mod mutex_trait_sealed {
+    use core::ops::Deref;
+
     pub trait Sealed<T: ?Sized> {}
     #[cfg(wip_feature_std)]
     impl<T: ?Sized> Sealed<T> for super::mutex::PyMutex<T> {}
     impl<T: ?Sized> Sealed<T> for super::nonpoison::PyMutex<T> {}
+    impl<T: ?Sized, D: ?Sized + Deref<Target = T>> Sealed<T> for D {}
 }
 
 /// Trait for mutex types used in [`critical_section`] API.
@@ -818,6 +822,18 @@ pub trait PyMutexTrait<T: ?Sized>: mutex_trait_sealed::Sealed<T> {
     /// This function may not be called from outside of PyO3
     #[doc(hidden)]
     unsafe fn inner(&self) -> &UnsafeCell<crate::ffi::PyMutex>;
+}
+
+impl<T: ?Sized, D: ?Sized + Deref<Target = T>> PyMutexTrait<T> for D {
+    unsafe fn data(&self) -> &UnsafeCell<T> {
+        // SAFETY: target upholds requirements
+        unsafe { (*self).data() }
+    }
+    
+    unsafe fn inner(&self) -> &UnsafeCell<crate::ffi::PyMutex> {
+        // SAFETY: target upholds requirements
+        unsafe { (*self).inner() }
+    }
 }
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_13, wip_feature_std))]
