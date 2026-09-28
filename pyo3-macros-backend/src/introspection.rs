@@ -602,13 +602,13 @@ impl ConcatenationBuilder {
             elements.push(ConcatenationBuilderElement::String(self.current_string));
         }
 
-        // #[no_mangle] is required to make sure some linkers like Linux ones do not mangle the section name too.
+        // #[unsafe(no_mangle)] is required to make sure some linkers like Linux ones do not mangle the section name too.
         quote! {
             const _: () = {
                 const PIECES: &[&[u8]] = &[#(#elements , )*];
                 const PIECES_LEN: usize = #pyo3_crate_path::impl_::concat::combined_len(PIECES);
                 #[used]
-                #[no_mangle]
+                #[unsafe(no_mangle)]
                 static #ident: #pyo3_crate_path::impl_::introspection::SerializedIntrospectionFragment<PIECES_LEN> = #pyo3_crate_path::impl_::introspection::SerializedIntrospectionFragment {
                     length: PIECES_LEN as u32,
                     fragment: #pyo3_crate_path::impl_::concat::combine_to_array::<PIECES_LEN>(PIECES)

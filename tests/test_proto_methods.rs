@@ -606,14 +606,11 @@ impl GetItem {
                     return Ok("slice");
                 }
             }
-            _ => match idx.extract::<isize>() {
-                Ok(idx) => {
-                    if idx == 1 {
-                        return Ok("int");
-                    }
+            _ => {
+                if let Ok(1) = idx.extract::<isize>() {
+                    return Ok("int");
                 }
-                _ => {}
-            },
+            }
         }
         Err(PyValueError::new_err("error"))
     }

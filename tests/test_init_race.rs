@@ -19,7 +19,8 @@ fn test_concurrent_init_site_race() {
     )
     .unwrap();
 
-    // FIXME: Audit that the environment access only happens in single-threaded code.
+    // SAFETY: This is the only test in this binary, and Python and the worker
+    // threads have not been started yet.
     unsafe { std::env::set_var("PYTHONPATH", &tmpdir) };
 
     std::thread::scope(|s| {

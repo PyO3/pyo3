@@ -1608,6 +1608,11 @@ fn generate_method_body(
             let (arg_convert, args) = impl_arg_params(spec, Some(cls), false, holders, ctx);
             let args = self_arg.into_iter().chain(args);
             let call = quote_spanned! {*output_span=> #cls::#rust_name(#(#args),*) };
+            // tp_new receives `*mut PyTypeObject` as the first argument, but the
+            // receiver machinery expects `*mut PyObject`
+            let cast_receiver = matches!(spec.tp, FnType::FnClass(_)).then(|| {
+                quote! { let _slf = _slf.cast::<#pyo3_path::ffi::PyObject>(); }
+            });
 
             // Use just the text_signature_call_signature() because the class' Python name
             // isn't known to `#[pymethods]` - that has to be attached at runtime from the PyClassImpl
@@ -1641,7 +1646,10 @@ fn generate_method_body(
                 #warnings
                 #arg_convert
 
-                let result = #call;
+                let result = {
+                    #cast_receiver
+                    #call
+                };
                 let #value = #pyo3_path::impl_::wrap::OkWrapper::new(&result).ok_wrap(result)?;
                 let #initializer = #resolver;
                 unsafe { #conversion }
