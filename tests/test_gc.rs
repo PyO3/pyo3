@@ -1172,7 +1172,7 @@ where
         // is scoped to the call below
         let visitor = unsafe { arg.cast::<F>().as_mut().unwrap() };
 
-        // SAFETY: vistor is called with a valid pointer to a PyObject, and `traverse_object` is
+        // SAFETY: visitor is called with a valid pointer to a PyObject, and `traverse_object` is
         // called with an attached thread state. (Note that this is unlike true GC which has no,
         // thread state, but this does not materially affect these tests.)
         let obj = unsafe { Borrowed::from_ptr(Python::assume_attached(), obj) };
