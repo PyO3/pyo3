@@ -28,7 +28,6 @@ use std::panic::catch_unwind;
 
 use super::pyclass::PyClassImpl;
 use super::trampoline;
-use crate::internal_tricks::{clear_eq, traverse_eq};
 
 /// `PyMethodDefType` represents different types of Python callable objects.
 /// It is used by the `#[pymethods]` attribute.
@@ -501,6 +500,11 @@ unsafe fn call_super_traverse(
     Ok(())
 }
 
+fn traverse_eq(f: Option<ffi::traverseproc>, g: ffi::traverseproc) -> bool {
+    let Some(f) = f else { return false };
+    core::ptr::fn_addr_eq(f, g)
+}
+
 /// Calls an implementation of __clear__ for tp_clear
 pub unsafe fn _call_clear<T>(
     slf: *mut ffi::PyObject,
@@ -589,6 +593,11 @@ unsafe fn call_super_clear(
 
     // FIXME same question as cython: what if the current type is not in the MRO?
     0
+}
+
+fn clear_eq(f: Option<ffi::inquiry>, g: ffi::inquiry) -> bool {
+    let Some(f) = f else { return false };
+    core::ptr::fn_addr_eq(f, g)
 }
 
 // `__next__` and `__anext__` may say "iteration is over" by returning `None`, written either as

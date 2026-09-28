@@ -272,8 +272,6 @@ pub mod pyo3_build_script_impl {
     /// Detects features which `pyo3` and `pyo3-ffi` depend upon internally, and prints the appropriate
     /// `cargo:rustc-cfg` and `cargo:rustc-check-cfg` directives to enable them.
     pub fn print_feature_cfgs() {
-        print_feature_cfg(84, "const_is_null");
-        print_feature_cfg(85, "fn_ptr_eq");
         print_feature_cfg(86, "from_bytes_with_nul_error");
         print_feature_cfg(95, "cfg_select");
     }

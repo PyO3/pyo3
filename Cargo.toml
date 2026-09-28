@@ -210,7 +210,7 @@ repository = "https://github.com/pyo3/pyo3"
 categories = ["api-bindings", "development-tools::ffi"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.83"
+rust-version = "1.85"
 
 [package.metadata.docs.rs]
 no-default-features = true

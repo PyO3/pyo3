@@ -1275,51 +1275,21 @@ def check_changelog(session: nox.Session):
 
 @nox.session(name="set-msrv-package-versions", venv_backend="none")
 def set_msrv_package_versions(session: nox.Session):
-    from collections import defaultdict
-
     projects = (
         PYO3_DIR,
         *(Path(p).parent for p in glob("examples/*/Cargo.toml")),
         *(Path(p).parent for p in glob("pyo3-ffi/examples/*/Cargo.toml")),
     )
-    min_pkg_versions = {}
 
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
     for project in projects:
         _run_cargo(
             session,
-            "+stable",
             "update",
             f"--manifest-path={project}/Cargo.toml",
             env=os.environ | {"CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS": "fallback"},
         )
-
-        lock_file = project / "Cargo.lock"
-
-        def load_pkg_versions():
-            cargo_lock = toml.loads(lock_file.read_text())  # noqa: B023
-            # Cargo allows to depends on multiple versions of the same package
-            pkg_versions = defaultdict(list)
-            for pkg in cargo_lock["package"]:
-                name = pkg["name"]
-                if name not in min_pkg_versions:
-                    continue
-                pkg_versions[name].append(pkg["version"])
-            return pkg_versions
-
-        pkg_versions = load_pkg_versions()
-        for pkg_name, min_version in min_pkg_versions.items():
-            versions = pkg_versions.get(pkg_name, [])
-            for version in versions:
-                if version != min_version:
-                    pkg_id = pkg_name + ":" + version
-                    _run_cargo_set_package_version(
-                        session, pkg_id, min_version, project=project
-                    )
-                    # assume `_run_cargo_set_package_version` has changed something
-                    # and re-read `Cargo.lock`
-                    pkg_versions = load_pkg_versions()
 
         # As a smoke test, cargo metadata solves all dependencies, so
         # will break if any crates rely on cargo features not
@@ -2011,19 +1981,6 @@ def _run_cargo_test(
             test_env["PATH"] = os.pathsep.join((str(abi3t_compat), path))
 
     _run(session, *command, external=True, env=test_env)
-
-
-def _run_cargo_set_package_version(
-    session: nox.Session,
-    pkg_id: str,
-    version: str,
-    *,
-    project: str | None = None,
-) -> None:
-    command = ["cargo", "update", "-p", pkg_id, "--precise", version, "--workspace"]
-    if project:
-        command.append(f"--manifest-path={project}/Cargo.toml")
-    _run(session, *command, external=True)
 
 
 class Job(Protocol):

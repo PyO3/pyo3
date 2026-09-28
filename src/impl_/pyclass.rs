@@ -1501,6 +1501,7 @@ impl ConvertField<false> {
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
+    use crate::impl_::pymethods::Getter;
     #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     use crate::pycell::impl_::PyClassObjectContents;
 
@@ -1602,15 +1603,10 @@ mod tests {
         assert_eq!(def.name, c"my_field");
         assert_eq!(def.doc, Some(c"My field doc"));
 
-        #[cfg(fn_ptr_eq)]
-        {
-            use crate::impl_::pymethods::Getter;
-
-            assert!(core::ptr::fn_addr_eq(
-                def.meth,
-                pyo3_get_value_into_pyobject_ref::<MyClass, i32, FIELD_OFFSET> as Getter
-            ));
-        }
+        assert!(core::ptr::fn_addr_eq(
+            def.meth,
+            pyo3_get_value_into_pyobject_ref::<MyClass, i32, FIELD_OFFSET> as Getter
+        ));
 
         // generate for a field via `IntoPyObject` + `Clone`
         // SAFETY: offset is correct
@@ -1623,15 +1619,10 @@ mod tests {
         assert_eq!(def.name, c"my_field");
         assert_eq!(def.doc, Some(c"My field doc"));
 
-        #[cfg(fn_ptr_eq)]
-        {
-            use crate::impl_::pymethods::Getter;
-
-            assert!(core::ptr::fn_addr_eq(
-                def.meth,
-                pyo3_get_value_into_pyobject::<MyClass, String, FIELD_OFFSET> as Getter
-            ));
-        }
+        assert!(core::ptr::fn_addr_eq(
+            def.meth,
+            pyo3_get_value_into_pyobject::<MyClass, String, FIELD_OFFSET> as Getter
+        ));
     }
 
     #[test]
@@ -1688,14 +1679,9 @@ mod tests {
         assert_eq!(def.name, c"my_field");
         assert_eq!(def.doc, Some(c"My field doc"));
 
-        #[cfg(fn_ptr_eq)]
-        {
-            use crate::impl_::pymethods::Getter;
-
-            assert!(core::ptr::fn_addr_eq(
-                def.meth,
-                pyo3_get_value_into_pyobject_ref::<MyClass, Py<PyAny>, FIELD_OFFSET> as Getter
-            ));
-        }
+        assert!(core::ptr::fn_addr_eq(
+            def.meth,
+            pyo3_get_value_into_pyobject_ref::<MyClass, Py<PyAny>, FIELD_OFFSET> as Getter
+        ));
     }
 }

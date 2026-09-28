@@ -441,7 +441,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             value: Borrowed<'_, '_, PyAny>,
             py: Python<'py>,
         ) -> PyResult<(bool, Bound<'py, PyAny>)> {
-            let mut result = core::ptr::NonNull::dangling().as_ptr();
+            let mut result = core::ptr::dangling_mut();
             let code = setdefault_result_from_nonerror_return_code(
                 err::error_on_minusone_with_result(dict.py(), unsafe {
                     ffi::compat::PyDict_SetDefaultRef(
