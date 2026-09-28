@@ -823,7 +823,7 @@ pub trait PyAnyMethods<'py>: crate::sealed::Sealed {
 }
 
 macro_rules! implement_binop {
-    ($name:ident, $c_api:ident, $op:expr_2021) => {
+    ($name:ident, $c_api:ident, $op:expr) => {
         #[doc = concat!("Computes `self ", $op, " other`.")]
         fn $name<O>(&self, other: O) -> PyResult<Bound<'py, PyAny>>
         where

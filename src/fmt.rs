@@ -41,7 +41,7 @@ use {
 /// ```
 #[macro_export]
 macro_rules! py_format {
-    ($py: expr_2021, $($arg:tt)*) => {{
+    ($py: expr, $($arg:tt)*) => {{
         if let Some(static_string) = format_args!($($arg)*).as_str() {
             static INTERNED: $crate::sync::PyOnceLock<$crate::Py<$crate::types::PyString>> = $crate::sync::PyOnceLock::new();
             Ok($crate::Bound::clone(

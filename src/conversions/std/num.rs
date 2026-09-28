@@ -69,11 +69,11 @@ macro_rules! int_fits_larger_int {
 }
 
 macro_rules! extract_int {
-    ($obj:ident, $error_val:expr_2021, $pylong_as:expr_2021) => {
+    ($obj:ident, $error_val:expr, $pylong_as:expr) => {
         extract_int!($obj, $error_val, $pylong_as, false)
     };
 
-    ($obj:ident, $error_val:expr_2021, $pylong_as:expr_2021, $force_index_call: literal) => {
+    ($obj:ident, $error_val:expr, $pylong_as:expr, $force_index_call: literal) => {
         // `PyLong_AsLong` and friends take care of calling `PyNumber_Index`,
         // however 3.9 does lossy conversion of floats, hence we only use the
         // simplest logic for 3.10+ where that was fixed - python/cpython#82180.
@@ -94,7 +94,7 @@ macro_rules! extract_int {
 }
 
 macro_rules! int_convert_u64_or_i64 {
-    ($rust_type:ty, $pylong_from_ll_or_ull:expr_2021, $pylong_as_ll_or_ull:expr_2021, $force_index_call:literal) => {
+    ($rust_type:ty, $pylong_from_ll_or_ull:expr, $pylong_as_ll_or_ull:expr, $force_index_call:literal) => {
         impl<'py> IntoPyObject<'py> for $rust_type {
             type Target = PyInt;
             type Output = Bound<'py, Self::Target>;

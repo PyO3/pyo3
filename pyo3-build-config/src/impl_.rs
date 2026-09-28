@@ -592,7 +592,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
     /// interpreter metadata in sysconfigdata and does not depend on cargo features.
     pub fn from_sysconfigdata(sysconfigdata: &Sysconfigdata) -> Result<Self> {
         macro_rules! get_key {
-            ($sysconfigdata:expr_2021, $key:literal) => {
+            ($sysconfigdata:expr, $key:literal) => {
                 $sysconfigdata
                     .get_value($key)
                     .ok_or(concat!($key, " not found in sysconfigdata file"))
@@ -600,7 +600,7 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
         }
 
         macro_rules! parse_key {
-            ($sysconfigdata:expr_2021, $key:literal) => {
+            ($sysconfigdata:expr, $key:literal) => {
                 get_key!($sysconfigdata, $key)?
                     .parse()
                     .context(concat!("could not parse value of ", $key))
