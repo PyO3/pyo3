@@ -796,10 +796,10 @@ mod rwlock_ext_sealed {
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 mod mutex_trait_sealed {
-    pub trait Sealed {}
+    pub trait Sealed<T: ?Sized> {}
     #[cfg(wip_feature_std)]
-    impl<T: ?Sized> Sealed for super::mutex::PyMutex<T> {}
-    impl<T: ?Sized> Sealed for super::nonpoison::PyMutex<T> {}
+    impl<T: ?Sized> Sealed<T> for super::mutex::PyMutex<T> {}
+    impl<T: ?Sized> Sealed<T> for super::nonpoison::PyMutex<T> {}
 }
 
 /// Trait for mutex types used in [`critical_section`] API.
@@ -808,7 +808,7 @@ mod mutex_trait_sealed {
 #[cfg_attr(wip_feature_std, doc = "- [`PyMutex`]")]
 /// - [`nonpoison::PyMutex`]
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
-pub trait PyMutexTrait<T: ?Sized>: mutex_trait_sealed::Sealed {
+pub trait PyMutexTrait<T: ?Sized>: mutex_trait_sealed::Sealed<T> {
     /// # Safety
     /// This function may not be called from outside of PyO3
     #[doc(hidden)]
