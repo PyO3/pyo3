@@ -2,7 +2,7 @@
 name = "string_sum"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.83"
+rust-version = "1.85"
 
 [lib]
 name = "string_sum"
