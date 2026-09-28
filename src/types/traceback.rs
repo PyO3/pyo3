@@ -80,7 +80,7 @@ pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
     /// The following code formats a Python traceback and exception pair from Rust:
     ///
     /// ```rust
-    /// # use pyo3::{Python, PyResult, prelude::PyTracebackMethods, ffi::c_str};
+    /// # use pyo3::{Python, PyResult, prelude::PyTracebackMethods};
     /// # let result: PyResult<()> =
     /// Python::attach(|py| {
     ///     let err = py
