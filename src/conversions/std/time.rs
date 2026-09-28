@@ -11,7 +11,6 @@ use crate::type_object::PyTypeInfo;
 #[cfg(wip_feature_std)]
 use crate::types::any::PyAnyMethods;
 use crate::types::PyDelta;
-#[cfg(not(Py_LIMITED_API))]
 use crate::types::PyDeltaAccess;
 #[cfg(wip_feature_std)]
 use crate::types::{PyDateTime, PyTzInfo};
@@ -32,34 +31,15 @@ impl FromPyObject<'_, '_> for Duration {
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let delta = obj.cast::<PyDelta>()?;
-        #[cfg(not(Py_LIMITED_API))]
-        let (days, seconds, microseconds) = {
-            (
-                delta.get_days(),
-                delta.get_seconds(),
-                delta.get_microseconds(),
-            )
-        };
-        #[cfg(Py_LIMITED_API)]
-        let (days, seconds, microseconds): (i32, i32, i32) = {
-            use crate::intern;
-            use crate::types::any::PyAnyMethods;
-            let py = delta.py();
-            (
-                delta.getattr(intern!(py, "days"))?.extract()?,
-                delta.getattr(intern!(py, "seconds"))?.extract()?,
-                delta.getattr(intern!(py, "microseconds"))?.extract()?,
-            )
-        };
 
         // We cast
-        let days = u64::try_from(days).map_err(|_| {
+        let days = u64::try_from(delta.get_days()).map_err(|_| {
             PyValueError::new_err(
                 "It is not possible to convert a negative timedelta to a Rust Duration",
             )
         })?;
-        let seconds = u64::try_from(seconds).unwrap(); // 0 <= seconds < 3600*24
-        let microseconds = u32::try_from(microseconds).unwrap(); // 0 <= microseconds < 1000000
+        let seconds = u64::try_from(delta.get_seconds()).unwrap(); // 0 <= seconds < 3600*24
+        let microseconds = u32::try_from(delta.get_microseconds()).unwrap(); // 0 <= microseconds < 1000000
 
         // We convert
         let total_seconds = days * SECONDS_PER_DAY + seconds; // We casted from i32, this can't overflow
