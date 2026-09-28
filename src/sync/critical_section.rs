@@ -636,4 +636,12 @@ mod tests {
                 || (&*v1, &*v2) == (&expected2_vec1, &expected2_vec2)
         );
     }
+
+    #[test]
+    fn test_deref_cercion_compiles() {
+        Python::attach(|py| {
+            let mutex = alloc::sync::Arc::new(PyMutex::<i32>::new(0));
+            with_critical_section_mutex(py, &mutex, |_| ());
+        });
+    }
 }
