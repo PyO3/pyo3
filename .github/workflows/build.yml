@@ -42,7 +42,6 @@ jobs:
       # installs using setup-python do not work for arm macOS 3.9 and below
       - if: ${{ !(inputs.os == 'macos-latest' && contains(fromJSON('["3.8", "3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64') }}
         name: Set up Python ${{ inputs.python-version }}
-        id: setup-python
         uses: actions/setup-python@v7
         with:
           python-version: ${{ inputs.python-version }}
@@ -50,11 +49,18 @@ jobs:
           check-latest: true
 
       - name: Install zoneinfo backport for Python 3.8
-        id: zoneinfo-backport
         if: inputs.python-version == '3.8'
         run: |
           python -m pip install backports.zoneinfo
-          python -c "import os, site; open(os.environ['GITHUB_OUTPUT'], 'a').write(f'pythonpath={site.getsitepackages()[0]}\n')"
+          python -c "
+          import os
+          import site
+          import sys
+
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              env.write(f'PYO3_PYTHON={sys.executable}\n')
+              env.write(f'PYTHONPATH={site.getsitepackages()[0]}\n')
+          "
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -122,9 +128,6 @@ jobs:
 
       - name: Run Rust tests
         run: uvx nox -s test-rust
-        env:
-          PYO3_PYTHON: ${{ steps.setup-python.outputs.python-path || 'python' }}
-          PYTHONPATH: ${{ steps.zoneinfo-backport.outputs.pythonpath }}
 
       - name: Test python examples and tests
         shell: bash
