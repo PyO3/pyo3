@@ -11,7 +11,7 @@ use crate::module::SEQUENTIAL_SLOTS;
 #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn PyInit_sequential() -> *mut PyObject {
-    PyModuleDef_Init(&raw mut MODULE_DEF)
+    unsafe { PyModuleDef_Init(&raw mut MODULE_DEF) }
 }
 
 #[cfg(Py_3_15)]

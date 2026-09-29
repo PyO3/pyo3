@@ -1,11 +1,11 @@
-use core::ffi::{c_char, CStr};
+use core::ffi::CStr;
 use core::ptr;
 use std::thread;
 
 use pyo3_ffi::*;
 use sequential::PyInit_sequential;
 
-static COMMAND: &'static CStr= c"
+static COMMAND: &'static CStr = c"
 from sequential import Id
 
 s = sum(int(Id()) for _ in range(12))
@@ -99,18 +99,20 @@ fn lets_go_fast() -> Result<(), String> {
 }
 
 unsafe fn fetch() -> String {
-    let err = PyErr_GetRaisedException();
-    let err_repr = PyObject_Str(err);
+    let err = unsafe { PyErr_GetRaisedException() };
+    let err_repr = unsafe { PyObject_Str(err) };
     if !err_repr.is_null() {
         let mut size = 0;
-        let p = PyUnicode_AsUTF8AndSize(err_repr, &mut size);
+        let p = unsafe { PyUnicode_AsUTF8AndSize(err_repr, &mut size) };
         if !p.is_null() {
-            let s = std::str::from_utf8_unchecked(std::slice::from_raw_parts(
-                p.cast::<u8>(),
-                size as usize,
-            ));
+            let s = unsafe {
+                std::str::from_utf8_unchecked(std::slice::from_raw_parts(
+                    p.cast::<u8>(),
+                    size as usize,
+                ))
+            };
             let s = String::from(s);
-            Py_DECREF(err_repr);
+            unsafe { Py_DECREF(err_repr) };
             return s;
         }
     }
