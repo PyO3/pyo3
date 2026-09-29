@@ -11,6 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
   UV_PYTHON: "3.14t"
 
 jobs:
@@ -28,9 +30,10 @@ jobs:
         with:
           python-version: ${{ env.UV_PYTHON }}
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rust-src
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update --component rust-src
+          rustup default stable
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
