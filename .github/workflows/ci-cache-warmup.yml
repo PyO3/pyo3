@@ -77,7 +77,7 @@ jobs:
       rust-target: ${{ matrix.platform.rust-target }}
     strategy:
       matrix:
-        fust: [stable]
+        rust: [stable]
         python-version:
           [
             "3.9",
