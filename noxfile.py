@@ -1080,9 +1080,7 @@ def _format_ffi_extern(session: nox.Session, *, check: bool = False):
 
     # Run rustfmt on the modified files
     try:
-        _run(
-            session, "rustfmt", "--edition", "2021", *[str(f) for f in files_to_format]
-        )
+        _run(session, "rustfmt", *[str(f) for f in files_to_format])
     except Exception:
         # Restore originals on failure
         for path, content in originals.items():
