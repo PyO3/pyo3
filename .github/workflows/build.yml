@@ -27,6 +27,8 @@ on:
         default: false
 
 env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
   NOX_DEFAULT_VENV_BACKEND: uv
   UV_CONSTRAINT: ${{ github.workspace }}/.github/uv-constraints.txt
 
@@ -56,12 +58,14 @@ jobs:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ inputs.rust }}
-          targets: ${{ inputs.rust-target }}
+        shell: bash
+        env:
+          RUST_TOOLCHAIN: ${{ inputs.rust }}
+          RUST_TARGET: ${{ inputs.rust-target }}
+        run: |
           # rust-src needed to correctly format errors, see #1865
-          components: rust-src
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --no-self-update --component rust-src --target "$RUST_TARGET" --allow-downgrade
+          rustup default "$RUST_TOOLCHAIN"
 
       # On windows 32 bit, we are running on an x64 host, so we need to specifically set the target
       # NB we don't do this for *all* jobs because it breaks coverage of proc macros to have an
