@@ -9,6 +9,10 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+
 jobs:
   resolve:
     runs-on: ubuntu-latest
