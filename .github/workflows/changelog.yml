@@ -14,4 +14,6 @@ jobs:
         with:
           python-version: '3.14'
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s check-changelog
