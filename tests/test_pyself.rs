@@ -34,7 +34,7 @@ impl Reader {
         }
     }
     fn get_iter_and_reset(
-        mut slf: PyRefMut<'_, Self>,
+        mut slf: PyClassGuardMut<'_, Self>,
         keys: Py<PyBytes>,
         py: Python<'_>,
     ) -> PyResult<Iter> {
@@ -59,16 +59,15 @@ struct Iter {
 #[pymethods]
 impl Iter {
     #[expect(clippy::self_named_constructors)]
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<Py<PyAny>>> {
-        let bytes = slf.keys.bind(slf.py()).as_bytes();
+    fn __next__(mut slf: PyClassGuardMut<'_, Self>, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        let bytes = slf.keys.bind(py).as_bytes();
         match bytes.get(slf.idx) {
             Some(&b) => {
                 slf.idx += 1;
-                let py = slf.py();
                 let reader = slf.reader.bind(py);
                 let reader_ref = reader.try_borrow()?;
                 let res = reader_ref

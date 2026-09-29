@@ -66,7 +66,7 @@ impl PyClassOptionIter {
         Default::default()
     }
 
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
@@ -94,7 +94,7 @@ impl PyClassResultOptionIter {
         Default::default()
     }
 
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __iter__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
@@ -123,7 +123,7 @@ impl PyClassOptionAsyncIter {
         Default::default()
     }
 
-    fn __aiter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __aiter__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
@@ -385,7 +385,7 @@ impl Number {
         Self(self.0 ^ other.0)
     }
 
-    fn __pos__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __pos__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
@@ -397,7 +397,7 @@ impl Number {
         }
     }
 
-    fn __abs__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+    fn __abs__(slf: PyClassGuard<'_, Self>) -> PyClassGuard<'_, Self> {
         slf
     }
 
