@@ -9,7 +9,10 @@ use crate::{
     Py,
 };
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
-use crate::{types::PyFrame, PyTypeCheck, Python};
+use crate::{
+    types::{PyFrame, PyFrameMethods},
+    BoundObject, IntoPyObject, PyTypeCheck, Python,
+};
 
 /// Represents a Python traceback.
 ///
@@ -61,6 +64,27 @@ impl PyTraceback {
                 .cast_into_unchecked())
         }
     }
+
+    /// Creates a new traceback object from an iterator of frames.
+    ///
+    /// The frames should be ordered from newest to oldest, i.e. the first frame in the iterator
+    /// will be the innermost frame in the traceback.
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+    pub fn from_frames<'py, I>(
+        py: Python<'py>,
+        start: Option<Bound<'py, PyTraceback>>,
+        frames: I,
+    ) -> PyResult<Option<Bound<'py, PyTraceback>>>
+    where
+        I: IntoIterator,
+        I::Item: IntoPyObject<'py, Target = PyFrame>,
+    {
+        frames.into_iter().try_fold(start, |prev, frame| {
+            let frame = frame.into_pyobject(py).map_err(Into::into)?.into_bound();
+            let line_number = frame.line_number();
+            PyTraceback::new(py, prev, frame, 0, line_number).map(Some)
+        })
+    }
 }
 
 /// Implementation of functionality for [`PyTraceback`].
@@ -88,14 +112,9 @@ pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
     ///         .expect_err("raise will create a Python error");
     ///
     ///     let traceback = err.traceback(py).expect("raised exception will have a traceback");
-    ///     assert_eq!(
-    ///         format!("{}{}", traceback.format()?, err),
-    ///         "\
-    /// Traceback (most recent call last):
-    ///   File \"<string>\", line 1, in <module>
-    /// Exception: banana\
-    /// "
-    ///     );
+    ///     let formatted = traceback.format()?;
+    ///     assert!(formatted.starts_with("Traceback (most recent call last):\n"));
+    ///     assert!(formatted.contains("File \"<string>\", line 1, in <module>"));
     ///     Ok(())
     /// })
     /// # ;
@@ -139,10 +158,9 @@ mod tests {
                 .run(c"raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
 
-            assert_eq!(
-                err.traceback(py).unwrap().format().unwrap(),
-                "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n"
-            );
+            let traceback = err.traceback(py).unwrap().format().unwrap();
+            assert!(traceback.starts_with("Traceback (most recent call last):\n"));
+            assert!(traceback.contains("File \"<string>\", line 1, in <module>"));
         })
     }
 
@@ -213,6 +231,120 @@ def f():
             .unwrap();
             assert_eq!(
                 traceback.format().unwrap(), "Traceback (most recent call last):\n  File \"file1.py\", line 10, in func1\n  File \"file2.py\", line 20, in func2\n"
+            );
+        })
+    }
+
+    #[test]
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+    fn test_insert_traceback() {
+        Python::attach(|py| {
+            // Error happens in rust, so rust frames are created first.
+            let rust_traceback = PyTraceback::from_frames(
+                py,
+                None,
+                [
+                    PyFrame::new(py, c"rust2.rs", c"func2", 22).unwrap(),
+                    PyFrame::new(py, c"rust1.rs", c"func1", 11).unwrap(),
+                ],
+            )
+            .unwrap()
+            .unwrap();
+
+            // Stacktrace where python calls into rust
+            let traceback = PyTraceback::from_frames(
+                py,
+                Some(rust_traceback),
+                [
+                    PyFrame::new(py, c"file2.py", c"func2", 20).unwrap(),
+                    PyFrame::new(py, c"file1.py", c"func1", 10).unwrap(),
+                ],
+            )
+            .unwrap()
+            .unwrap();
+
+            assert_eq!(
+                traceback.format().unwrap(),
+                r#"Traceback (most recent call last):
+  File "file1.py", line 10, in func1
+  File "file2.py", line 20, in func2
+  File "rust1.rs", line 11, in func1
+  File "rust2.rs", line 22, in func2
+"#
+            );
+        })
+    }
+
+    #[test]
+    #[cfg(all(debug_assertions, Py_3_12, not(Py_LIMITED_API), feature = "macros"))]
+    fn test_rust_frames_in_backtrace() {
+        #[crate::pyfunction(crate = "crate")]
+        fn produce_err_result() -> PyResult<()> {
+            Err(crate::exceptions::PyValueError::new_err("Error result"))
+        }
+
+        Python::attach(|py| {
+            let func = crate::wrap_pyfunction!(produce_err_result)(py).unwrap();
+            let globals = PyDict::new(py);
+            globals.set_item("func", func).unwrap();
+
+            let err = py
+                .run(
+                    c"def python_func():\n  func()\n\npython_func()",
+                    Some(&globals),
+                    None,
+                )
+                .unwrap_err();
+
+            let traceback = err.traceback(py).unwrap();
+            globals.set_item("tb", traceback).unwrap();
+            let frame_summaries = py
+                .eval(
+                    c"[(frame.filename, frame.name) for frame in __import__('traceback').extract_tb(tb)]",
+                    Some(&globals),
+                    Some(&globals),
+                )
+                .unwrap()
+                .extract::<Vec<(String, String)>>()
+                .unwrap();
+
+            let python_frame_index = frame_summaries
+                .iter()
+                .position(|(_, name)| name == "python_func")
+                .expect("Traceback should contain the python function");
+
+            let test_frame_index = frame_summaries
+                .iter()
+                .position(|(_, name)| name.contains("test_rust_frames_in_backtrace"))
+                .expect("Traceback should contain the test frame");
+
+            let produce_err_result_frame_index = frame_summaries
+                .iter()
+                .position(|(_, name)| name.contains("produce_err_result"))
+                .expect("Traceback should contain the produce_err_result frame");
+
+            assert!(
+                frame_summaries[..python_frame_index]
+                    .iter()
+                    .any(|(filename, _)| filename.ends_with(".rs")),
+                "Traceback should contain rust frames before python frames"
+            );
+
+            assert!(
+                frame_summaries[python_frame_index + 1..]
+                    .iter()
+                    .any(|(filename, _)| filename.ends_with(".rs")),
+                "Traceback should contain rust frames after python frames"
+            );
+
+            assert!(
+                test_frame_index < python_frame_index,
+                "Traceback should place the test frame before python_func"
+            );
+
+            assert!(
+                python_frame_index < produce_err_result_frame_index,
+                "Traceback should place produce_err_result after python_func"
             );
         })
     }

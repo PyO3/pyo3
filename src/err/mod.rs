@@ -25,6 +25,8 @@ use crate::{BoundObject, Py, PyAny, Python};
 use core::convert::Infallible;
 use core::ffi::CStr;
 use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
+#[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+use {crate::types::PyFrame, std::ffi::CString};
 
 mod cast_error;
 mod err_state;
@@ -129,10 +131,27 @@ impl PyErr {
         T: PyTypeInfo,
         A: PyErrArguments + Send + Sync + 'static,
     {
+        #[cfg(all(
+            debug_assertions,
+            Py_3_12,
+            not(Py_LIMITED_API),
+            not(PyPy),
+            not(GraalPy)
+        ))]
+        let backtrace = backtrace::Backtrace::new_unresolved();
+
         PyErr::from_state(PyErrState::lazy(Box::new(move |py| {
             PyErrStateLazyFnOutput {
                 ptype: T::type_object(py).into(),
                 pvalue: args.arguments(py),
+                #[cfg(all(
+                    debug_assertions,
+                    Py_3_12,
+                    not(Py_LIMITED_API),
+                    not(PyPy),
+                    not(GraalPy)
+                ))]
+                backtrace,
             }
         })))
     }
@@ -292,7 +311,24 @@ impl PyErr {
             Self::print_panic_and_unwind(py, state)
         }
 
-        Some(PyErr::from_state(PyErrState::normalized(state)))
+        let err = PyErr::from_state(PyErrState::normalized(state));
+
+        #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+        {
+            let mut backtrace = backtrace::Backtrace::new();
+            if let Some(traceback) = PyTraceback::from_frames(
+                py,
+                err.traceback(py),
+                backtrace_to_frames(py, &mut backtrace),
+            )
+            .ok()
+            .flatten()
+            {
+                err.set_traceback(py, Some(traceback));
+            }
+        }
+
+        Some(err)
     }
 
     #[cfg(wip_feature_std)]
@@ -725,6 +761,49 @@ impl<'py> IntoPyObject<'py> for PyErr {
     }
 }
 
+#[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+fn backtrace_to_frames<'py, 'a>(
+    py: Python<'py>,
+    backtrace: &'a mut backtrace::Backtrace,
+) -> impl Iterator<Item = Bound<'py, PyFrame>> + use<'py, 'a> {
+    backtrace.resolve();
+    backtrace
+        .frames()
+        .iter()
+        .flat_map(|frame| frame.symbols())
+        .map(|symbol| (symbol.name().map(|name| format!("{name:#}")), symbol))
+        .skip_while(|(name, _)| {
+            if cfg!(any(target_vendor = "apple", windows)) {
+                // On Apple & Windows platforms, backtrace is not able to remove internal frames
+                // from the backtrace, so we need to skip them manually here.
+                name.as_ref()
+                    .map(|name| name.contains("backtrace::"))
+                    .unwrap_or(true)
+            } else {
+                false
+            }
+        })
+        // The first frame is always the capture function, so skip it.
+        .skip(1)
+        .take_while(|(name, _)| {
+            name.as_ref()
+                .map(|name| {
+                    !(name.starts_with("pyo3::impl_::trampoline::")
+                        || name.contains("__rust_begin_short_backtrace"))
+                })
+                .unwrap_or(true)
+        })
+        .filter_map(move |(name, symbol)| {
+            let file =
+                CString::new(symbol.filename()?.as_os_str().to_string_lossy().as_ref()).ok()?;
+
+            let function = CString::new(name.as_deref().unwrap_or("<unknown>")).ok()?;
+            let line = symbol.lineno()?;
+
+            PyFrame::new(py, &file, &function, line as _).ok()
+        })
+}
+
 impl<'py> IntoPyObject<'py> for &PyErr {
     type Target = PyBaseException;
     type Output = Bound<'py, Self::Target>;
@@ -904,20 +983,14 @@ mod tests {
 
             let debug_str = format!("{err:?}");
             assert!(debug_str.starts_with("PyErr { "));
-            assert!(debug_str.ends_with(" }"));
-
-            // Strip "PyErr { " and " }". Split into 3 substrings to separate type,
-            // value, and traceback while not splitting the string within traceback.
-            let mut fields = debug_str["PyErr { ".len()..debug_str.len() - 2].splitn(3, ", ");
-
-            assert_eq!(fields.next().unwrap(), "type: <class 'Exception'>");
-            assert_eq!(fields.next().unwrap(), "value: Exception('banana')");
-            assert_eq!(
-                fields.next().unwrap(),
-                "traceback: Some(\"Traceback (most recent call last):\\n  File \\\"<string>\\\", line 1, in <module>\\n\")"
+            assert!(debug_str.contains("type: <class 'Exception'>"));
+            assert!(debug_str.contains("value: Exception('banana')"));
+            assert!(debug_str.contains("traceback: Some(\"Traceback (most recent call last):"));
+            assert!(
+                debug_str.contains("File \\\"<string>\\\", line 1, in <module>"),
+                "debug traceback should contain the Python frame"
             );
-
-            assert!(fields.next().is_none());
+            assert!(debug_str.ends_with(" }"));
         });
     }
 
