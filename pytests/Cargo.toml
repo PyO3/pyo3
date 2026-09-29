@@ -3,7 +3,7 @@ authors = ["PyO3 Authors"]
 name = "pyo3-pytests"
 version = "0.1.0"
 description = "Python-based tests for PyO3"
-edition = "2021"
+edition = "2024"
 publish = false
 rust-version = "1.85"
 

@@ -128,7 +128,7 @@ Also, make sure that the crate type is `cdylib` and add PyO3 as a dependency as 
 name = "pyo3_start"
 # these are good defaults:
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
 # The name of the native library. This is the name which will be used in Python to import the

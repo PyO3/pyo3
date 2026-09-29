@@ -341,9 +341,9 @@ impl PyCapsule {
     /// use core::ptr::NonNull;
     ///
     /// unsafe extern "C" fn free_data(capsule: *mut pyo3::ffi::PyObject) {
-    ///     let ptr = pyo3::ffi::PyCapsule_GetPointer(capsule, c"my_module.data".as_ptr());
+    ///     let ptr = unsafe { pyo3::ffi::PyCapsule_GetPointer(capsule, c"my_module.data".as_ptr()) };
     ///     if !ptr.is_null() {
-    ///         drop(Box::from_raw(ptr as *mut u32));
+    ///         unsafe { drop(Box::from_raw(ptr as *mut u32)) };
     ///     }
     /// }
     ///

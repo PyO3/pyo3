@@ -290,9 +290,8 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let class_method_receiver = match class_method_receiver {
-                    // `#slf` is `*mut PyTypeObject` for class methods
                     ClassMethodReceiver::Class => quote_spanned! { *span =>
-                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
+                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf)
                             .cast_unchecked::<#pyo3_path::types::PyType>()
                     },
                     // `#slf` is `*mut PyObject` for instance methods - need to get an
@@ -345,7 +344,7 @@ impl FnType {
                 let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion, reason = "`pass_module` accepts anything which implements `From<&Bound<PyModule>>`")]
                     ::core::convert::Into::into(
-                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
+                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf)
                             .cast_unchecked::<#pyo3_path::types::PyModule>()
                     )
                 };

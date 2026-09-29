@@ -63,33 +63,32 @@ impl PyFunctionArgPyO3Attributes {
             cancel_handle: None,
         };
         take_attributes(attrs, |attr| {
-            if let Some(pyo3_attrs) = get_pyo3_options(attr)? {
-                for attr in pyo3_attrs {
-                    match attr {
-                        PyFunctionArgPyO3Attribute::FromPyWith(from_py_with) => {
-                            ensure_spanned!(
-                                attributes.from_py_with.is_none(),
-                                from_py_with.span() => "`from_py_with` may only be specified once per argument"
-                            );
-                            attributes.from_py_with = Some(from_py_with);
-                        }
-                        PyFunctionArgPyO3Attribute::CancelHandle(cancel_handle) => {
-                            ensure_spanned!(
-                                attributes.cancel_handle.is_none(),
-                                cancel_handle.span() => "`cancel_handle` may only be specified once per argument"
-                            );
-                            attributes.cancel_handle = Some(cancel_handle);
-                        }
+            let Some(pyo3_attrs) = get_pyo3_options(attr)? else {
+                return Ok(false);
+            };
+            for attr in pyo3_attrs {
+                match attr {
+                    PyFunctionArgPyO3Attribute::FromPyWith(from_py_with) => {
+                        ensure_spanned!(
+                            attributes.from_py_with.is_none(),
+                            from_py_with.span() => "`from_py_with` may only be specified once per argument"
+                        );
+                        attributes.from_py_with = Some(from_py_with);
                     }
-                    ensure_spanned!(
-                        attributes.from_py_with.is_none() || attributes.cancel_handle.is_none(),
-                        attributes.cancel_handle.unwrap().span() => "`from_py_with` and `cancel_handle` cannot be specified together"
-                    );
+                    PyFunctionArgPyO3Attribute::CancelHandle(cancel_handle) => {
+                        ensure_spanned!(
+                            attributes.cancel_handle.is_none(),
+                            cancel_handle.span() => "`cancel_handle` may only be specified once per argument"
+                        );
+                        attributes.cancel_handle = Some(cancel_handle);
+                    }
                 }
-                Ok(true)
-            } else {
-                Ok(false)
+                ensure_spanned!(
+                    attributes.from_py_with.is_none() || attributes.cancel_handle.is_none(),
+                    attributes.cancel_handle.unwrap().span() => "`from_py_with` and `cancel_handle` cannot be specified together"
+                );
             }
+            Ok(true)
         })?;
         Ok(attributes)
     }
