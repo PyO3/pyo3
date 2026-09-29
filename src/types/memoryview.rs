@@ -1,12 +1,12 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-use crate::{ffi, Bound, PyAny};
+use crate::{Bound, PyAny, ffi};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
 
 /// Represents a Python `memoryview`.

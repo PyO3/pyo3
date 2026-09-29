@@ -19,7 +19,7 @@ pub use crate::{PyClassGuard, PyClassGuardMut};
 
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{
-    pyclass, pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef,
+    FromPyObject, IntoPyObject, IntoPyObjectRef, pyclass, pyfunction, pymethods, pymodule,
 };
 
 #[cfg(feature = "macros")]

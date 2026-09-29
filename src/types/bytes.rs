@@ -4,7 +4,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 #[allow(unused_imports, reason = "used to build docs")]
 use crate::platform::prelude::*;
-use crate::{ffi, Py, PyAny, PyResult, Python};
+use crate::{Py, PyAny, PyResult, Python, ffi};
 #[cfg(RustPython)]
 use crate::{
     sync::PyOnceLock,
@@ -419,10 +419,12 @@ mod tests {
                 Err(PyValueError::new_err("Hello Crustaceans!"))
             });
             assert!(py_bytes_result.is_err());
-            assert!(py_bytes_result
-                .err()
-                .unwrap()
-                .is_instance_of::<PyValueError>(py));
+            assert!(
+                py_bytes_result
+                    .err()
+                    .unwrap()
+                    .is_instance_of::<PyValueError>(py)
+            );
         });
     }
 

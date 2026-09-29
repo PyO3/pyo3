@@ -52,9 +52,9 @@ use crate::platform::prelude::*;
 use crate::types::{PyAnyMethods, PyNone};
 use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
 use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
-use crate::{intern, Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python, intern};
 #[cfg(feature = "experimental-inspect")]
-use crate::{type_hint_identifier, PyTypeInfo};
+use crate::{PyTypeInfo, type_hint_identifier};
 use alloc::borrow::Cow;
 use jiff::civil::{Date, DateTime, ISOWeekDate, Time};
 use jiff::tz::{AmbiguousOffset, Offset, TimeZone};
@@ -571,7 +571,7 @@ impl From<jiff::Error> for PyErr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{types::PyTuple, BoundObject};
+    use crate::{BoundObject, types::PyTuple};
     use core::cmp::Ordering;
     use jiff::tz::Offset;
 
@@ -597,7 +597,10 @@ mod tests {
             let res = result.err().unwrap();
             // Also check the error message is what we expect
             let msg = res.value(py).repr().unwrap().to_string();
-            assert_eq!(msg, "TypeError(\"zoneinfo.ZoneInfo(key='Europe/London') is not a fixed offset timezone\")");
+            assert_eq!(
+                msg,
+                "TypeError(\"zoneinfo.ZoneInfo(key='Europe/London') is not a fixed offset timezone\")"
+            );
         });
     }
 
@@ -1063,8 +1066,8 @@ mod tests {
         use super::*;
         use crate::types::IntoPyDict;
         use alloc::ffi::CString;
-        use jiff::tz::TimeZoneTransition;
         use jiff::SpanRelativeTo;
+        use jiff::tz::TimeZoneTransition;
         use proptest::prelude::*;
 
         // This is to skip the test if we are creating an invalid date, like February 31.

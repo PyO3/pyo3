@@ -2,9 +2,9 @@
 
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::types::{PyAny, PyType};
-use crate::{ffi, Bound, Python};
+use crate::{Bound, Python, ffi};
 use core::ptr;
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.

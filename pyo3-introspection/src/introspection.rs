@@ -2,14 +2,14 @@ use crate::model::{
     Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator,
     VariableLengthArgument,
 };
-use anyhow::{anyhow, bail, ensure, Context, Result};
-use goblin::elf::section_header::SHN_XINDEX;
+use anyhow::{Context, Result, anyhow, bail, ensure};
+use goblin::Object;
 use goblin::elf::Elf;
+use goblin::elf::section_header::SHN_XINDEX;
 use goblin::mach::load_command::CommandVariant;
-use goblin::mach::symbols::{NO_SECT, N_SECT};
+use goblin::mach::symbols::{N_SECT, NO_SECT};
 use goblin::mach::{Mach, MachO, SingleArch};
 use goblin::pe::PE;
-use goblin::Object;
 use serde::Deserialize;
 use std::borrow::Cow;
 use std::cmp::Ordering;
@@ -544,7 +544,7 @@ fn find_introspection_chunks_in_binary_object(path: &Path) -> Result<Vec<Chunk>>
             for arch in &multi_arch {
                 match arch? {
                     SingleArch::MachO(macho) => {
-                        return find_introspection_chunks_in_macho(&macho, &library_content)
+                        return find_introspection_chunks_in_macho(&macho, &library_content);
                     }
                     SingleArch::Archive(_) => (),
                 }
@@ -566,7 +566,10 @@ fn find_introspection_chunks_in_elf(elf: &Elf<'_>, library_content: &[u8]) -> Re
     for sym in &elf.syms {
         let sym_name = elf.strtab.get_at(sym.st_name).unwrap_or_default();
         if is_introspection_symbol(sym_name) {
-            ensure!(u32::try_from(sym.st_shndx)? != SHN_XINDEX, "Section names length is greater than SHN_LORESERVE in ELF, this is not supported by PyO3 yet");
+            ensure!(
+                u32::try_from(sym.st_shndx)? != SHN_XINDEX,
+                "Section names length is greater than SHN_LORESERVE in ELF, this is not supported by PyO3 yet"
+            );
             let section_header = &elf.section_headers[sym.st_shndx];
             let data_offset = sym.st_value + section_header.sh_offset - section_header.sh_addr;
             chunks.push(deserialize_chunk(
@@ -587,9 +590,10 @@ fn find_introspection_chunks_in_macho(
         bail!("Only little endian Mach-o binaries are supported");
     }
     ensure!(
-        !macho.load_commands.iter().any(|command| {
-            matches!(command.command, CommandVariant::DyldChainedFixups(_))
-        }),
+        !macho
+            .load_commands
+            .iter()
+            .any(|command| { matches!(command.command, CommandVariant::DyldChainedFixups(_)) }),
         "Mach-O binaries with fixup chains are not supported yet, to avoid using fixup chains, use `--codegen=link-arg=-no_fixup_chains` option."
     );
 
@@ -639,7 +643,10 @@ fn deserialize_chunk(
     is_little_endian: bool,
 ) -> Result<Chunk> {
     let symbol_version = introspection_symbol_version(symbol_name).unwrap_or_default();
-    ensure!(symbol_version == "1", "The introspection format version '{symbol_version}' is not supported by this version of pyo3-introspection. Please upgrade your build tool like maturin or downgrade pyo3");
+    ensure!(
+        symbol_version == "1",
+        "The introspection format version '{symbol_version}' is not supported by this version of pyo3-introspection. Please upgrade your build tool like maturin or downgrade pyo3"
+    );
 
     let length = content_with_chunk_at_the_beginning
         .split_at(4)

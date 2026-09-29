@@ -36,18 +36,17 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(any(not(all(Py_LIMITED_API, Py_GIL_DISABLED)), Py_3_15))]
 use crate::internal_tricks::array_ptr_as_mut;
 use crate::prelude::PyTypeMethods;
-use crate::{err::error_on_minusone, py_result_ext::PyResultExt};
 use crate::{
-    ffi,
+    Bound, PyClass, PyErr, PyResult, PyTypeInfo, ffi,
     impl_::pyfunction::PyFunctionDef,
     types::{PyModule, PyModuleMethods},
-    Bound, PyClass, PyErr, PyResult, PyTypeInfo,
 };
 use crate::{
-    sync::PyOnceLock,
-    types::{any::PyAnyMethods, dict::PyDictMethods, PyDict},
     Py, PyAny, Python,
+    sync::PyOnceLock,
+    types::{PyDict, any::PyAnyMethods, dict::PyDictMethods},
 };
+use crate::{err::error_on_minusone, py_result_ext::PyResultExt};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
@@ -161,7 +160,7 @@ impl ModuleDef {
                 // twice
                 if self.module.get(py).is_some() {
                     return Err(PyImportError::new_err(
-                        "PyO3 modules compiled for the stable API on Windows targeting Python 3.9 may only be initialized once per interpreter process"
+                        "PyO3 modules compiled for the stable API on Windows targeting Python 3.9 may only be initialized once per interpreter process",
                     ));
                 }
             }
@@ -567,7 +566,7 @@ impl PyAddToModule for ModuleDef {
 #[cfg(test)]
 mod tests {
     use alloc::borrow::Cow;
-    use core::{ffi::c_int, ffi::CStr};
+    use core::{ffi::CStr, ffi::c_int};
 
     use crate::impl_::trampoline;
 

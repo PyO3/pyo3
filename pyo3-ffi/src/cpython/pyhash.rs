@@ -1,7 +1,7 @@
 #[cfg(Py_3_14)]
 use crate::Py_ssize_t;
 #[cfg(Py_3_13)]
-use crate::{PyObject, Py_hash_t};
+use crate::{Py_hash_t, PyObject};
 #[cfg(any(Py_3_13, not(PyPy)))]
 use core::ffi::c_void;
 #[cfg(not(PyPy))]

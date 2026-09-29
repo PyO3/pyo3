@@ -18,11 +18,11 @@
 use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, type_hint_subscript, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier, type_hint_subscript};
 use crate::types::any::PyAnyMethods;
 use crate::types::{PySequence, PyString};
 use crate::{
-    err::CastError, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, PyTypeInfo, Python,
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, PyTypeInfo, Python, err::CastError, ffi,
 };
 use smallvec::{Array, SmallVec};
 

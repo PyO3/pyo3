@@ -19,15 +19,15 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 use crate::{
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
     conversion::{FromPyObjectOwned, IntoPyObject},
     types::{
-        any::PyAnyMethods, dict::PyDictMethods, frozenset::PyFrozenSetMethods, set::PySetMethods,
-        PyDict, PyFrozenSet, PySet,
+        PyDict, PyFrozenSet, PySet, any::PyAnyMethods, dict::PyDictMethods,
+        frozenset::PyFrozenSetMethods, set::PySetMethods,
     },
-    Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
 };
 #[cfg(feature = "experimental-inspect")]
-use crate::{type_hint_subscript, type_hint_union, PyTypeInfo};
+use crate::{PyTypeInfo, type_hint_subscript, type_hint_union};
 use core::hash;
 
 impl<'py, K, V, H> IntoPyObject<'py> for hashbrown::HashMap<K, V, H>
