@@ -7,7 +7,7 @@ use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeCheck;
 use crate::types::any::PyAny;
-use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python, ffi};
+use crate::{Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python, ffi};
 
 /// Represents any Python `weakref` Proxy type.
 ///
@@ -140,27 +140,15 @@ impl PyWeakrefProxy {
     where
         C: IntoPyObject<'py>,
     {
-        fn inner<'py>(
-            object: &Bound<'py, PyAny>,
-            callback: Borrowed<'_, 'py, PyAny>,
-        ) -> PyResult<Bound<'py, PyWeakrefProxy>> {
-            unsafe {
-                Bound::from_owned_ptr_or_err(
-                    object.py(),
-                    ffi::PyWeakref_NewProxy(object.as_ptr(), callback.as_ptr()),
-                )
-                .cast_into_unchecked()
-            }
-        }
-
         let py = object.py();
-        inner(
-            object,
-            callback
-                .into_pyobject_or_pyerr(py)?
-                .into_any()
-                .as_borrowed(),
-        )
+        let callback = callback.into_pyobject_or_pyerr(py)?;
+        unsafe {
+            Bound::from_owned_ptr_or_err(
+                py,
+                ffi::PyWeakref_NewProxy(object.as_ptr(), callback.as_ptr()),
+            )
+            .cast_into_unchecked()
+        }
     }
 }
 
