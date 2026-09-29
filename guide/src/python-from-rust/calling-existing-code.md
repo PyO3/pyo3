@@ -142,6 +142,7 @@ The macro **must** be invoked _before_ initializing Python.
 As an example, the below adds the module `foo` to the embedded interpreter:
 
 <!-- uses `standalone_crate` because `append_to_inittab` requires a fresh interpreter. -->
+
 ```rust,standalone_crate
 use pyo3::prelude::*;
 
@@ -384,6 +385,7 @@ See also [the FAQ entry](../faq.md#ctrl-c-doesnt-do-anything-while-my-rust-code-
 Alternatively, set Python's `signal` module to take the default action for a signal:
 
 <!-- uses `standalone_crate` because this modifies the global signal handler -->
+
 ```rust,standalone_crate
 use pyo3::prelude::*;
 
