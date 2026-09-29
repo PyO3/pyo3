@@ -108,7 +108,7 @@
 //! [Error handling]: https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html "Recoverable Errors with Result - The Rust Programming Language"
 
 use crate::exceptions::PyRuntimeError;
-use crate::PyErr;
+use crate::{IntoPyObject, PyErr, Python};
 
 impl From<anyhow::Error> for PyErr {
     fn from(mut error: anyhow::Error) -> Self {
@@ -119,7 +119,15 @@ impl From<anyhow::Error> for PyErr {
                 Err(error) => error,
             };
         }
-        PyRuntimeError::new_err(format!("{error:?}"))
+
+        let err = PyRuntimeError::new_err(format!("{error:?}"));
+        #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+        Python::try_attach(|py| {
+            if let Ok(tb) = error.backtrace().into_pyobject(py) {
+                err.set_traceback(py, Some(tb));
+            }
+        });
+        err
     }
 }
 
@@ -184,6 +192,7 @@ mod test_anyhow {
             |py| converted.is_instance_of::<PyValueError>(py)
         ))
     }
+
     #[test]
     fn test_pyo3_unwrap_complex_err() {
         let origin_exc = PyValueError::new_err("Value Error");
