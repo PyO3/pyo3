@@ -834,7 +834,7 @@ impl<T: ?Sized, D: ?Sized + Deref<Target = T>> PyMutexTrait<T> for D {
         // SAFETY: target upholds requirements
         unsafe { (*self).data() }
     }
-    
+
     unsafe fn inner(&self) -> &UnsafeCell<crate::ffi::PyMutex> {
         // SAFETY: target upholds requirements
         unsafe { (*self).inner() }
