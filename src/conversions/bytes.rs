@@ -44,6 +44,7 @@
 //! }
 //!
 //! #[pymodule]
+//! # #[pyo3(name = "example_bytes")]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(get_message_bytes, m)?)?;
 //!     m.add_function(wrap_pyfunction!(num_bytes, m)?)?;

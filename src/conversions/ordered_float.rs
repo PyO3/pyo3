@@ -36,6 +36,7 @@
 //! }
 //!
 //! #[pymodule]
+//! # #[pyo3(name = "example_ordered_float")]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(add_not_nans, m)?)?;
 //!     m.add_function(wrap_pyfunction!(add_ordered_floats, m)?)?;

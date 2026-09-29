@@ -27,6 +27,7 @@
 //! }
 //!
 //! #[pymodule]
+//! # #[pyo3(name = "example_num_rational")]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(add_five_to_fraction, m)?)?;
 //!     Ok(())
