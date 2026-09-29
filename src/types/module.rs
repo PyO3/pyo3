@@ -138,9 +138,10 @@ impl PyModule {
     ///
     /// # Example: bundle in a file at compile time with [`include_str!`][core::include_str]:
     ///
+    /// <!-- Using standalone_crate ensures that the `include_str!` is resolved relative to this
+    /// file, not the workspace root, when merged doctests are being compiled. -->
+    ///
     /// ```rust,standalone_crate
-    /// # // Using standalone_crate ensures that the include is resolved relative to this
-    /// # // file, not the workspace root, when merged doctests are being compiled.
     /// use pyo3::prelude::*;
     /// use pyo3::ffi::c_str;
     ///

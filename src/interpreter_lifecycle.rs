@@ -41,11 +41,12 @@ pub(crate) fn initialize() {
 /// - This function should only ever be called once per process (usually as part of the `main`
 ///   function). It is also not thread-safe.
 /// - No Python APIs can be used after this function has finished executing.
+///   (Note: this also includes Rust 2024's merged doctests; doctests using this function should
+///   typically be marked with `standalone_crate`.)
 /// - The return value of the closure must not contain any Python value, _including_ `PyResult`.
 ///
 /// # Examples
 ///
-/// <!-- uses `standalone_crate` due to interpreter init / finalization being demonstrated here -->
 /// ```rust,standalone_crate
 /// unsafe {
 ///     pyo3::with_embedded_python_interpreter(|py| {
