@@ -15,6 +15,7 @@ env:
 jobs:
   release:
     permissions:
+      contents: read
       id-token: write
 
     runs-on: ubuntu-latest
@@ -28,7 +29,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          save-cache: false
+          enable-cache: false
 
       - uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
         id: auth
