@@ -33,7 +33,8 @@ jobs:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          enable-cache: false
+          enable-cache: ${{ github.event_name != 'release' }} # zizmor: ignore[cache-poisoning] Release runs never restore caches.
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
       - name: Install Rust toolchain
         run: |
