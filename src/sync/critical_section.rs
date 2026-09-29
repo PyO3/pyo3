@@ -636,6 +636,8 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
+    #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
     fn test_deref_cercion_compiles() {
         Python::attach(|py| {
             let mutex = alloc::sync::Arc::new(PyMutex::<i32>::new(0));

@@ -16,6 +16,7 @@ use crate::{
     sealed::Sealed,
     types::{PyAny, PyString},
 };
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 use core::ops::Deref;
 use core::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit};
 
@@ -824,6 +825,7 @@ pub trait PyMutexTrait<T: ?Sized>: mutex_trait_sealed::Sealed<T> {
     unsafe fn inner(&self) -> &UnsafeCell<crate::ffi::PyMutex>;
 }
 
+#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 impl<T: ?Sized, D: ?Sized + Deref<Target = T>> PyMutexTrait<T> for D {
     unsafe fn data(&self) -> &UnsafeCell<T> {
         // SAFETY: target upholds requirements
