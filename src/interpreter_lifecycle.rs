@@ -45,7 +45,8 @@ pub(crate) fn initialize() {
 ///
 /// # Examples
 ///
-/// ```rust
+/// <!-- uses `standalone_crate` due to interpreter init / finalization being demonstrated here -->
+/// ```rust,standalone_crate
 /// unsafe {
 ///     pyo3::with_embedded_python_interpreter(|py| {
 ///         if let Err(e) = py.run(c"print('Hello World')", None, None) {
