@@ -292,7 +292,7 @@ impl PyString {
 pub trait PyStringMethods<'py>: crate::sealed::Sealed {
     /// Returns the number of code points in the string, without calling a subclass's `__len__`
     /// (except on PyPy).
-    fn code_point_len(&self) -> usize;
+    fn code_point_len(&self) -> PyResult<usize>;
 
     /// Gets the Python string as a Rust UTF-8 string slice.
     ///
@@ -335,7 +335,7 @@ pub trait PyStringMethods<'py>: crate::sealed::Sealed {
 }
 
 impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
-    fn code_point_len(&self) -> usize {
+    fn code_point_len(&self) -> PyResult<usize> {
         let len = cfg_select! {
             // SAFETY: self is a valid str object, and every str is canonical since Python 3.12
             all(Py_3_12, not(any(Py_LIMITED_API, PyPy, GraalPy))) => unsafe {
@@ -344,9 +344,8 @@ impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
             // SAFETY: self is a valid str object
             _ => unsafe { ffi::PyUnicode_GetLength(self.as_ptr()) },
         };
-        crate::err::error_on_minusone(self.py(), len)
-            .expect("failed to get the length of a Python string");
-        len as usize
+        crate::err::error_on_minusone(self.py(), len)?;
+        Ok(len as usize)
     }
 
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
@@ -625,8 +624,11 @@ mod tests {
         Python::attach(|py| {
             for s in ["", "ascii", "é", "哈哈", "🐈", "ascii 哈哈🐈"] {
                 let py_string = PyString::new(py, s);
-                assert_eq!(py_string.code_point_len(), s.chars().count());
-                assert_eq!(py_string.code_point_len(), py_string.len().unwrap());
+                assert_eq!(py_string.code_point_len().unwrap(), s.chars().count());
+                assert_eq!(
+                    py_string.code_point_len().unwrap(),
+                    py_string.len().unwrap()
+                );
             }
         })
     }
@@ -639,7 +641,7 @@ mod tests {
                 .unwrap()
                 .cast_into::<PyString>()
                 .unwrap();
-            assert_eq!(py_string.code_point_len(), 2);
+            assert_eq!(py_string.code_point_len().unwrap(), 2);
         })
     }
 
@@ -657,7 +659,7 @@ mod tests {
             .unwrap();
             let s = locals.get_item("s").unwrap().unwrap();
             assert_eq!(s.len().unwrap(), 0);
-            assert_eq!(s.cast::<PyString>().unwrap().code_point_len(), 3);
+            assert_eq!(s.cast::<PyString>().unwrap().code_point_len().unwrap(), 3);
         })
     }
 
