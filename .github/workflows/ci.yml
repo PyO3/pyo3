@@ -27,6 +27,8 @@ jobs:
         with:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -91,6 +93,8 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
       # This is a smoke test to confirm that CI will run on MSRV (including dev dependencies)
       - name: Check with MSRV package versions
         run: |
@@ -427,6 +431,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@valgrind
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s test-rust -- release skip-full
     env:
       CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind --leak-check=no --error-exitcode=1
@@ -453,6 +459,8 @@ jobs:
           components: rust-src
       - uses: taiki-e/install-action@cargo-careful
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s test-rust -- careful skip-full
     env:
       RUST_BACKTRACE: 1
@@ -540,6 +548,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.13+debug"
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx python -m sysconfig
       - run: uvx nox -s test
 
@@ -558,6 +567,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.11+debug"
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx python -m sysconfig
       - run: uvx nox -s test
 
@@ -610,6 +620,8 @@ jobs:
         with:
           tool: cargo-hack,cargo-minimal-versions
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
       - run: uvx nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
 
   test-cross-compilation:
@@ -765,6 +777,8 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s test-introspection
     env:
       CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
@@ -780,6 +794,8 @@ jobs:
         with:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s test-introspection
 
   pytests-type-checking:
@@ -799,6 +815,8 @@ jobs:
         with:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s ${{matrix.checker}}
         working-directory: pytests
 
