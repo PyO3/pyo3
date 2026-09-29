@@ -6,9 +6,9 @@ use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pyclass::PyClassBaseType;
 use crate::internal::get_slot::TP_NEW;
-use crate::types::{PyTuple, PyType, PyTypeMethods};
+use crate::types::{PyDict, PyTuple, PyType, PyTypeMethods};
 use crate::{
-    ffi, IntoPyObject, IntoPyObjectExt, PyClass, PyClassInitializer, PyErr, PyResult, Python,
+    ffi, Bound, IntoPyObject, IntoPyObjectExt, PyClass, PyClassInitializer, PyErr, PyResult,
 };
 use crate::{ffi::PyTypeObject, type_object::PyTypeInfo};
 use core::marker::PhantomData;
@@ -22,8 +22,9 @@ pub(crate) trait PyObjectInit<T>: Sized {
     /// - `subtype` must be a valid pointer to a type object of T or a subclass.
     unsafe fn into_new_object(
         self,
-        py: Python<'_>,
         subtype: *mut PyTypeObject,
+        args: Bound<'_, PyTuple>,
+        kwargs: Option<Bound<'_, PyDict>>,
     ) -> PyResult<*mut ffi::PyObject>;
 }
 
@@ -33,14 +34,17 @@ pub struct PyNativeTypeInitializer<T: PyTypeInfo>(pub PhantomData<T>);
 impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
     unsafe fn into_new_object(
         self,
-        py: Python<'_>,
         subtype: *mut PyTypeObject,
+        args: Bound<'_, PyTuple>,
+        kwargs: Option<Bound<'_, PyDict>>,
     ) -> PyResult<*mut ffi::PyObject> {
         unsafe fn inner(
-            py: Python<'_>,
             type_ptr: *mut PyTypeObject,
             subtype: *mut PyTypeObject,
+            args: &Bound<'_, PyTuple>,
+            kwargs: Option<&Bound<'_, PyDict>>,
         ) -> PyResult<*mut ffi::PyObject> {
+            let py = args.py();
             let tp_new = unsafe {
                 type_ptr
                     .cast::<ffi::PyObject>()
@@ -50,16 +54,27 @@ impl<T: PyTypeInfo> PyObjectInit<T> for PyNativeTypeInitializer<T> {
                     .ok_or_else(|| PyTypeError::new_err("base type without tp_new"))?
             };
 
-            // TODO: make it possible to provide real arguments to the base tp_new
-            let obj =
-                unsafe { tp_new(subtype, PyTuple::empty(py).as_ptr(), core::ptr::null_mut()) };
+            let obj = unsafe {
+                tp_new(
+                    subtype,
+                    args.as_ptr(),
+                    kwargs.map_or_else(core::ptr::null_mut, Bound::as_ptr),
+                )
+            };
             if obj.is_null() {
                 Err(PyErr::fetch(py))
             } else {
                 Ok(obj)
             }
         }
-        unsafe { inner(py, T::type_object_raw(py), subtype) }
+        unsafe {
+            inner(
+                T::type_object_raw(args.py()),
+                subtype,
+                &args,
+                kwargs.as_ref(),
+            )
+        }
     }
 }
 
