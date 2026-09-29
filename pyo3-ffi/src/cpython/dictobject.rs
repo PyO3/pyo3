@@ -1,12 +1,12 @@
+#[cfg(all(GraalPy, Py_3_13))]
+use crate::PyObject;
 #[cfg(not(GraalPy))]
 use crate::object::*;
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::pyport::Py_ssize_t;
-#[cfg(all(GraalPy, Py_3_13))]
-use crate::PyObject;
 
 #[cfg(Py_3_15)]
-use crate::{dictobject::PyDict_Check, PyDict_CheckExact};
+use crate::{PyDict_CheckExact, dictobject::PyDict_Check};
 
 #[cfg(all(not(PyPy), Py_3_13))]
 use core::ffi::c_char;

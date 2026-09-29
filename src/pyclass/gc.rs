@@ -7,11 +7,10 @@ use core::{
 };
 
 use crate::{
-    ffi,
+    Py, PyClass, ffi,
     impl_::{pycell::PyClassMutability, pyclass::PyClassThreadChecker},
     instance::PyBorrowedUnbound,
     pycell::impl_::{PyClassBorrowChecker, PyClassObjectLayout},
-    Py, PyClass,
 };
 
 /// Error returned by a `__traverse__` visitor implementation.

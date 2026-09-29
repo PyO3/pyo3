@@ -6,13 +6,13 @@ use crate::instance::Bound;
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyAnyMethods;
 use crate::types::{PyAny, PyList, PyMapping};
-use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
+use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Python, ffi};
 #[cfg(Py_LIMITED_API)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     type_object::PyTypeInfo,
     types::{PyType, PyTypeMethods},
-    Py,
 };
 #[cfg(not(Py_LIMITED_API))]
 use core::ptr;
@@ -358,7 +358,7 @@ impl<'py> IntoIterator for &Bound<'py, PyFrozenDict> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{list::PyListMethods, mapping::PyMappingMethods, PyAnyMethods};
+    use crate::types::{PyAnyMethods, list::PyListMethods, mapping::PyMappingMethods};
 
     use alloc::collections::BTreeMap;
     use alloc::string::{String, ToString};

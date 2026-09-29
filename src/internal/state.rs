@@ -3,7 +3,7 @@
 #[cfg(pyo3_disable_reference_pool)]
 use crate::impl_::panic::PanicTrap;
 use crate::platform::prelude::*;
-use crate::{ffi, Py, PyAny, Python};
+use crate::{Py, PyAny, Python, ffi};
 
 #[cfg(not(pyo3_disable_reference_pool))]
 use crate::platform::sync::non_poison::Mutex;
@@ -92,7 +92,7 @@ impl AttachGuard {
             }
             // Cannot attach during GC traversal.
             Ok(ATTACH_FORBIDDEN_DURING_TRAVERSE) => {
-                return Err(AttachError::ForbiddenDuringTraverse)
+                return Err(AttachError::ForbiddenDuringTraverse);
             }
             // other cases handled below
             _ => {}

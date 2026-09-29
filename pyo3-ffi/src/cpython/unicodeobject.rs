@@ -1,6 +1,6 @@
 #[cfg(any(Py_3_11, not(PyPy)))]
 use crate::Py_hash_t;
-use crate::{PyObject, Py_UCS1, Py_UCS2, Py_UCS4, Py_ssize_t};
+use crate::{Py_UCS1, Py_UCS2, Py_UCS4, Py_ssize_t, PyObject};
 use core::ffi::{c_char, c_int, c_uint, c_void};
 use libc::wchar_t;
 

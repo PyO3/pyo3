@@ -56,9 +56,9 @@ mod py_3_14;
 mod py_3_15;
 mod py_3_9;
 
+pub use self::py_3_9::*;
 pub use self::py_3_10::*;
 pub use self::py_3_13::*;
 pub use self::py_3_14::*;
 #[allow(unused_imports)]
 pub use self::py_3_15::*;
-pub use self::py_3_9::*;

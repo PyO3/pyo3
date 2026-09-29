@@ -13,10 +13,10 @@ use crate::py_expr::PyExpr;
 use crate::pyfunction::FunctionSignature;
 use crate::utils::{PyO3CratePath, PythonDoc, StrOrExpr};
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use std::borrow::Cow;
-use std::collections::hash_map::DefaultHasher;
 use std::collections::BTreeMap;
+use std::collections::hash_map::DefaultHasher;
 use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
@@ -88,12 +88,14 @@ pub fn class_introspection_code(
                 condition: quote! {
                     #pyo3_crate_path::impl_::introspection::is_disjoint_base::<#ident>()
                 },
-                then: Box::new(IntrospectionNode::List(vec![PyExpr::attribute(
-                    // `typing.disjoint_base` is new in Python 3.15
-                    PyExpr::typing_or_extensions_if_less(15),
-                    "disjoint_base",
-                )
-                .into()])),
+                then: Box::new(IntrospectionNode::List(vec![
+                    PyExpr::attribute(
+                        // `typing.disjoint_base` is new in Python 3.15
+                        PyExpr::typing_or_extensions_if_less(15),
+                        "disjoint_base",
+                    )
+                    .into(),
+                ])),
                 otherwise: Box::new(IntrospectionNode::List(Vec::new())),
             }
         },

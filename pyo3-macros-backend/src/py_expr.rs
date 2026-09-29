@@ -4,7 +4,7 @@ use crate::utils::{PyO3CratePath, StaticIdent};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::borrow::Cow;
-use syn::visit_mut::{visit_type_mut, VisitMut};
+use syn::visit_mut::{VisitMut, visit_type_mut};
 use syn::{Expr, ExprLit, ExprPath, Lit, Type};
 
 /// A Python expression

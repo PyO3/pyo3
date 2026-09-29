@@ -281,11 +281,11 @@ mod tests {
 
     use super::*;
     #[cfg(not(target_arch = "wasm32"))]
-    use crate::types::{PyAnyMethods, PyDict, PyDictMethods, PyNone};
-    #[cfg(not(target_arch = "wasm32"))]
     use crate::Py;
     #[cfg(not(target_arch = "wasm32"))]
     use crate::Python;
+    #[cfg(not(target_arch = "wasm32"))]
+    use crate::types::{PyAnyMethods, PyDict, PyDictMethods, PyNone};
 
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
@@ -319,12 +319,13 @@ mod tests {
             assert!(mutex.is_locked());
             let d = dict_guard.bind(py);
 
-            assert!(d
-                .get_item(PyNone::get(py))
-                .unwrap()
-                .unwrap()
-                .eq(PyNone::get(py))
-                .unwrap());
+            assert!(
+                d.get_item(PyNone::get(py))
+                    .unwrap()
+                    .unwrap()
+                    .eq(PyNone::get(py))
+                    .unwrap()
+            );
             #[cfg(Py_3_14)]
             assert!(mutex.is_locked());
             drop(dict_guard);
@@ -460,7 +461,7 @@ mod tests {
 
     #[test]
     fn test_send_not_send() {
-        use crate::impl_::pyclass::{value_of, IsSend, IsSync};
+        use crate::impl_::pyclass::{IsSend, IsSync, value_of};
 
         assert!(!value_of!(IsSend, PyMutexGuard<'_, i32>));
         assert!(value_of!(IsSync, PyMutexGuard<'_, i32>));

@@ -1,5 +1,5 @@
 use crate::vectorcallfunc;
-use crate::{object, PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, Py_ssize_t};
+use crate::{Py_ssize_t, PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, object};
 use core::ffi::{c_char, c_int, c_uint, c_void};
 
 // skipped private _Py_NewReference

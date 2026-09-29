@@ -11,8 +11,8 @@ use pyo3::types::IntoPyDict;
 use std::ffi::CString;
 use std::ffi::{c_int, c_void};
 use std::ptr;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 mod test_utils;
 

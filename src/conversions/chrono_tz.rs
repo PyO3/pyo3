@@ -41,8 +41,8 @@ use crate::inspect::PyStaticExpr;
 use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_identifier;
-use crate::types::{any::PyAnyMethods, PyTzInfo};
-use crate::{intern, Borrowed, Bound, FromPyObject, PyAny, PyErr, Python};
+use crate::types::{PyTzInfo, any::PyAnyMethods};
+use crate::{Borrowed, Bound, FromPyObject, PyAny, PyErr, Python, intern};
 use alloc::borrow::Cow;
 use chrono_tz::Tz;
 use core::str::FromStr;
@@ -99,7 +99,7 @@ mod tests {
     #[cfg(feature = "chrono")]
     use alloc::string::ToString;
     #[cfg(feature = "chrono")]
-    use chrono::{offset::LocalResult, DateTime, NaiveDate, Utc};
+    use chrono::{DateTime, NaiveDate, Utc, offset::LocalResult};
     use chrono_tz::Tz;
     #[cfg(feature = "chrono")]
     use core::str::FromStr;
@@ -196,7 +196,10 @@ mod tests {
 
             // now try to extract
             let err = py_dt.extract::<DateTime<Tz>>().unwrap_err();
-            assert_eq!(err.to_string(), "ValueError: The datetime datetime.datetime(2011, 12, 30, 2, 0, tzinfo=zoneinfo.ZoneInfo(key='Pacific/Apia')) contains an incompatible timezone");
+            assert_eq!(
+                err.to_string(),
+                "ValueError: The datetime datetime.datetime(2011, 12, 30, 2, 0, tzinfo=zoneinfo.ZoneInfo(key='Pacific/Apia')) contains an incompatible timezone"
+            );
         });
     }
 

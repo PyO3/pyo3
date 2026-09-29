@@ -5,19 +5,19 @@ use crate::conversion::private::Reference;
 use crate::conversion::{FromPyObjectSequence, IntoPyObject};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
-use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python, exceptions, ffi};
 use core::convert::Infallible;
 use core::ffi::c_long;
 use core::mem::MaybeUninit;
 use core::num::{
-    NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
-    NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize, NonZeroU8,
+    NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
 };
 
 use super::array::invalid_sequence_length;

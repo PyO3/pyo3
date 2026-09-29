@@ -2,14 +2,14 @@ use crate::conversion::IntoPyObject;
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::instance::Bound;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyDict, PyList, PyType, PyTypeMethods};
-use crate::{ffi, Py, Python};
+use crate::{Py, Python, ffi};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 ///
@@ -244,10 +244,12 @@ mod tests {
                 32,
                 mapping.get_item(7i32).unwrap().extract::<i32>().unwrap()
             );
-            assert!(mapping
-                .get_item(8i32)
-                .unwrap_err()
-                .is_instance_of::<PyKeyError>(py));
+            assert!(
+                mapping
+                    .get_item(8i32)
+                    .unwrap_err()
+                    .is_instance_of::<PyKeyError>(py)
+            );
         });
     }
 
@@ -280,10 +282,12 @@ mod tests {
             let mapping = ob.cast::<PyMapping>().unwrap();
             assert!(mapping.del_item(7i32).is_ok());
             assert_eq!(0, mapping.len().unwrap());
-            assert!(mapping
-                .get_item(7i32)
-                .unwrap_err()
-                .is_instance_of::<PyKeyError>(py));
+            assert!(
+                mapping
+                    .get_item(7i32)
+                    .unwrap_err()
+                    .is_instance_of::<PyKeyError>(py)
+            );
         });
     }
 

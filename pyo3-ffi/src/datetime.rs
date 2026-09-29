@@ -7,11 +7,11 @@
 #[cfg(not(PyPy))]
 use crate::PyCapsule_Import;
 #[cfg(GraalPy)]
-use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
-use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_IS_TYPE, Py_None};
+use crate::{Py_DecRef, PyLong_AsLong, PyLong_Check, PyObject_GetAttrString};
+use crate::{Py_IS_TYPE, Py_None, PyObject, PyObject_TypeCheck, PyTypeObject};
+use core::ffi::CStr;
 use core::ffi::c_char;
 use core::ffi::c_int;
-use core::ffi::CStr;
 use core::ptr;
 use core::sync::atomic::{AtomicPtr, Ordering};
 #[cfg(not(PyPy))]

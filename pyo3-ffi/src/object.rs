@@ -2,14 +2,14 @@ use crate::pyport::{Py_hash_t, Py_ssize_t};
 // these re-exports are pub because it would be awkward to
 // thread the different origins for these types on this build
 // everywhere else
+#[cfg(Py_3_15)]
+use crate::PySlot;
 #[cfg(Py_LIMITED_API)]
 pub use crate::pytypedefs::PyTypeObject;
 #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
 pub use crate::pytypedefs::{PyObject, PyVarObject};
-#[cfg(Py_3_15)]
-use crate::PySlot;
 #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
-use crate::{refcount, PyMutex};
+use crate::{PyMutex, refcount};
 use core::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use core::mem;
 #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]

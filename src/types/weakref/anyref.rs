@@ -1,12 +1,12 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_union, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_union};
 use crate::sync::PyOnceLock;
 use crate::type_object::{PyTypeCheck, PyTypeInfo};
 use crate::types::any::PyAny;
 use crate::types::{PyTuple, PyWeakrefProxy, PyWeakrefReference};
-use crate::{ffi, Bound, Py, Python};
+use crate::{Bound, Py, Python, ffi};
 
 /// Represents any Python `weakref` reference.
 ///
@@ -329,7 +329,9 @@ impl<'py> PyWeakrefMethods<'py> for Bound<'py, PyWeakref> {
     fn upgrade(&self) -> Option<Bound<'py, PyAny>> {
         let mut obj: *mut ffi::PyObject = core::ptr::null_mut();
         match unsafe { ffi::compat::PyWeakref_GetRef(self.as_ptr(), &mut obj) } {
-            core::ffi::c_int::MIN..=-1 => panic!("The 'weakref' weak reference instance should be valid (non-null and actually a weakref reference)"),
+            core::ffi::c_int::MIN..=-1 => panic!(
+                "The 'weakref' weak reference instance should be valid (non-null and actually a weakref reference)"
+            ),
             0 => None,
             1..=core::ffi::c_int::MAX => Some(unsafe { obj.assume_owned_unchecked(self.py()) }),
         }
@@ -356,9 +358,9 @@ mod tests {
 
     mod python_class {
         use super::*;
+        use crate::PyTypeCheck;
         #[cfg(Py_3_10)]
         use crate::types::PyInt;
-        use crate::PyTypeCheck;
         use crate::{py_result_ext::PyResultExt, types::PyType};
         use core::ptr;
 
@@ -525,7 +527,7 @@ mod tests {
     #[cfg(feature = "macros")]
     mod pyo3_pyclass {
         use super::*;
-        use crate::{pyclass, Py};
+        use crate::{Py, pyclass};
         use core::ptr;
 
         #[pyclass(weakref, crate = "crate")]
