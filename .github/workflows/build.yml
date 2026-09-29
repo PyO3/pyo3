@@ -1,5 +1,8 @@
 on:
   workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: false
     inputs:
       sha:
         required: true
@@ -34,11 +37,15 @@ env:
 
 jobs:
   build:
+    permissions:
+      contents: read
+      pull-requests: read # dorny/paths-filter lists changed files.
     continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["beta", "nightly"]'), inputs.rust) }}
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ inputs.sha }}
 
       # installs using setup-python do not work for arm macOS 3.9 and below
@@ -110,7 +117,7 @@ jobs:
         if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy')) }}
         run: uvx nox -s ffi-check
 
-      - uses: ./.github/actions/prepare-coverage
+      - uses: $/.github/actions/prepare-coverage
         if: ${{ inputs.os != 'windows-11-arm' }} # https://github.com/rust-lang/rust/issues/150123
 
       - name: Build docs
@@ -125,7 +132,7 @@ jobs:
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
-      - uses: ./.github/actions/report-coverage
+      - uses: $/.github/actions/report-coverage
         if: ${{ inputs.os != 'windows-11-arm' }} # https://github.com/rust-lang/rust/issues/150123
         with:
           name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}
