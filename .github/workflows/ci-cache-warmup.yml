@@ -71,27 +71,13 @@ jobs:
     with:
       sha: ${{ github.sha }}
       os: ${{ matrix.platform.os }}
-      python-version: ${{ matrix.python-version }}
+      python-version: 3.14
       python-architecture: ${{ matrix.platform.python-architecture }}
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
     strategy:
       matrix:
         rust: [stable]
-        python-version:
-          [
-            "3.9",
-            "3.10",
-            "3.11",
-            "3.12",
-            "3.13",
-            "3.14",
-            "3.14t",
-            "3.15-dev",
-            "3.15t-dev",
-            "pypy3.11",
-            "graalpy25.0",
-          ]
         platform:
           [
             {
@@ -112,7 +98,6 @@ jobs:
           ]
         include:
           - rust: ${{ needs.resolve.outputs.MSRV }}
-            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
@@ -120,7 +105,6 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
           - rust: beta
-            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-latest",
@@ -128,7 +112,6 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
           - rust: stable
-            python-version: "3.14"
             platform:
               {
                 os: "windows-latest",
@@ -136,7 +119,6 @@ jobs:
                 rust-target: "i686-pc-windows-msvc",
               }
           - rust: stable
-            python-version: "3.14"
             platform:
               {
                 os: "macos-latest",
@@ -144,7 +126,6 @@ jobs:
                 rust-target: "x86_64-apple-darwin",
               }
           - rust: stable
-            python-version: "3.9"
             platform:
               {
                 os: "macos-15-intel",
@@ -152,7 +133,6 @@ jobs:
                 rust-target: "x86_64-apple-darwin",
               }
           - rust: stable
-            python-version: "3.14"
             platform:
               {
                 os: "ubuntu-24.04-arm",
@@ -160,23 +140,6 @@ jobs:
                 rust-target: "aarch64-unknown-linux-gnu",
               }
           - rust: stable
-            python-version: "3.14t"
-            platform:
-              {
-                os: "ubuntu-24.04-arm",
-                python-architecture: "arm64",
-                rust-target: "aarch64-unknown-linux-gnu",
-              }
-          - rust: stable
-            python-version: "3.14"
-            platform:
-              {
-                os: "windows-11-arm",
-                python-architecture: "arm64",
-                rust-target: "aarch64-pc-windows-msvc",
-              }
-          - rust: stable
-            python-version: "3.14t"
             platform:
               {
                 os: "windows-11-arm",
