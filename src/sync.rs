@@ -283,7 +283,7 @@ pub trait OnceExt: Sealed {
 
 /// Extension trait for [`std::sync::OnceLock`] which helps avoid deadlocks between the Python
 /// interpreter and initialization with the `OnceLock`.
-pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
+pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed<T> {
     /// Initializes this `OnceLock` with the given closure if it has not been initialized yet.
     ///
     /// If this function would block, this function detaches from the Python interpreter and
@@ -300,7 +300,7 @@ pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
 
 /// Extension trait for [`std::sync::Mutex`] which helps avoid deadlocks between
 /// the Python interpreter and acquiring the `Mutex`.
-pub trait MutexExt<T>: Sealed {
+pub trait MutexExt<T>: mutex_ext_sealed::Sealed<T> {
     /// The result type returned by the `lock_py_attached` method.
     type LockResult<'a>
     where
@@ -318,7 +318,7 @@ pub trait MutexExt<T>: Sealed {
 
 /// Extension trait for [`std::sync::RwLock`] which helps avoid deadlocks between
 /// the Python interpreter and acquiring the `RwLock`.
-pub trait RwLockExt<T>: rwlock_ext_sealed::Sealed {
+pub trait RwLockExt<T>: rwlock_ext_sealed::Sealed<T> {
     /// The result type returned by the `read_py_attached` method.
     type ReadLockResult<'a>
     where
@@ -757,18 +757,39 @@ where
     })
 }
 
+// The following seals are introduced because their traits have a type parameter `T`,
+// which means that to avoid downstream implementing bizarre types such as
+// `OnceLockExt<Local>` for `OnceLock<()>`, we need the seals to have the type parameter.
+//
+// Having separate traits also avoids weirder cases like `OnceLockExt<Local> for Mutex<Local>`.
+
 mod once_lock_ext_sealed {
-    pub trait Sealed {}
-    impl<T> Sealed for std::sync::OnceLock<T> {}
+    pub trait Sealed<T> {}
+    impl<T> Sealed<T> for std::sync::OnceLock<T> {}
+}
+
+pub(crate) mod mutex_ext_sealed {
+    pub trait Sealed<T> {}
+    #[allow(clippy::disallowed_types)]
+    #[cfg(wip_feature_std)]
+    impl<T> Sealed<T> for std::sync::Mutex<T> {}
+    #[cfg(feature = "lock_api")]
+    impl<R, T> Sealed<T> for lock_api::Mutex<R, T> {}
+    #[cfg(feature = "arc_lock")]
+    impl<R, T> Sealed<T> for alloc::sync::Arc<lock_api::Mutex<R, T>> {}
+    #[cfg(feature = "lock_api")]
+    impl<R, G, T> Sealed<T> for lock_api::ReentrantMutex<R, G, T> {}
+    #[cfg(feature = "arc_lock")]
+    impl<R, G, T> Sealed<T> for alloc::sync::Arc<lock_api::ReentrantMutex<R, G, T>> {}
 }
 
 mod rwlock_ext_sealed {
-    pub trait Sealed {}
-    impl<T> Sealed for std::sync::RwLock<T> {}
+    pub trait Sealed<T> {}
+    impl<T> Sealed<T> for std::sync::RwLock<T> {}
     #[cfg(feature = "lock_api")]
-    impl<R, T> Sealed for lock_api::RwLock<R, T> {}
+    impl<R, T> Sealed<T> for lock_api::RwLock<R, T> {}
     #[cfg(feature = "arc_lock")]
-    impl<R, T> Sealed for alloc::sync::Arc<lock_api::RwLock<R, T>> {}
+    impl<R, T> Sealed<T> for alloc::sync::Arc<lock_api::RwLock<R, T>> {}
 }
 
 #[allow(clippy::disallowed_types, reason = "tests")]
