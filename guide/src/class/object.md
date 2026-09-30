@@ -19,6 +19,7 @@ impl Number {
 }
 
 #[pymodule]
+# #[pyo3(name = "example_number_basic_customization")]
 mod my_module {
     #[pymodule_export]
     use super::Number;
@@ -388,6 +389,7 @@ impl Number {
 }
 
 #[pymodule]
+# #[pyo3(name = "example_number_full")]
 mod my_module {
     #[pymodule_export]
     use super::Number;

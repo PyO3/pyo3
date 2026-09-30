@@ -200,6 +200,7 @@
 //!
 //! /// A Python module implemented in Rust.
 //! #[pymodule]
+//! # #[pyo3(name = "example_string_sum_lib_rs")]
 //! fn string_sum(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
 //!

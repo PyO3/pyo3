@@ -30,6 +30,7 @@
 //! }
 //!
 //! #[pymodule]
+//! # #[pyo3(name = "example_rust_decimal")]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(add_one, m)?)?;
 //!     Ok(())

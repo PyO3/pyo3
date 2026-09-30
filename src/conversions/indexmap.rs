@@ -71,6 +71,7 @@
 //! }
 //!
 //! #[pymodule]
+//! # #[pyo3(name = "example_indexmap")]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(calculate_statistics, m)?)?;
 //!     Ok(())

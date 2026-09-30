@@ -39,6 +39,7 @@
 //! }
 //!
 //! #[pymodule]
+//! # #[pyo3(name = "example_uuid")]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(get_uuid_from_str, m)?)?;
 //!     m.add_function(wrap_pyfunction!(get_uuid, m)?)?;
