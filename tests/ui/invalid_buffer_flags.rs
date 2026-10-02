@@ -1,4 +1,4 @@
-use pyo3::buffer::{PyBufferRequest, PyUntypedBufferView};
+use pyo3::buffer::{PyBufferRequest, PyBufferView, PyUntypedBufferView};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
@@ -17,5 +17,8 @@ fn main() {
             //~^ ERROR: format information is not available with the requested buffer flags
         })
         .unwrap();
+
+        PyBufferView::<u8>::with_flags(&bytes, PyBufferRequest::strided(), |_| {});
+        //~^ ERROR: format information is not available with the requested buffer flags
     });
 }
