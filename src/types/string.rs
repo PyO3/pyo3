@@ -290,6 +290,12 @@ impl PyString {
 /// `arbitrary_self_types`.
 #[doc(alias = "PyString")]
 pub trait PyStringMethods<'py>: crate::sealed::Sealed {
+    /// Returns the number of code points in the string.
+    ///
+    /// Unlike [`PyAnyMethods::len`](crate::types::PyAnyMethods::len), this never calls `__len__`,
+    /// so an override in a `str` subclass is ignored.
+    fn code_point_len(&self) -> PyResult<usize>;
+
     /// Gets the Python string as a Rust UTF-8 string slice.
     ///
     /// Returns a `UnicodeEncodeError` if the input is not valid unicode
@@ -331,6 +337,19 @@ pub trait PyStringMethods<'py>: crate::sealed::Sealed {
 }
 
 impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
+    fn code_point_len(&self) -> PyResult<usize> {
+        let len = cfg_select! {
+            // SAFETY: self is a valid str object, and every str is canonical since Python 3.12
+            all(Py_3_12, not(any(Py_LIMITED_API, PyPy, GraalPy))) => unsafe {
+                ffi::PyUnicode_GET_LENGTH(self.as_ptr())
+            },
+            // SAFETY: self is a valid str object
+            _ => unsafe { ffi::PyUnicode_GetLength(self.as_ptr()) },
+        };
+        crate::err::error_on_minusone(self.py(), len)?;
+        Ok(len as usize)
+    }
+
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn to_str(&self) -> PyResult<&str> {
         self.as_borrowed().to_str()
@@ -601,6 +620,51 @@ impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
 mod tests {
     use super::*;
     use crate::{IntoPyObject, exceptions::PyLookupError, types::PyAnyMethods as _};
+
+    #[test]
+    fn test_code_point_len() {
+        Python::attach(|py| {
+            for s in ["", "ascii", "é", "哈哈", "🐈", "ascii 哈哈🐈"] {
+                let py_string = PyString::new(py, s);
+                assert_eq!(py_string.code_point_len().unwrap(), s.chars().count());
+                assert_eq!(
+                    py_string.code_point_len().unwrap(),
+                    py_string.len().unwrap()
+                );
+            }
+        })
+    }
+
+    #[test]
+    fn test_code_point_len_surrogate() {
+        Python::attach(|py| {
+            let py_string = py
+                .eval(cr"'a\ud800'", None, None)
+                .unwrap()
+                .cast_into::<PyString>()
+                .unwrap();
+            assert_eq!(py_string.code_point_len().unwrap(), 2);
+        })
+    }
+
+    #[test]
+    #[cfg(not(PyPy))]
+    fn test_code_point_len_ignores_subclass_len() {
+        use crate::types::{PyDict, PyDictMethods as _};
+
+        Python::attach(|py| {
+            let locals = PyDict::new(py);
+            py.run(
+                c"class Lying(str):\n    def __len__(self):\n        return 0\ns = Lying('abc')",
+                None,
+                Some(&locals),
+            )
+            .unwrap();
+            let s = locals.get_item("s").unwrap().unwrap();
+            assert_eq!(s.len().unwrap(), 0);
+            assert_eq!(s.cast::<PyString>().unwrap().code_point_len().unwrap(), 3);
+        })
+    }
 
     #[test]
     fn test_to_cow_utf8() {
