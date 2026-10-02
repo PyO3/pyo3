@@ -194,13 +194,15 @@ where
 /// for more details.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section_mutex<F, R, T, PyMutex: PyMutexTrait<T>>(
+pub fn with_critical_section_mutex<'a, F, R, T, PyMutex>(
     _py: Python<'_>,
-    mutex: &PyMutex,
+    mutex: &'a PyMutex,
     f: F,
 ) -> R
 where
     F: for<'s> FnOnce(EnteredCriticalSection<'s, T>) -> R,
+    T: 'a,
+    PyMutex: PyMutexTrait<'a, T>,
 {
     #[cfg(Py_GIL_DISABLED)]
     {
@@ -244,16 +246,18 @@ where
 /// for more details.
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
-pub fn with_critical_section_mutex2<F, R, T1, T2, PyMutex1, PyMutex2>(
+pub fn with_critical_section_mutex2<'a, 'b, F, R, T1, T2, PyMutex1, PyMutex2>(
     py: Python<'_>,
-    m1: &PyMutex1,
-    m2: &PyMutex2,
+    m1: &'a PyMutex1,
+    m2: &'b PyMutex2,
     f: F,
 ) -> R
 where
     F: for<'s> FnOnce(EnteredCriticalSection<'s, T1>, Option<EnteredCriticalSection<'s, T2>>) -> R,
-    PyMutex1: PyMutexTrait<T1>,
-    PyMutex2: PyMutexTrait<T2>,
+    T1: 'a,
+    T2: 'b,
+    PyMutex1: PyMutexTrait<'a, T1>,
+    PyMutex2: PyMutexTrait<'b, T2>,
 {
     if core::ptr::addr_eq(m1, m2) {
         return with_critical_section_mutex(py, m1, |cs| f(cs, None));
@@ -640,7 +644,7 @@ mod tests {
     #[test]
     #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
-    fn test_deref_cercion_compiles() {
+    fn test_deref_cercion() {
         Python::attach(|py| {
             let mutex = alloc::sync::Arc::new(PyMutex::<i32>::new(0));
             with_critical_section_mutex(py, &mutex, |_| ());
