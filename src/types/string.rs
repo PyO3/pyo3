@@ -293,9 +293,7 @@ pub trait PyStringMethods<'py>: crate::sealed::Sealed {
     /// Returns the number of code points in the string.
     ///
     /// Unlike [`PyAnyMethods::len`](crate::types::PyAnyMethods::len), this never calls `__len__`,
-    /// so an override in a `str` subclass is ignored. On PyPy, however, the stored length of a
-    /// subclass instance comes from its `__len__`, called once when the object is first passed
-    /// to C, and is not updated afterwards.
+    /// so an override in a `str` subclass is ignored.
     fn code_point_len(&self) -> PyResult<usize>;
 
     /// Gets the Python string as a Rust UTF-8 string slice.
