@@ -10,13 +10,13 @@ use crate::platform::prelude::*;
 use crate::pycell::impl_::PyClassObjectLayout;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
 use crate::pyclass::boolean_struct::{False, True};
-use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::types::{DerefToPyAny, PyDict, PyString};
+use crate::types::{any::PyAnyMethods, string::PyStringMethods, typeobject::PyTypeMethods};
 use crate::{
-    ffi, CastError, CastIntoError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef,
-    PyRefMut, PyTypeInfo, Python,
+    CastError, CastIntoError, FromPyObject, PyAny, PyClass, PyClassInitializer, PyRef, PyRefMut,
+    PyTypeInfo, Python, ffi,
 };
-use crate::{internal::state, PyTypeCheck};
+use crate::{PyTypeCheck, internal::state};
 use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ops::Deref;
@@ -1573,6 +1573,10 @@ impl<T> Py<T> {
         // Safety: all Py<T> are valid Py<PyAny>
         unsafe { Py::from_non_null(ManuallyDrop::new(self).0) }
     }
+
+    pub(crate) fn as_non_null(&self) -> NonNull<ffi::PyObject> {
+        self.0
+    }
 }
 
 impl<T> Py<T>
@@ -2420,6 +2424,56 @@ impl<T> Py<T> {
     }
 }
 
+/// Variant of [`Borrowed`] which doesn't have the attachment lifetime `'py` and therefore
+/// can be used in contexts where the Python interpreter is not attached, such as during
+/// GC traversal.
+///
+/// This is intended to be a private type for now as it's unlikely to have much use outside
+/// of PyO3 internals. It also has a horrible name. It comes in useful as a better
+/// alternative to `NonNull<ffi::PyObject>` because it carries the lifetime of validity
+/// plus type information.
+#[repr(transparent)]
+pub(crate) struct PyBorrowedUnbound<'a, T>(NonNull<ffi::PyObject>, PhantomData<&'a Py<T>>);
+
+impl<'a, T> Clone for PyBorrowedUnbound<'a, T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<'a, T> Copy for PyBorrowedUnbound<'a, T> {}
+
+impl<'a> PyBorrowedUnbound<'a, PyAny> {
+    /// # Safety
+    ///
+    /// `ptr` must be a valid pointer to a Python object. The caller is responsible
+    /// for scoping the unbound lifetime `'a`.
+    #[inline]
+    pub(crate) unsafe fn from_non_null(ptr: NonNull<ffi::PyObject>) -> Self {
+        Self(ptr, PhantomData)
+    }
+}
+
+impl<'a, T> PyBorrowedUnbound<'a, T> {
+    /// # Safety
+    ///
+    /// Callers must ensure that the type is valid or risk type confusion.
+    #[inline]
+    pub(crate) unsafe fn cast_unchecked<U>(self) -> PyBorrowedUnbound<'a, U> {
+        PyBorrowedUnbound(self.0, PhantomData)
+    }
+}
+
+impl<'a, T> Deref for PyBorrowedUnbound<'a, T> {
+    type Target = Py<T>;
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: `Py<T>` has the same layout as `PyBorrowedUnbound<'a, T>` - just `NonNull<ffi::PyObject>`
+        // and both are `#[repr(transparent)]`
+        unsafe { NonNull::from(self).cast().as_ref() }
+    }
+}
+
 #[track_caller]
 #[cold]
 fn panic_on_null(py: Python<'_>) -> ! {
@@ -2436,11 +2490,11 @@ mod tests {
     use crate::exceptions::PyValueError;
     #[allow(unused_imports, reason = "conditionally used")]
     use crate::platform::prelude::*;
-    use crate::test_utils::generate_unique_module_name;
     #[cfg(all(feature = "macros", panic = "unwind"))]
     use crate::test_utils::UnraisableCapture;
-    use crate::types::{dict::IntoPyDict, PyAnyMethods, PyCapsule, PyDict, PyString};
-    use crate::{ffi, Borrowed, IntoPyObjectExt, PyAny, PyResult, Python};
+    use crate::test_utils::generate_unique_module_name;
+    use crate::types::{PyAnyMethods, PyCapsule, PyDict, PyString, dict::IntoPyDict};
+    use crate::{Borrowed, IntoPyObjectExt, PyAny, PyResult, Python, ffi};
     use core::ffi::CStr;
 
     #[test]
@@ -2514,9 +2568,10 @@ mod tests {
         Python::attach(|py| {
             let obj: Py<PyAny> = PyDict::new(py).into();
             assert!(obj.call_method0(py, "asdf").is_err());
-            assert!(obj
-                .call_method(py, "nonexistent_method", (1,), None)
-                .is_err());
+            assert!(
+                obj.call_method(py, "nonexistent_method", (1,), None)
+                    .is_err()
+            );
             assert!(obj.call_method0(py, "nonexistent_method").is_err());
             assert!(obj.call_method1(py, "nonexistent_method", (1,)).is_err());
         });
@@ -2561,10 +2616,12 @@ a = A()
 
             instance.setattr(py, "foo", "bar")?;
 
-            assert!(instance
-                .getattr(py, "foo")?
-                .bind(py)
-                .eq(PyString::new(py, "bar"))?);
+            assert!(
+                instance
+                    .getattr(py, "foo")?
+                    .bind(py)
+                    .eq(PyString::new(py, "bar"))?
+            );
 
             instance.getattr(py, "foo")?;
             Ok(())

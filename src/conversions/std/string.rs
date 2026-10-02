@@ -4,8 +4,8 @@ use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
-    conversion::IntoPyObject, instance::Bound, types::PyString, Borrowed, FromPyObject, PyAny,
-    PyErr, Python,
+    Borrowed, FromPyObject, PyAny, PyErr, Python, conversion::IntoPyObject, instance::Bound,
+    types::PyString,
 };
 use alloc::borrow::Cow;
 use core::convert::Infallible;
@@ -246,10 +246,11 @@ mod tests {
             let s = "Hello Python";
             let py_string = s.into_pyobject(py).unwrap();
             let err: crate::PyResult<char> = py_string.extract();
-            assert!(err
-                .unwrap_err()
-                .to_string()
-                .contains("expected a string of length 1"));
+            assert!(
+                err.unwrap_err()
+                    .to_string()
+                    .contains("expected a string of length 1")
+            );
         })
     }
 

@@ -121,7 +121,7 @@ pub mod non_poison {
     }
 
     #[cfg(wip_feature_std)]
-    impl<T> crate::sealed::Sealed for Mutex<T> {}
+    impl<T> crate::sync::mutex_ext_sealed::Sealed<T> for Mutex<T> {}
 
     #[cfg(wip_feature_std)]
     impl<T> crate::sync::MutexExt<T> for Mutex<T> {

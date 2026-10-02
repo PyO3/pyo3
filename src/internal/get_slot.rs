@@ -2,9 +2,8 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 
 use crate::{
-    ffi,
+    Borrowed, Bound, ffi,
     types::{PyType, PyTypeMethods},
-    Borrowed, Bound,
 };
 use core::ffi::c_int;
 

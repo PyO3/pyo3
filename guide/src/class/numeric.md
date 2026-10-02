@@ -331,6 +331,7 @@ impl Number {
 }
 
 #[pymodule]
+# #[pyo3(name = "example_number_ops_full")]
 mod my_module {
     #[pymodule_export]
     use super::Number;

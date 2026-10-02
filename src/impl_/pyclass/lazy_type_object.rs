@@ -13,12 +13,12 @@ use crate::sync::GILOnceCell;
 #[cfg(Py_3_14)]
 use crate::types::PyTypeMethods;
 use crate::{
+    Bound, Py, PyAny, PyClass, PyErr, PyResult, Python,
     exceptions::PyRuntimeError,
     ffi,
     impl_::pymethods::PyMethodDefType,
-    pyclass::{create_type_object, PyClassTypeObject},
+    pyclass::{PyClassTypeObject, create_type_object},
     types::PyType,
-    Bound, Py, PyAny, PyClass, PyErr, PyResult, Python,
 };
 
 use super::PyClassItemsIter;
@@ -75,6 +75,18 @@ impl<T: PyClass> LazyTypeObject<T> {
             <T as PyClass>::NAME,
             T::items_iter(),
         )
+    }
+
+    /// Gets the type object contained without performing any initialization work.
+    /// This avoids unsafe operations during GC.
+    #[cfg(Py_3_12)]
+    pub(crate) fn get_during_gc(&self) -> &Py<PyType> {
+        &self
+            .0
+            .value
+            .get_during_gc()
+            .expect("PyClass type object should have been created to reach GC")
+            .type_object
     }
 }
 
@@ -179,7 +191,7 @@ impl LazyTypeObjectInner {
                                     name,
                                     attr.name.to_str().unwrap()
                                 ),
-                            ))
+                            ));
                         }
                     }
                 }

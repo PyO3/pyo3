@@ -5,15 +5,15 @@ use core::cmp;
 use core::hash;
 
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_subscript, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_subscript};
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
     conversion::{FromPyObjectOwned, IntoPyObject},
     types::{
-        any::PyAnyMethods, frozenset::PyFrozenSetMethods, set::PySetMethods, PyFrozenSet, PySet,
+        PyFrozenSet, PySet, any::PyAnyMethods, frozenset::PyFrozenSetMethods, set::PySetMethods,
     },
-    Borrowed, Bound, FromPyObject, PyAny, PyErr, Python,
 };
 
 #[cfg(wip_feature_std)]
@@ -154,7 +154,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{any::PyAnyMethods, PyFrozenSet, PySet};
+    use crate::types::{PyFrozenSet, PySet, any::PyAnyMethods};
     use crate::{IntoPyObject, Python};
     use alloc::collections::BTreeSet;
     #[cfg(wip_feature_std)]

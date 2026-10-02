@@ -5,18 +5,18 @@ use crate::impl_::pyfunction::create_py_c_function;
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::types::capsule::PyCapsuleMethods;
+use crate::{Bound, PyAny, PyResult, Python};
+#[cfg(Py_LIMITED_API)]
+use crate::{
+    Py,
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+};
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef},
     types::{PyCapsule, PyDict, PyModule, PyTuple},
 };
-#[cfg(Py_LIMITED_API)]
-use crate::{
-    sync::PyOnceLock,
-    types::{PyType, PyTypeMethods},
-    Py,
-};
-use crate::{Bound, PyAny, PyResult, Python};
 use core::cell::UnsafeCell;
 use core::ffi::CStr;
 use core::ptr::NonNull;

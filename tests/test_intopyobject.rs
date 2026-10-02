@@ -1,7 +1,7 @@
 #![cfg(feature = "macros")]
 
 use pyo3::types::{PyDict, PyList, PyString};
-use pyo3::{intern, prelude::*, py_run, IntoPyObject, IntoPyObjectExt};
+use pyo3::{IntoPyObject, IntoPyObjectExt, intern, prelude::*, py_run};
 use std::collections::BTreeMap;
 
 #[macro_use]

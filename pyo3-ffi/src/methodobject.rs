@@ -1,8 +1,8 @@
-use crate::object::{PyObject, PyTypeObject};
-#[cfg(not(RustPython))]
-use crate::PyObject_TypeCheck;
 #[cfg(not(RustPython))]
 use crate::Py_IS_TYPE;
+#[cfg(not(RustPython))]
+use crate::PyObject_TypeCheck;
+use crate::object::{PyObject, PyTypeObject};
 use core::ffi::{c_char, c_int, c_void};
 use core::{mem, ptr};
 

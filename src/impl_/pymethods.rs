@@ -11,23 +11,23 @@ use crate::impl_::panic::PanicTrap;
 use crate::impl_::pyclass::PyClassDict as _;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
-use crate::internal::get_slot::{get_slot, TP_BASE, TP_CLEAR, TP_TRAVERSE};
+use crate::instance::PyBorrowedUnbound;
+use crate::internal::get_slot::{TP_BASE, TP_CLEAR, TP_TRAVERSE, get_slot};
 use crate::internal::pyclass_init::PyClassInit;
 use crate::internal::state::ForbidAttaching;
-use crate::pycell::impl_::{PyClassObjectBaseLayout, PyClassObjectLayout};
-use crate::pyclass::gc::{make_traverse_result, PyTraverseError, PyVisit};
+use crate::pycell::impl_::PyClassObjectLayout;
+use crate::pyclass::gc::{PyClassTraverseGuard, PyTraverseError, PyVisit, make_traverse_result};
 use crate::types::PyType;
-use crate::{ffi, Borrowed, Bound, Py, PyAny, PyClass, PyClassGuard, PyErr, PyResult, Python};
+use crate::{Borrowed, Bound, Py, PyAny, PyClass, PyErr, PyResult, Python, ffi};
 use core::ffi::CStr;
 use core::ffi::{c_int, c_void};
 use core::fmt;
 use core::panic::AssertUnwindSafe;
-use core::ptr::{null_mut, NonNull};
+use core::ptr::{NonNull, null_mut};
 use std::panic::catch_unwind;
 
 use super::pyclass::PyClassImpl;
 use super::trampoline;
-use crate::internal_tricks::{clear_eq, traverse_eq};
 
 /// `PyMethodDefType` represents different types of Python callable objects.
 /// It is used by the `#[pymethods]` attribute.
@@ -370,6 +370,13 @@ where
     let trap = PanicTrap::new("uncaught panic inside __traverse__ handler");
     let lock = ForbidAttaching::during_traverse();
 
+    // SAFETY: Python will always call `tp_traverse` with a non-null pointer
+    // to a valid instance of `T`. The borrowed lifetime `'a` is only passed to
+    // `traverse_impl`; it does not widen outside this function call.
+    let slf = unsafe {
+        PyBorrowedUnbound::from_non_null(NonNull::new_unchecked(slf)).cast_unchecked::<T>()
+    };
+
     let retval = match catch_unwind(AssertUnwindSafe(move || unsafe {
         traverse_impl::<T>(slf, visit, arg, tp_traverse::<T>)
     })) {
@@ -391,8 +398,8 @@ where
 /// - `slf` must be a valid pointer to an instance of `T`.
 /// - Must only be called from `tp_traverse`, which holds the `PanicTrap` and `ForbidAttaching`
 ///   lock this relies on.
-unsafe fn traverse_impl<T>(
-    slf: *mut ffi::PyObject,
+unsafe fn traverse_impl<'a, T>(
+    slf: PyBorrowedUnbound<'a, T>,
     visit: ffi::visitproc,
     arg: *mut c_void,
     current_traverse: ffi::traverseproc,
@@ -400,24 +407,18 @@ unsafe fn traverse_impl<T>(
 where
     T: PyClass,
 {
-    unsafe { call_super_traverse(slf, visit, arg, current_traverse) }?;
-
-    // SAFETY: `slf` is a valid Python object pointer to a class object of type T, and
-    // traversal is running so no mutations can occur.
-    let class_object: &<T as PyClassImpl>::Layout = unsafe { &*slf.cast() };
+    unsafe { call_super_traverse(slf.as_ptr(), visit, arg, current_traverse) }?;
 
     // The `__dict__` is not Rust data, so it is visited without the thread and borrow checks
     // below: it must stay reachable to the GC even when the pyclass data cannot be traversed.
-    make_traverse_result(unsafe { class_object.contents().dict.traverse_dict(visit, arg) })?;
-
-    // Unsendable types: `PyClassGuard::try_from_class_object` will panic on thread safety issue,
-    // fail gracefully here first. This check is a no-op for types which are not `#[pyclass(unsendable)]`.
-    if class_object.check_threadsafe().is_err() {
-        return Ok(());
-    }
+    make_traverse_result(unsafe {
+        T::Layout::contents_during_gc(slf)
+            .dict
+            .traverse_dict(visit, arg)
+    })?;
 
     // If we cannot safely obtain Rust state to traverse, we cannot traverse the object.
-    let Ok(guard) = PyClassGuard::<T>::try_from_class_object(class_object) else {
+    let Some(guard) = PyClassTraverseGuard::<T>::try_from_class_object(slf) else {
         return Ok(());
     };
 
@@ -497,6 +498,11 @@ unsafe fn call_super_traverse(
 
     // FIXME same question as cython: what if the current type is not in the MRO?
     Ok(())
+}
+
+fn traverse_eq(f: Option<ffi::traverseproc>, g: ffi::traverseproc) -> bool {
+    let Some(f) = f else { return false };
+    core::ptr::fn_addr_eq(f, g)
 }
 
 /// Calls an implementation of __clear__ for tp_clear
@@ -587,6 +593,11 @@ unsafe fn call_super_clear(
 
     // FIXME same question as cython: what if the current type is not in the MRO?
     0
+}
+
+fn clear_eq(f: Option<ffi::inquiry>, g: ffi::inquiry) -> bool {
+    let Some(f) = f else { return false };
+    core::ptr::fn_addr_eq(f, g)
 }
 
 // `__next__` and `__anext__` may say "iteration is over" by returning `None`, written either as
@@ -748,7 +759,7 @@ mod tests {
         use super::PyMethodDef;
         use crate::impl_::pyfunction::PyFunctionDef;
         use crate::types::PyAnyMethods;
-        use crate::{ffi, Python};
+        use crate::{Python, ffi};
 
         Python::attach(|py| {
             let def =

@@ -6,12 +6,12 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyList, PyMapping};
-use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
+use crate::{BoundObject, IntoPyObject, IntoPyObjectExt, Python, ffi};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
 
 pub(crate) mod items;
@@ -441,7 +441,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             value: Borrowed<'_, '_, PyAny>,
             py: Python<'py>,
         ) -> PyResult<(bool, Bound<'py, PyAny>)> {
-            let mut result = core::ptr::NonNull::dangling().as_ptr();
+            let mut result = core::ptr::dangling_mut();
             let code = setdefault_result_from_nonerror_return_code(
                 err::error_on_minusone_with_result(dict.py(), unsafe {
                     ffi::compat::PyDict_SetDefaultRef(
@@ -1699,10 +1699,11 @@ mod tests {
                 .into_py_dict(py)
                 .unwrap();
 
-            assert!(dict
-                .iter()
-                .find(|(_, v)| v.extract::<bool>().unwrap())
-                .is_none());
+            assert!(
+                dict.iter()
+                    .find(|(_, v)| v.extract::<bool>().unwrap())
+                    .is_none()
+            );
         });
     }
 
@@ -1721,10 +1722,11 @@ mod tests {
             let dict = [(1, false), (2, false), (3, false)]
                 .into_py_dict(py)
                 .unwrap();
-            assert!(dict
-                .iter()
-                .position(|(_, v)| v.extract::<bool>().unwrap())
-                .is_none());
+            assert!(
+                dict.iter()
+                    .position(|(_, v)| v.extract::<bool>().unwrap())
+                    .is_none()
+            );
         });
     }
 
@@ -1750,10 +1752,11 @@ mod tests {
             assert_eq!(sum, 6);
 
             let dict = [(1, "foo"), (2, "bar")].into_py_dict(py).unwrap();
-            assert!(dict
-                .iter()
-                .try_fold(0, |acc, (_, v)| PyResult::Ok(acc + v.extract::<i32>()?))
-                .is_err());
+            assert!(
+                dict.iter()
+                    .try_fold(0, |acc, (_, v)| PyResult::Ok(acc + v.extract::<i32>()?))
+                    .is_err()
+            );
         });
     }
 

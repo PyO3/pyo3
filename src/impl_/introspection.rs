@@ -5,7 +5,7 @@ use crate::pycell::impl_::PyClassObjectLayout;
 
 /// Seals `PyReturnType` so that types outside PyO3 cannot implement it.
 mod return_type {
-    use crate::{impl_::introspection::PyReturnType, IntoPyObject};
+    use crate::{IntoPyObject, impl_::introspection::PyReturnType};
 
     pub trait Sealed {}
 
@@ -173,8 +173,8 @@ pub const fn escaped_json_string_len(input: &str) -> usize {
 #[cfg(feature = "macros")]
 mod tests {
     use super::*;
-    use crate::prelude::*;
     use crate::PyTypeInfo;
+    use crate::prelude::*;
 
     #[pyclass(crate = "crate", frozen, subclass)]
     struct Empty;

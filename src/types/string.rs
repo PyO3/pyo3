@@ -6,9 +6,9 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
-use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
-use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
+use crate::types::bytes::PyBytesMethods;
+use crate::{Bound, Py, PyAny, PyResult, Python, ffi};
 #[cfg(RustPython)]
 use crate::{
     sync::PyOnceLock,
@@ -621,7 +621,7 @@ impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{exceptions::PyLookupError, types::PyAnyMethods as _, IntoPyObject};
+    use crate::{IntoPyObject, exceptions::PyLookupError, types::PyAnyMethods as _};
 
     #[test]
     fn test_code_point_len() {
@@ -711,12 +711,13 @@ mod tests {
     fn test_encode_utf8_surrogate() {
         Python::attach(|py| {
             let obj: Py<PyAny> = py.eval(cr"'\ud800'", None, None).unwrap().into();
-            assert!(obj
-                .bind(py)
-                .cast::<PyString>()
-                .unwrap()
-                .encode_utf8()
-                .is_err());
+            assert!(
+                obj.bind(py)
+                    .cast::<PyString>()
+                    .unwrap()
+                    .encode_utf8()
+                    .is_err()
+            );
         })
     }
 
@@ -756,9 +757,11 @@ mod tests {
 
             // default encoding is utf-8, default error handler is strict
             let py_string = PyString::from_encoded_object(&py_bytes, None, None).unwrap_err();
-            assert!(py_string
-                .get_type(py)
-                .is(py.get_type::<crate::exceptions::PyUnicodeDecodeError>()));
+            assert!(
+                py_string
+                    .get_type(py)
+                    .is(py.get_type::<crate::exceptions::PyUnicodeDecodeError>())
+            );
 
             // with `ignore` error handler, the invalid byte is dropped
             let py_string =
@@ -823,9 +826,10 @@ mod tests {
             assert_eq!(data, PyStringData::Ucs1(b"f\xfe"));
             let err = data.to_string(py).unwrap_err();
             assert!(err.get_type(py).is(py.get_type::<PyUnicodeDecodeError>()));
-            assert!(err
-                .to_string()
-                .contains("'utf-8' codec can't decode byte 0xfe in position 1"));
+            assert!(
+                err.to_string()
+                    .contains("'utf-8' codec can't decode byte 0xfe in position 1")
+            );
             assert_eq!(data.to_string_lossy(), Cow::Borrowed("f�"));
         });
     }
@@ -865,9 +869,10 @@ mod tests {
             assert_eq!(data, PyStringData::Ucs2(&[0xff22, 0xd800]));
             let err = data.to_string(py).unwrap_err();
             assert!(err.get_type(py).is(py.get_type::<PyUnicodeDecodeError>()));
-            assert!(err
-                .to_string()
-                .contains("'utf-16' codec can't decode bytes in position 0-3"));
+            assert!(
+                err.to_string()
+                    .contains("'utf-16' codec can't decode bytes in position 0-3")
+            );
             assert_eq!(data.to_string_lossy(), Cow::Owned::<str>("Ｂ�".into()));
         });
     }
@@ -904,9 +909,10 @@ mod tests {
             assert_eq!(data, PyStringData::Ucs4(&[0x20000, 0xd800]));
             let err = data.to_string(py).unwrap_err();
             assert!(err.get_type(py).is(py.get_type::<PyUnicodeDecodeError>()));
-            assert!(err
-                .to_string()
-                .contains("'utf-32' codec can't decode bytes in position 0-7"));
+            assert!(
+                err.to_string()
+                    .contains("'utf-32' codec can't decode bytes in position 0-7")
+            );
             assert_eq!(data.to_string_lossy(), Cow::Owned::<str>("𠀀�".into()));
         });
     }
@@ -918,10 +924,12 @@ mod tests {
             let result = PyString::from_bytes(py, "\u{2122}".as_bytes());
             assert!(result.is_ok());
             let result = PyString::from_bytes(py, b"\x80");
-            assert!(result
-                .unwrap_err()
-                .get_type(py)
-                .is(py.get_type::<PyUnicodeDecodeError>()));
+            assert!(
+                result
+                    .unwrap_err()
+                    .get_type(py)
+                    .is(py.get_type::<PyUnicodeDecodeError>())
+            );
         });
     }
 

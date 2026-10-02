@@ -45,7 +45,7 @@ use crate::sync::PyMutex;
 
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use crate::Python;
-use crate::{types::PyAny, Bound};
+use crate::{Bound, types::PyAny};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use core::cell::UnsafeCell;
 

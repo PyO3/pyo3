@@ -1,4 +1,4 @@
-use crate::{vectorcallfunc, PyObject, Py_TYPE, Py_ssize_t};
+use crate::{Py_TYPE, Py_ssize_t, PyObject, vectorcallfunc};
 #[cfg(all(any(not(PyPy), not(Py_3_11)), not(Py_3_12)))]
 use core::ffi::c_char;
 #[cfg(not(Py_3_11))]
@@ -6,15 +6,15 @@ use core::ffi::c_int;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::{
-    PyListObject, PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE, PyTupleObject, PyTuple_GET_ITEM,
-    PyTuple_GET_SIZE,
+    PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE, PyListObject, PyTuple_GET_ITEM,
+    PyTuple_GET_SIZE, PyTupleObject,
 };
 
 #[cfg(not(Py_3_11))]
 use crate::Py_buffer;
 
 #[cfg(not(any(PyPy, Py_3_11)))]
-use crate::{PyCallable_Check, PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL};
+use crate::{Py_TPFLAGS_HAVE_VECTORCALL, PyCallable_Check, PyType_HasFeature};
 #[cfg(not(any(Py_3_12, PyPy)))]
 use crate::{PyThreadState, PyThreadState_GET, PyTuple_Check};
 use libc::size_t;

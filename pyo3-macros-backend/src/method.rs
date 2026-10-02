@@ -3,8 +3,8 @@ use std::ffi::CString;
 use std::fmt::Display;
 
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
-use syn::{ext::IdentExt, spanned::Spanned, Ident, Result};
+use quote::{ToTokens, quote, quote_spanned};
+use syn::{Ident, Result, ext::IdentExt, spanned::Spanned};
 use syn::{LitCStr, ReceiverKind};
 
 use crate::params::is_forwarded_args;
@@ -14,7 +14,7 @@ use crate::pyfunction::{PyFunctionWarning, WarningFactory};
 use crate::utils::{Ctx, StaticIdent};
 use crate::{
     attributes::{FromPyWithAttribute, TextSignatureAttribute, TextSignatureAttributeValue},
-    params::{impl_arg_params, Holders},
+    params::{Holders, impl_arg_params},
     pyfunction::{
         FunctionSignature, PyFunctionArgPyO3Attributes, PyFunctionOptions, SignatureAttribute,
     },
@@ -290,9 +290,8 @@ impl FnType {
                 let slf: Ident = syn::Ident::new("_slf", Span::call_site());
                 let pyo3_path = pyo3_path.to_tokens_spanned(*span);
                 let class_method_receiver = match class_method_receiver {
-                    // `#slf` is `*mut PyTypeObject` for class methods
                     ClassMethodReceiver::Class => quote_spanned! { *span =>
-                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
+                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf)
                             .cast_unchecked::<#pyo3_path::types::PyType>()
                     },
                     // `#slf` is `*mut PyObject` for instance methods - need to get an
@@ -345,7 +344,7 @@ impl FnType {
                 let ret = quote_spanned! { *span =>
                     #[allow(clippy::useless_conversion, reason = "`pass_module` accepts anything which implements `From<&Bound<PyModule>>`")]
                     ::core::convert::Into::into(
-                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf.cast())
+                        #pyo3_path::Bound::ref_from_ptr(#py, &#slf)
                             .cast_unchecked::<#pyo3_path::types::PyModule>()
                     )
                 };
@@ -731,8 +730,14 @@ impl<'a> FnSpec<'a> {
                 set_name_to_new()?;
                 FnType::FnStatic
             }
-            [MethodTypeAttribute::New(_), MethodTypeAttribute::ClassMethod(span)]
-            | [MethodTypeAttribute::ClassMethod(span), MethodTypeAttribute::New(_)] => {
+            [
+                MethodTypeAttribute::New(_),
+                MethodTypeAttribute::ClassMethod(span),
+            ]
+            | [
+                MethodTypeAttribute::ClassMethod(span),
+                MethodTypeAttribute::New(_),
+            ] => {
                 set_name_to_new()?;
                 FnType::FnClass(*span)
             }
@@ -1120,7 +1125,7 @@ impl<'a> FnSpec<'a> {
         let self_argument = match &self.tp {
             // Getters / Setters / deleter / ClassAttribute are not callables on the Python side
             FnType::Getter(_) | FnType::Setter(_) | FnType::Deleter(_) | FnType::ClassAttribute => {
-                return None
+                return None;
             }
             FnType::Fn(_) => Some("self"),
             FnType::FnModule(_) => Some("module"),

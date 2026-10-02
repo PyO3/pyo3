@@ -197,7 +197,7 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
             return quote!(compile_error!(
                 "for_all_fields!() takes exactly two idents as input"
             ))
-            .into()
+            .into();
         }
     };
 
@@ -207,7 +207,7 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
             return quote!(compile_error!(
                 "for_all_fields!() takes exactly two idents as input"
             ))
-            .into()
+            .into();
         }
     };
 
@@ -217,7 +217,7 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
             return quote!(compile_error!(
                 "for_all_fields!() takes exactly two idents as input"
             ))
-            .into()
+            .into();
         }
     };
 
