@@ -800,11 +800,17 @@ mod rwlock_ext_sealed {
 mod mutex_trait_sealed {
     use core::ops::Deref;
 
-    pub trait Sealed<T: ?Sized> {}
+    pub trait Sealed<'a, T: ?Sized + 'a> {}
     #[cfg(wip_feature_std)]
-    impl<T: ?Sized> Sealed<T> for super::mutex::PyMutex<T> {}
-    impl<T: ?Sized> Sealed<T> for super::nonpoison::PyMutex<T> {}
-    impl<T: ?Sized, D: ?Sized + Deref<Target = T>> Sealed<T> for D {}
+    impl<'a, T: ?Sized + 'a> Sealed<'a, T> for super::mutex::PyMutex<T> {}
+    impl<'a, T: ?Sized + 'a> Sealed<'a, T> for super::nonpoison::PyMutex<T> {}
+    impl<'a, T: 'a, U: 'a, D> Sealed<'a, T> for D
+    where
+        T: ?Sized,
+        U: ?Sized + super::PyMutexTrait<'a, T>,
+        D: ?Sized + Deref<Target = U>,
+    {
+    }
 }
 
 /// Trait for mutex types used in [`critical_section`] API.
@@ -813,33 +819,38 @@ mod mutex_trait_sealed {
 #[cfg_attr(wip_feature_std, doc = "- [`PyMutex`]")]
 /// - [`nonpoison::PyMutex`]
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
-pub trait PyMutexTrait<T: ?Sized>: mutex_trait_sealed::Sealed<T> {
+pub trait PyMutexTrait<'a, T: ?Sized + 'a>: mutex_trait_sealed::Sealed<'a, T> {
     /// # Safety
     /// This function may not be called from outside of PyO3
     #[doc(hidden)]
-    unsafe fn data(&self) -> &UnsafeCell<T>;
+    unsafe fn data(&'a self) -> &'a UnsafeCell<T>;
 
     /// # Safety
     /// This function may not be called from outside of PyO3
     #[doc(hidden)]
-    unsafe fn inner(&self) -> &UnsafeCell<crate::ffi::PyMutex>;
+    unsafe fn inner(&'a self) -> &'a UnsafeCell<crate::ffi::PyMutex>;
 }
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
-impl<T: ?Sized, D: ?Sized + Deref<Target = T>> PyMutexTrait<T> for D {
-    unsafe fn data(&self) -> &UnsafeCell<T> {
+impl<'a, T, U, D> PyMutexTrait<'a, T> for D
+where
+    T: ?Sized + 'a,
+    U: ?Sized + PyMutexTrait<'a, T> + 'a,
+    D: ?Sized + Deref<Target = U>,
+{
+    unsafe fn data(&'a self) -> &'a UnsafeCell<T> {
         // SAFETY: target upholds requirements
-        unsafe { (*self).data() }
+        unsafe { U::data(self) }
     }
 
-    unsafe fn inner(&self) -> &UnsafeCell<crate::ffi::PyMutex> {
+    unsafe fn inner(&'a self) -> &'a UnsafeCell<crate::ffi::PyMutex> {
         // SAFETY: target upholds requirements
-        unsafe { (*self).inner() }
+        unsafe { U::inner(self) }
     }
 }
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_13, wip_feature_std))]
-impl<T: ?Sized> PyMutexTrait<T> for self::mutex::PyMutex<T> {
+impl<'a, T: ?Sized + 'a> PyMutexTrait<'a, T> for self::mutex::PyMutex<T> {
     unsafe fn data(&self) -> &UnsafeCell<T> {
         &self.data
     }
@@ -850,7 +861,7 @@ impl<T: ?Sized> PyMutexTrait<T> for self::mutex::PyMutex<T> {
 }
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
-impl<T: ?Sized> PyMutexTrait<T> for self::nonpoison::PyMutex<T> {
+impl<'a, T: ?Sized + 'a> PyMutexTrait<'a, T> for self::nonpoison::PyMutex<T> {
     unsafe fn data(&self) -> &UnsafeCell<T> {
         &self.data
     }
