@@ -8,7 +8,7 @@ use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyAny, PyList, PyTuple, PyType, PyTypeMethods, any::PyAnyMethods};
-use crate::{Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python, ffi};
+use crate::{BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python, ffi};
 
 /// Represents a reference to a Python object supporting the sequence protocol.
 ///
@@ -237,22 +237,11 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     where
         I: IntoPyObject<'py>,
     {
-        fn inner(
-            seq: &Bound<'_, PySequence>,
-            i: usize,
-            item: Borrowed<'_, '_, PyAny>,
-        ) -> PyResult<()> {
-            err::error_on_minusone(seq.py(), unsafe {
-                ffi::PySequence_SetItem(seq.as_ptr(), get_ssize_index(i), item.as_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(
-            self,
-            i,
-            item.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let item = item.into_pyobject_or_pyerr(py)?;
+        err::error_on_minusone(py, unsafe {
+            ffi::PySequence_SetItem(self.as_ptr(), get_ssize_index(i), item.as_ptr())
+        })
     }
 
     #[inline]
@@ -287,17 +276,11 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     where
         V: IntoPyObject<'py>,
     {
-        fn inner(seq: &Bound<'_, PySequence>, value: Borrowed<'_, '_, PyAny>) -> PyResult<usize> {
-            let r = unsafe { ffi::PySequence_Count(seq.as_ptr(), value.as_ptr()) };
-            crate::err::error_on_minusone(seq.py(), r)?;
-            Ok(r as usize)
-        }
-
         let py = self.py();
-        inner(
-            self,
-            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let value = value.into_pyobject_or_pyerr(py)?;
+        let r = unsafe { ffi::PySequence_Count(self.as_ptr(), value.as_ptr()) };
+        crate::err::error_on_minusone(py, r)?;
+        Ok(r as usize)
     }
 
     #[inline]
@@ -305,20 +288,14 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     where
         V: IntoPyObject<'py>,
     {
-        fn inner(seq: &Bound<'_, PySequence>, value: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
-            let r = unsafe { ffi::PySequence_Contains(seq.as_ptr(), value.as_ptr()) };
-            match r {
-                0 => Ok(false),
-                1 => Ok(true),
-                _ => Err(PyErr::fetch(seq.py())),
-            }
-        }
-
         let py = self.py();
-        inner(
-            self,
-            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let value = value.into_pyobject_or_pyerr(py)?;
+        let r = unsafe { ffi::PySequence_Contains(self.as_ptr(), value.as_ptr()) };
+        match r {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(PyErr::fetch(py)),
+        }
     }
 
     #[inline]
@@ -326,17 +303,11 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     where
         V: IntoPyObject<'py>,
     {
-        fn inner(seq: &Bound<'_, PySequence>, value: Borrowed<'_, '_, PyAny>) -> PyResult<usize> {
-            let r = unsafe { ffi::PySequence_Index(seq.as_ptr(), value.as_ptr()) };
-            crate::err::error_on_minusone(seq.py(), r)?;
-            Ok(r as usize)
-        }
-
         let py = self.py();
-        inner(
-            self,
-            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let value = value.into_pyobject_or_pyerr(py)?;
+        let r = unsafe { ffi::PySequence_Index(self.as_ptr(), value.as_ptr()) };
+        crate::err::error_on_minusone(py, r)?;
+        Ok(r as usize)
     }
 
     #[inline]
