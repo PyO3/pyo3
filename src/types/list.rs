@@ -101,15 +101,27 @@ impl PyList {
 
         let list = unsafe { ffi::PyList_New(len).assume_owned(py).cast_into_unchecked() };
 
-        let count = (&mut elements)
-            .take(len as usize)
-            .try_fold(0, |count, item| unsafe {
-                #[cfg(not(Py_LIMITED_API))]
-                ffi::PyList_SET_ITEM(list.as_ptr(), count, item?.into_ptr());
-                #[cfg(Py_LIMITED_API)]
-                ffi::PyList_SetItem(list.as_ptr(), count, item?.into_ptr());
-                Ok::<_, PyErr>(count + 1)
-            })?;
+        let fill = || {
+            (&mut elements)
+                .take(len as usize)
+                .try_fold(0, |count, item| unsafe {
+                    #[cfg(not(Py_LIMITED_API))]
+                    ffi::PyList_SET_ITEM(list.as_ptr(), count, item?.into_ptr());
+                    #[cfg(Py_LIMITED_API)]
+                    ffi::PyList_SetItem(list.as_ptr(), count, item?.into_ptr());
+                    Ok::<_, PyErr>(count + 1)
+                })
+        };
+
+        // Holding the critical section around the whole loop turns each acquisition
+        // inside PyList_SetItem into a recursive acquisition, which is cheaper.
+        #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
+        let count = crate::sync::critical_section::with_critical_section(list.as_any(), fill)?;
+        #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+        let count = {
+            let mut fill = fill;
+            fill()?
+        };
 
         assert_eq!(
             len, count,
