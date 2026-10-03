@@ -1,0 +1,87 @@
+error[E0277]: contiguity has already been constrained for this buffer request
+   --> tests/ui/invalid_buffer_flags.rs:6:54
+    |
+  6 |     let _ = PyBufferRequest::simple().c_contiguous().f_contiguous();
+    |                                                      ^^^^^^^^^^^^ the trait `buffer::flags::CanRequestContiguity` is not implemented for `buffer::flags::PyBufferFlags<false, true, true, false, false, 1>`
+    |
+    = note: only one of `.c_contiguous()`, `.f_contiguous()`, or `.any_contiguous()` may be used
+note: required by a bound in `PyBufferRequest::<Flag>::f_contiguous`
+ --> src/buffer.rs
+  |
+  |     pub const fn f_contiguous(self) -> PyBufferRequest<Flag::WithFContiguous>
+  |                  ------------ required by a bound in this associated function
+  |     where
+  |         Flag: flags::CanRequestContiguity,
+  |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyBufferRequest::<Flag>::f_contiguous`
+
+error[E0277]: format information has already been requested for this buffer request
+   --> tests/ui/invalid_buffer_flags.rs:8:49
+    |
+  8 |     let _ = PyBufferRequest::strided().format().format();
+    |                                                 ^^^^^^ the trait `buffer::flags::CanRequestFormat` is not implemented for `buffer::flags::PyBufferFlags<true, true, true, false, true, 0>`
+    |
+    = note: remove the extra `.format()` call
+note: required by a bound in `PyBufferRequest::<Flag>::format`
+ --> src/buffer.rs
+  |
+  |     pub const fn format(self) -> PyBufferRequest<Flag::WithFormat>
+  |                  ------ required by a bound in this associated function
+  |     where
+  |         Flag: flags::CanRequestFormat,
+  |               ^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyBufferRequest::<Flag>::format`
+
+error[E0277]: suboffsets can only be requested on a direct unconstrained buffer request
+   --> tests/ui/invalid_buffer_flags.rs:10:50
+    |
+ 10 |     let _ = PyBufferRequest::simple().indirect().indirect();
+    |                                                  ^^^^^^^^ the trait `buffer::flags::CanRequestIndirect` is not implemented for `buffer::flags::PyBufferFlags<false, true, true, true, false, 0>`
+    |
+    = note: call `.indirect()` before any contiguity builder, and only once
+note: required by a bound in `PyBufferRequest::<Flag>::indirect`
+ --> src/buffer.rs
+  |
+  |     pub const fn indirect(self) -> PyBufferRequest<Flag::WithIndirect>
+  |                  -------- required by a bound in this associated function
+  |     where
+  |         Flag: flags::CanRequestIndirect,
+  |               ^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyBufferRequest::<Flag>::indirect`
+
+error[E0277]: format information is not available with the requested buffer flags
+    --> tests/ui/invalid_buffer_flags.rs:16:18
+     |
+  16 |             view.format();
+     |                  ^^^^^^ the trait `buffer::flags::IncludesFormat` is not implemented for `buffer::flags::PyBufferFlags<false, true, true, false, true, 0>`
+     |
+     = note: use `.format()` when building a buffer request to request format information
+     = note: `PyBufferRequest::simple()` and `PyBufferRequest::simple().writable()` also imply u8 format
+note: required by a bound in `PyUntypedBufferView::<Flag>::format`
+ --> src/buffer.rs
+  |
+  |     pub fn format(&self) -> &CStr
+  |            ------ required by a bound in this associated function
+  |     where
+  |         Flag: flags::IncludesFormat,
+  |               ^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyUntypedBufferView::<Flag>::format`
+
+error[E0277]: format information is not available with the requested buffer flags
+    --> tests/ui/invalid_buffer_flags.rs:21:48
+     |
+  21 |         PyBufferView::<u8>::with_flags(&bytes, PyBufferRequest::strided(), |_| {});
+     |         ------------------------------         ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `buffer::flags::IncludesFormat` is not implemented for `buffer::flags::PyBufferFlags<false, true, true, false, true, 0>`
+     |         |
+     |         required by a bound introduced by this call
+     |
+     = note: use `.format()` when building a buffer request to request format information
+     = note: `PyBufferRequest::simple()` and `PyBufferRequest::simple().writable()` also imply u8 format
+note: required by a bound in `PyBufferView::<T>::with_flags`
+ --> src/buffer.rs
+  |
+  |     pub fn with_flags<Flag, R>(
+  |            ---------- required by a bound in this associated function
+...
+  |         Flag: PyBufferRequestType + flags::IncludesFormat,
+  |                                     ^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyBufferView::<T>::with_flags`
+
+error: aborting due to 5 previous errors
+
+For more information about this error, try `rustc --explain E0277`.
