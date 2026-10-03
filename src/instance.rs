@@ -6,6 +6,7 @@ use crate::err::{PyErr, PyResult};
 use crate::impl_::pyclass::PyClassImpl;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+use crate::internal_tricks::Never;
 use crate::platform::prelude::*;
 use crate::pycell::impl_::PyClassObjectLayout;
 use crate::pycell::{PyBorrowError, PyBorrowMutError};
@@ -45,6 +46,8 @@ pub trait BoundObject<'py, T>: bound_object_sealed::Sealed {
 }
 
 mod bound_object_sealed {
+    use crate::internal_tricks::Never;
+
     /// # Safety
     ///
     /// Type must be layout-compatible with `*mut ffi::PyObject`.
@@ -54,6 +57,36 @@ mod bound_object_sealed {
     unsafe impl<T> Sealed for super::Bound<'_, T> {}
     // SAFETY: `Borrowed` is layout-compatible with `*mut ffi::PyObject`.
     unsafe impl<T> Sealed for super::Borrowed<'_, '_, T> {}
+    // SAFETY: uninhabited type
+    unsafe impl Sealed for Never {}
+}
+
+impl<'py, T> BoundObject<'py, T> for Never {
+    type Any = Never;
+
+    fn as_borrowed(&self) -> Borrowed<'_, 'py, T> {
+        *self
+    }
+
+    fn into_bound(self) -> Bound<'py, T> {
+        self
+    }
+
+    fn into_any(self) -> Self::Any {
+        self
+    }
+
+    fn into_ptr(self) -> *mut ffi::PyObject {
+        self
+    }
+
+    fn as_ptr(&self) -> *mut ffi::PyObject {
+        *self
+    }
+
+    fn unbind(self) -> Py<T> {
+        self
+    }
 }
 
 /// A Python thread-attached equivalent to [`Py<T>`].
