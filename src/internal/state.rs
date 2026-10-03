@@ -265,9 +265,13 @@ impl Drop for SuspendAttach {
         // Update counts of `Py<T>` that were dropped while not attached.
         #[cfg(not(pyo3_disable_reference_pool))]
         {
-            // SAFETY: just re-attached
-            let py = unsafe { Python::assume_attached() };
-            get_pool().drop_deferred_references(py);
+            // `POOL.get()`, not `get_pool()`: with no pool there is nothing to drop,
+            // and creating it here locks its mutex for the first time, which can
+            // allocate (macOS), re-entering a global allocator that attaches.
+            if let Some(pool) = POOL.get() {
+                // SAFETY: just re-attached
+                pool.drop_deferred_references(unsafe { Python::assume_attached() });
+            }
         }
     }
 }
