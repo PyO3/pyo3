@@ -114,18 +114,13 @@ impl PyList {
         };
 
         // Holding the critical section around the whole loop turns each acquisition
-        // inside PyList_SetItem into a recursive acquisition, which is cheaper. The outer
-        // acquisition has a fixed cost of its own, which only pays off from about four
-        // elements.
-        #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
-        let result = if len >= 4 {
-            crate::sync::critical_section::with_critical_section(list.as_any(), fill)
+        // inside PyList_SetItem into a recursive acquisition, which is cheaper.
+        // The outer acquisition only pays off from about four elements.
+        let count = if cfg!(all(Py_LIMITED_API, Py_GIL_DISABLED)) && len >= 4 {
+            crate::sync::critical_section::with_critical_section(list.as_any(), fill)?
         } else {
-            fill()
+            fill()?
         };
-        #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
-        let result = fill();
-        let count = result?;
 
         assert_eq!(
             len, count,
@@ -1567,36 +1562,31 @@ mod tests {
 
     #[test]
     fn failing_intopyobject_returns_error() {
+        use crate::IntoPyObjectExt;
         use crate::exceptions::PyValueError;
-        use crate::{Bound, PyAny, PyErr};
 
         struct MaybeBad(usize);
 
         impl<'py> IntoPyObject<'py> for MaybeBad {
-            type Target = PyAny;
-            type Output = Bound<'py, Self::Target>;
-            type Error = PyErr;
+            type Target = crate::PyAny;
+            type Output = crate::Bound<'py, Self::Target>;
+            type Error = crate::PyErr;
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
                 if self.0 == 2 {
                     return Err(PyValueError::new_err("bad element"));
                 }
-                let Ok(int) = self.0.into_pyobject(py);
-                Ok(int.into_any())
+                self.0.into_bound_py_any(py)
             }
         }
 
         Python::attach(|py| {
-            // Fails in a list long enough to take the outer critical section on the
-            // free-threaded limited API, and in one too short to take it.
+            // Lists with and without the outer critical section on abi3t
             for len in [5, 3] {
                 let err = PyList::new(py, (0..len).map(MaybeBad)).unwrap_err();
                 assert!(err.is_instance_of::<PyValueError>(py));
             }
-
-            // Building another list still works after the error.
-            let list = PyList::new(py, (0..2).map(MaybeBad)).unwrap();
-            assert_eq!(list.len(), 2);
+            assert_eq!(PyList::new(py, (0..2).map(MaybeBad)).unwrap().len(), 2);
         });
     }
 
