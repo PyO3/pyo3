@@ -435,6 +435,8 @@ use impl_traits;
 
 #[cfg(test)]
 mod test {
+    extern crate std;
+
     use super::*;
     use crate::impl_::pyclass::{IsSend, IsSync, value_of};
     use crate::types::PyAnyMethods as _;

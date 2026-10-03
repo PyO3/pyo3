@@ -701,6 +701,8 @@ where
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
+    extern crate std;
+
     use super::*;
 
     #[allow(unused_imports, reason = "conditionally used")]

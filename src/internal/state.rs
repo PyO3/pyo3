@@ -404,6 +404,8 @@ fn decrement_attach_count() {
 #[allow(clippy::undocumented_unsafe_blocks, reason = "tests")]
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::*;
 
     use crate::ffi_ptr_ext::FfiPtrExt;
