@@ -465,7 +465,7 @@ mod tests {
 
     #[test]
     #[cfg(all(not(pyo3_disable_reference_pool), not(target_arch = "wasm32")))] // We are building wasm Python with pthreads disabled
-    fn test_pyobject_drop_detached_doesnt_decrease_refcnt() {
+    fn test_pyobject_drop_detached_defers_decref_to_next_attach() {
         let obj = Python::attach(|py| {
             let obj = get_object(py);
             // Create a reference to drop while detached.
@@ -477,11 +477,17 @@ mod tests {
             // Drop reference in a separate (detached) thread.
             std::thread::spawn(move || drop(reference)).join().unwrap();
 
-            // The reference count should not have changed, it is remembered
-            // to release later.
-            assert_eq!(obj._get_refcnt(py), 2);
+            // On the GIL-enabled build, the reference count should not
+            // have changed, it is remembered to release later.
+            //
+            // On free-threaded builds, another thread could plausibly have
+            // already processed the decref. We could add test-only machinery
+            // (e.g. events or local pool) but that doesn't seem worth it.
             #[cfg(not(Py_GIL_DISABLED))]
-            assert!(pool_dec_refs_contains(&obj));
+            {
+                assert_eq!(obj._get_refcnt(py), 2);
+                assert!(pool_dec_refs_contains(&obj));
+            }
             obj
         });
 
