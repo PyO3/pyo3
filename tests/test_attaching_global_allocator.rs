@@ -1,3 +1,5 @@
+#![cfg(not(any(PyPy, GraalPy)))]
+
 //! A global allocator that attaches to the interpreter, as
 //! `pyo3_polars::PolarsAllocator` does to find the Polars allocator.
 
