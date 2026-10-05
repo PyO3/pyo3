@@ -98,8 +98,7 @@ impl OrderedRichCmp {
     }
 }
 
-#[cfg_attr(wip_feature_std, pyclass(eq, ord, hash, str, frozen))]
-#[cfg_attr(not(wip_feature_std), pyclass(eq, ord, str, frozen))]
+#[pyclass(eq, ord, hash, str, frozen)]
 #[derive(PartialEq, Eq, Ord, PartialOrd, Hash)]
 struct OrderedDerived(i64);
 

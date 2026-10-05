@@ -42,18 +42,6 @@ error: `eq_int` can only be used on simple enums.
 63 | #[pyclass(eq_int)]
    |           ^^^^^^
 
-error: `#[pyclass(hash)]` requires PyO3's `std` feature
-  --> tests/ui/invalid_pyclass_enum.rs:70:31
-   |
-70 | #[pyclass(frozen, eq, eq_int, hash)]
-   |                               ^^^^
-
-error: `#[pyclass(hash)]` requires PyO3's `std` feature
-  --> tests/ui/invalid_pyclass_enum.rs:79:23
-   |
-79 | #[pyclass(frozen, eq, hash)]
-   |                       ^^^^
-
 error: The `hash` option requires the `frozen` option.
   --> tests/ui/invalid_pyclass_enum.rs:88:11
    |
@@ -152,6 +140,30 @@ help: consider annotating `ComplexEqOptRequiresPartialEq` with `#[derive(Partial
 52 | enum ComplexEqOptRequiresPartialEq {
    |
 
+error[E0277]: the trait bound `SimpleHashOptRequiresHash: Hash` is not satisfied
+  --> tests/ui/invalid_pyclass_enum.rs:70:31
+   |
+70 | #[pyclass(frozen, eq, eq_int, hash)]
+   |                               ^^^^ the trait `Hash` is not implemented for `SimpleHashOptRequiresHash`
+   |
+help: consider annotating `SimpleHashOptRequiresHash` with `#[derive(Hash)]`
+   |
+74 + #[derive(Hash)]
+75 | enum SimpleHashOptRequiresHash {
+   |
+
+error[E0277]: the trait bound `ComplexHashOptRequiresHash: Hash` is not satisfied
+  --> tests/ui/invalid_pyclass_enum.rs:79:23
+   |
+79 | #[pyclass(frozen, eq, hash)]
+   |                       ^^^^ the trait `Hash` is not implemented for `ComplexHashOptRequiresHash`
+   |
+help: consider annotating `ComplexHashOptRequiresHash` with `#[derive(Hash)]`
+   |
+83 + #[derive(Hash)]
+84 | enum ComplexHashOptRequiresHash {
+   |
+
 error[E0369]: binary operation `>` cannot be applied to type `&InvalidOrderedComplexEnum2`
    --> tests/ui/invalid_pyclass_enum.rs:112:15
     |
@@ -222,4 +234,5 @@ help: consider annotating `InvalidOrderedComplexEnum2` with `#[derive(PartialEq,
 
 error: aborting due to 22 previous errors
 
-For more information about this error, try `rustc --explain E0369`.
+Some errors have detailed explanations: E0277, E0369.
+For more information about an error, try `rustc --explain E0277`.

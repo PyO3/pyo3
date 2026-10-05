@@ -285,7 +285,6 @@ fn test_simple_enum_eq_only() {
     })
 }
 
-#[cfg(wip_feature_std)]
 #[pyclass(frozen, eq, eq_int, hash)]
 #[derive(PartialEq, Hash)]
 enum SimpleEnumWithHash {
@@ -293,18 +292,17 @@ enum SimpleEnumWithHash {
     B,
 }
 
+fn expected_py_hash(value: &impl core::hash::Hash) -> isize {
+    use core::hash::BuildHasher;
+    pyo3::impl_::platform::DefaultHashBuilder::default().hash_one(value) as isize
+}
+
 #[test]
-#[cfg(wip_feature_std)]
 fn test_simple_enum_with_hash() {
     Python::attach(|py| {
         use pyo3::types::IntoPyDict;
         let class = SimpleEnumWithHash::A;
-        let hash = {
-            use std::hash::{Hash, Hasher};
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            class.hash(&mut hasher);
-            hasher.finish() as isize
-        };
+        let hash = expected_py_hash(&class);
 
         let env = [
             ("obj", Py::new(py, class).unwrap().into_any()),
@@ -317,7 +315,6 @@ fn test_simple_enum_with_hash() {
     });
 }
 
-#[cfg(wip_feature_std)]
 #[pyclass(eq, hash)]
 #[derive(PartialEq, Hash)]
 enum ComplexEnumWithHash {
@@ -326,19 +323,13 @@ enum ComplexEnumWithHash {
 }
 
 #[test]
-#[cfg(wip_feature_std)]
 fn test_complex_enum_with_hash() {
     Python::attach(|py| {
         use pyo3::types::IntoPyDict;
         let class = ComplexEnumWithHash::B {
             msg: String::from("Hello"),
         };
-        let hash = {
-            use std::hash::{Hash, Hasher};
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            class.hash(&mut hasher);
-            hasher.finish() as isize
-        };
+        let hash = expected_py_hash(&class);
 
         let env = [
             ("obj", Py::new(py, class).unwrap().into_any()),

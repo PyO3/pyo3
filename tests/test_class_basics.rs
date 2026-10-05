@@ -227,25 +227,23 @@ fn class_with_object_field() {
     });
 }
 
-#[cfg(wip_feature_std)]
 #[pyclass(frozen, eq, hash)]
 #[derive(PartialEq, Hash)]
 struct ClassWithHash {
     value: usize,
 }
 
+fn expected_py_hash(value: &impl core::hash::Hash) -> isize {
+    use core::hash::BuildHasher;
+    pyo3::impl_::platform::DefaultHashBuilder::default().hash_one(value) as isize
+}
+
 #[test]
-#[cfg(wip_feature_std)]
 fn class_with_hash() {
     Python::attach(|py| {
         use pyo3::types::IntoPyDict;
         let class = ClassWithHash { value: 42 };
-        let hash = {
-            use std::hash::{Hash, Hasher};
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            class.hash(&mut hasher);
-            hasher.finish() as isize
-        };
+        let hash = expected_py_hash(&class);
 
         let env = [
             ("obj", Py::new(py, class).unwrap().into_any()),
