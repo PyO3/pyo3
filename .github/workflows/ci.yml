@@ -22,36 +22,38 @@ jobs:
 
   resolve:
     runs-on: ubuntu-latest
-    strategy:
-      # Having a single matrix entry gives a location to define YAML anchors for static values
-      # that can be re-used through the rest of the file.
-      matrix:
-        definitions:
-          - save-cache: &enable-cache-save >-
-              ${{ github.ref == 'refs/heads/main' ||
-                  contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-            fail-fast: &enable-fail-fast >-
-              ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
-            default-pr-build: &is-default-pr-build >-
-              ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') &&
-                  github.event_name == 'pull_request' }}
-            full-build: &enable-full-build >-
-              ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') ||
-                  github.event_name != 'pull_request' }}
-            # For PRs, we need to run on the real PR head, not the resultant merge of the PR into the target branch.
-            #
-            # This is necessary for coverage reporting to make sense; we then get exactly the coverage change
-            # between the base branch and the real PR head.
-            #
-            # If it were run on the merge commit the problem is that the coverage potentially does not align
-            # with the commit diff, because the merge may affect line numbers.
-            coverage-sha: &coverage-sha >-
-              ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     outputs:
       MSRV: ${{ steps.resolve-msrv.outputs.MSRV }}
-      # runner context is not available in `strategy` section so needs to become a full output
+      # runner context is not available in all sections where an anchor might be evaluated
+      # so needs to become a full output
       verbose: ${{ runner.debug == '1' }}
     steps:
+      # Having a no-op step allows us to define YAML anchors for static values that can be re-used
+      # through the rest of the file.
+      - name: Define reusable anchors
+        if: ${{ false }}
+        run: ":"
+        env:
+          save-cache: &enable-cache-save >-
+            ${{ github.ref == 'refs/heads/main' ||
+                contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          fail-fast: &enable-fail-fast >-
+            ${{ !contains(github.event.pull_request.labels.*.name, 'CI-no-fail-fast') }}
+          default-pr-build: &is-default-pr-build >-
+            ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') &&
+                github.event_name == 'pull_request' }}
+          full-build: &enable-full-build >-
+            ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') ||
+                github.event_name != 'pull_request' }}
+          # For PRs, we need to run on the real PR head, not the resultant merge of the PR into the target branch.
+          #
+          # This is necessary for coverage reporting to make sense; we then get exactly the coverage change
+          # between the base branch and the real PR head.
+          #
+          # If it were run on the merge commit the problem is that the coverage potentially does not align
+          # with the commit diff, because the merge may affect line numbers.
+          coverage-sha: &coverage-sha >-
+            ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-python@v7
         with:
@@ -109,7 +111,7 @@ jobs:
           python-version: "3.14"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
       - uses: astral-sh/setup-uv@v7
         with:
           save-cache: *enable-cache-save
@@ -445,7 +447,7 @@ jobs:
           python-version: "3.14"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@valgrind
       - uses: astral-sh/setup-uv@v7
@@ -468,7 +470,7 @@ jobs:
           python-version: "3.14"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
       # TODO: unpin to rust-toolchain@nightly once the below is fixed
       # https://github.com/RalfJung/cargo-careful/issues/55
       - uses: dtolnay/rust-toolchain@master
@@ -495,7 +497,7 @@ jobs:
           python-version: "3.14"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
@@ -547,7 +549,7 @@ jobs:
           components: rust-src
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
       - name: Test
         run: uvx nox -s ${{ matrix.session }}
 
@@ -559,7 +561,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
@@ -578,7 +580,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-src
@@ -630,7 +632,7 @@ jobs:
           python-version: "3.15-dev"
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
@@ -684,7 +686,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: examples/maturin-starter
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
           key: ${{ matrix.target }}
       - uses: dtolnay/rust-toolchain@stable
       - name: Setup cross-compiler packages
@@ -794,7 +796,7 @@ jobs:
           architecture: ${{ matrix.platform.python-architecture }}
       - uses: Swatinem/rust-cache@v2
         with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+          save-if: *enable-cache-save
       - uses: astral-sh/setup-uv@v7
         with:
           save-cache: *enable-cache-save
