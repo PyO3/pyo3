@@ -266,8 +266,7 @@ impl Drop for SuspendAttach {
         #[cfg(not(pyo3_disable_reference_pool))]
         {
             // SAFETY: just re-attached
-            let py = unsafe { Python::assume_attached() };
-            get_pool().drop_deferred_references(py);
+            drop_deferred_references(unsafe { Python::assume_attached() });
         }
     }
 }
