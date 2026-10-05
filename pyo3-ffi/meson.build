@@ -67,7 +67,7 @@ message('Enabled features:', features)
 
 # Deprecated cargo features.
 if features.contains('extension-module')
-  warning('The extension-module cargo feature is deprecated. Use the "extension_module" Meson option instead.')
+  warning('The extension-module cargo feature is deprecated. Use the "pyo3_build_extension_module" Meson option instead.')
 endif
 if features.contains('generate-import-lib')
   warning('The generate-import-lib cargo feature is deprecated')
@@ -158,16 +158,10 @@ if is_windows
   else
     py_lib_name = 'python' + abi + (py_debug ? '_d' : '')
   endif
-  if get_option('use_raw_dylib')
-    extra_args += ['--cfg', 'pyo3_use_raw_dylib', '--cfg', f'pyo3_dll="@py_lib_name@"']
-  else
-    error('configuration currently not supported')
-    # extra_args += ['-l', f'pythonXY:@py_lib_name@']
-    # extra_deps += py.dependency()
-  endif
+  extra_args += ['--cfg', 'pyo3_use_raw_dylib', '--cfg', f'pyo3_dll="@py_lib_name@"']
 else
   # Unix: extension modules never link libpython, only embedding links it.
-  if not get_option('extension_module')
+  if not get_option('pyo3_build_extension_module')
     extra_deps += py.dependency(embed : true)
   endif
 endif
@@ -195,7 +189,7 @@ dep = declare_dependency(
   variables : {
     'features' : ','.join(features),
     'args' : '\0'.join(extra_args),
-    'extension_module' : get_option('extension_module').to_string(),
+    'extension_module' : get_option('pyo3_build_extension_module').to_string(),
   },
   version : pkg_obj.version()
 )
