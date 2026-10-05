@@ -8,7 +8,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::platform::prelude::*;
 use crate::types::sequence::PySequenceMethods;
 use crate::types::{PySequence, PyTuple};
-use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python};
+use crate::{Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python};
 #[cfg(RustPython)]
 use crate::{
     Py,
@@ -336,14 +336,11 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     where
         I: IntoPyObject<'py>,
     {
-        fn inner(list: &Bound<'_, PyList>, index: usize, item: Bound<'_, PyAny>) -> PyResult<()> {
-            err::error_on_minusone(list.py(), unsafe {
-                ffi::PyList_SetItem(list.as_ptr(), get_ssize_index(index), item.into_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(self, index, item.into_bound_py_any(py)?)
+        let item = item.into_bound_py_any(py)?;
+        err::error_on_minusone(py, unsafe {
+            ffi::PyList_SetItem(self.as_ptr(), get_ssize_index(index), item.into_ptr())
+        })
     }
 
     /// Deletes the `index`th element of self.
@@ -382,17 +379,11 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     where
         I: IntoPyObject<'py>,
     {
-        fn inner(list: &Bound<'_, PyList>, item: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
-            err::error_on_minusone(list.py(), unsafe {
-                ffi::PyList_Append(list.as_ptr(), item.as_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(
-            self,
-            item.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let item = item.into_pyobject_or_pyerr(py)?;
+        err::error_on_minusone(py, unsafe {
+            ffi::PyList_Append(self.as_ptr(), item.as_ptr())
+        })
     }
 
     /// Inserts an item at the specified index.
@@ -402,22 +393,11 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     where
         I: IntoPyObject<'py>,
     {
-        fn inner(
-            list: &Bound<'_, PyList>,
-            index: usize,
-            item: Borrowed<'_, '_, PyAny>,
-        ) -> PyResult<()> {
-            err::error_on_minusone(list.py(), unsafe {
-                ffi::PyList_Insert(list.as_ptr(), get_ssize_index(index), item.as_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(
-            self,
-            index,
-            item.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let item = item.into_pyobject_or_pyerr(py)?;
+        err::error_on_minusone(py, unsafe {
+            ffi::PyList_Insert(self.as_ptr(), get_ssize_index(index), item.as_ptr())
+        })
     }
 
     /// Determines if self contains `value`.

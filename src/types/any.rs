@@ -1,7 +1,7 @@
 use crate::call::PyCallArgs;
 use crate::class::basic::CompareOp;
 use crate::conversion::{FromPyObject, IntoPyObject};
-use crate::err::{PyErr, PyResult, error_on_minusone};
+use crate::err::{PyErr, PyResult};
 use crate::exceptions::PyTypeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
@@ -829,18 +829,9 @@ macro_rules! implement_binop {
         where
             O: IntoPyObject<'py>,
         {
-            fn inner<'py>(
-                any: &Bound<'py, PyAny>,
-                other: Borrowed<'_, 'py, PyAny>,
-            ) -> PyResult<Bound<'py, PyAny>> {
-                unsafe { ffi::$c_api(any.as_ptr(), other.as_ptr()).assume_owned_or_err(any.py()) }
-            }
-
             let py = self.py();
-            inner(
-                self,
-                other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-            )
+            let other = other.into_pyobject_or_pyerr(py)?;
+            unsafe { ffi::$c_api(self.as_ptr(), other.as_ptr()).assume_owned_or_err(py) }
         }
     };
 }
@@ -855,75 +846,41 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        fn inner<'py>(
-            any: &Bound<'py, PyAny>,
-            attr_name: Borrowed<'_, '_, PyString>,
-        ) -> PyResult<bool> {
-            let result =
-                unsafe { ffi::compat::PyObject_HasAttrWithError(any.as_ptr(), attr_name.as_ptr()) };
-            error_on_minusone(any.py(), result)?;
-            Ok(result > 0)
+        let py = self.py();
+        let attr_name = attr_name.into_pyobject(py).map_err(Into::into)?;
+        match unsafe { ffi::compat::PyObject_HasAttrWithError(self.as_ptr(), attr_name.as_ptr()) } {
+            1 => Ok(true),
+            0 => Ok(false),
+            _ => Err(PyErr::fetch(py)),
         }
-
-        inner(
-            self,
-            attr_name
-                .into_pyobject(self.py())
-                .map_err(Into::into)?
-                .as_borrowed(),
-        )
     }
 
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        fn inner<'py>(
-            any: &Bound<'py, PyAny>,
-            attr_name: Borrowed<'_, '_, PyString>,
-        ) -> PyResult<Bound<'py, PyAny>> {
-            unsafe {
-                ffi::PyObject_GetAttr(any.as_ptr(), attr_name.as_ptr())
-                    .assume_owned_or_err(any.py())
-            }
-        }
-
-        inner(
-            self,
-            attr_name
-                .into_pyobject(self.py())
-                .map_err(Into::into)?
-                .as_borrowed(),
-        )
+        let py = self.py();
+        let attr_name = attr_name.into_pyobject(py).map_err(Into::into)?;
+        unsafe { ffi::PyObject_GetAttr(self.as_ptr(), attr_name.as_ptr()).assume_owned_or_err(py) }
     }
 
     fn getattr_opt<N>(&self, attr_name: N) -> PyResult<Option<Bound<'py, PyAny>>>
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        fn inner<'py>(
-            any: &Bound<'py, PyAny>,
-            attr_name: Borrowed<'_, 'py, PyString>,
-        ) -> PyResult<Option<Bound<'py, PyAny>>> {
-            let mut resp_ptr: *mut ffi::PyObject = core::ptr::null_mut();
-            match unsafe {
-                ffi::compat::PyObject_GetOptionalAttr(
-                    any.as_ptr(),
-                    attr_name.as_ptr(),
-                    &mut resp_ptr,
-                )
-            } {
-                // Attribute found, result is a new strong reference
-                1 => Ok(Some(unsafe { Bound::from_owned_ptr(any.py(), resp_ptr) })),
-                // Attribute not found
-                0 => Ok(None),
-                // An error occurred (other than AttributeError)
-                _ => Err(PyErr::fetch(any.py())),
-            }
-        }
-
         let py = self.py();
-        inner(self, attr_name.into_pyobject_or_pyerr(py)?.as_borrowed())
+        let attr_name = attr_name.into_pyobject_or_pyerr(py)?;
+        let mut resp_ptr: *mut ffi::PyObject = core::ptr::null_mut();
+        match unsafe {
+            ffi::compat::PyObject_GetOptionalAttr(self.as_ptr(), attr_name.as_ptr(), &mut resp_ptr)
+        } {
+            // Attribute found, result is a new strong reference
+            1 => Ok(Some(unsafe { resp_ptr.assume_owned_unchecked(py) })),
+            // Attribute not found
+            0 => Ok(None),
+            // An error occurred (other than AttributeError)
+            _ => Err(PyErr::fetch(py)),
+        }
     }
 
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
@@ -931,36 +888,23 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         N: IntoPyObject<'py, Target = PyString>,
         V: IntoPyObject<'py>,
     {
-        fn inner(
-            any: &Bound<'_, PyAny>,
-            attr_name: Borrowed<'_, '_, PyString>,
-            value: Borrowed<'_, '_, PyAny>,
-        ) -> PyResult<()> {
-            err::error_on_minusone(any.py(), unsafe {
-                ffi::PyObject_SetAttr(any.as_ptr(), attr_name.as_ptr(), value.as_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(
-            self,
-            attr_name.into_pyobject_or_pyerr(py)?.as_borrowed(),
-            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let attr_name = attr_name.into_pyobject_or_pyerr(py)?;
+        let value = value.into_pyobject_or_pyerr(py)?;
+        err::error_on_minusone(py, unsafe {
+            ffi::PyObject_SetAttr(self.as_ptr(), attr_name.as_ptr(), value.as_ptr())
+        })
     }
 
     fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
         N: IntoPyObject<'py, Target = PyString>,
     {
-        fn inner(any: &Bound<'_, PyAny>, attr_name: Borrowed<'_, '_, PyString>) -> PyResult<()> {
-            err::error_on_minusone(any.py(), unsafe {
-                ffi::PyObject_DelAttr(any.as_ptr(), attr_name.as_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(self, attr_name.into_pyobject_or_pyerr(py)?.as_borrowed())
+        let attr_name = attr_name.into_pyobject_or_pyerr(py)?;
+        err::error_on_minusone(py, unsafe {
+            ffi::PyObject_DelAttr(self.as_ptr(), attr_name.as_ptr())
+        })
     }
 
     fn compare<O>(&self, other: O) -> PyResult<Ordering>
@@ -1000,23 +944,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         O: IntoPyObject<'py>,
     {
-        fn inner<'py>(
-            any: &Bound<'py, PyAny>,
-            other: Borrowed<'_, 'py, PyAny>,
-            compare_op: CompareOp,
-        ) -> PyResult<Bound<'py, PyAny>> {
-            unsafe {
-                ffi::PyObject_RichCompare(any.as_ptr(), other.as_ptr(), compare_op as c_int)
-                    .assume_owned_or_err(any.py())
-            }
-        }
-
         let py = self.py();
-        inner(
-            self,
-            other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-            compare_op,
-        )
+        let other = other.into_pyobject_or_pyerr(py)?;
+        unsafe {
+            ffi::PyObject_RichCompare(self.as_ptr(), other.as_ptr(), compare_op as c_int)
+                .assume_owned_or_err(py)
+        }
     }
 
     fn neg(&self) -> PyResult<Bound<'py, PyAny>> {
@@ -1113,20 +1046,9 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         O: IntoPyObject<'py>,
     {
-        fn inner<'py>(
-            any: &Bound<'py, PyAny>,
-            other: Borrowed<'_, 'py, PyAny>,
-        ) -> PyResult<Bound<'py, PyAny>> {
-            unsafe {
-                ffi::PyNumber_Divmod(any.as_ptr(), other.as_ptr()).assume_owned_or_err(any.py())
-            }
-        }
-
         let py = self.py();
-        inner(
-            self,
-            other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let other = other.into_pyobject_or_pyerr(py)?;
+        unsafe { ffi::PyNumber_Divmod(self.as_ptr(), other.as_ptr()).assume_owned_or_err(py) }
     }
 
     /// Computes `self ** other % modulus` (`pow(self, other, modulus)`).
@@ -1136,23 +1058,13 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         O1: IntoPyObject<'py>,
         O2: IntoPyObject<'py>,
     {
-        fn inner<'py>(
-            any: &Bound<'py, PyAny>,
-            other: Borrowed<'_, 'py, PyAny>,
-            modulus: Borrowed<'_, 'py, PyAny>,
-        ) -> PyResult<Bound<'py, PyAny>> {
-            unsafe {
-                ffi::PyNumber_Power(any.as_ptr(), other.as_ptr(), modulus.as_ptr())
-                    .assume_owned_or_err(any.py())
-            }
-        }
-
         let py = self.py();
-        inner(
-            self,
-            other.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-            modulus.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let other = other.into_pyobject_or_pyerr(py)?;
+        let modulus = modulus.into_pyobject_or_pyerr(py)?;
+        unsafe {
+            ffi::PyNumber_Power(self.as_ptr(), other.as_ptr(), modulus.as_ptr())
+                .assume_owned_or_err(py)
+        }
     }
 
     fn is_callable(&self) -> bool {
@@ -1250,20 +1162,9 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         K: IntoPyObject<'py>,
     {
-        fn inner<'py>(
-            any: &Bound<'py, PyAny>,
-            key: Borrowed<'_, 'py, PyAny>,
-        ) -> PyResult<Bound<'py, PyAny>> {
-            unsafe {
-                ffi::PyObject_GetItem(any.as_ptr(), key.as_ptr()).assume_owned_or_err(any.py())
-            }
-        }
-
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        unsafe { ffi::PyObject_GetItem(self.as_ptr(), key.as_ptr()).assume_owned_or_err(py) }
     }
 
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
@@ -1271,39 +1172,23 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         K: IntoPyObject<'py>,
         V: IntoPyObject<'py>,
     {
-        fn inner(
-            any: &Bound<'_, PyAny>,
-            key: Borrowed<'_, '_, PyAny>,
-            value: Borrowed<'_, '_, PyAny>,
-        ) -> PyResult<()> {
-            err::error_on_minusone(any.py(), unsafe {
-                ffi::PyObject_SetItem(any.as_ptr(), key.as_ptr(), value.as_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        let value = value.into_pyobject_or_pyerr(py)?;
+        err::error_on_minusone(py, unsafe {
+            ffi::PyObject_SetItem(self.as_ptr(), key.as_ptr(), value.as_ptr())
+        })
     }
 
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
         K: IntoPyObject<'py>,
     {
-        fn inner(any: &Bound<'_, PyAny>, key: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
-            err::error_on_minusone(any.py(), unsafe {
-                ffi::PyObject_DelItem(any.as_ptr(), key.as_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        err::error_on_minusone(py, unsafe {
+            ffi::PyObject_DelItem(self.as_ptr(), key.as_ptr())
+        })
     }
 
     fn try_iter(&self) -> PyResult<Bound<'py, PyIterator>> {
@@ -1392,19 +1277,13 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     where
         V: IntoPyObject<'py>,
     {
-        fn inner(any: &Bound<'_, PyAny>, value: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
-            match unsafe { ffi::PySequence_Contains(any.as_ptr(), value.as_ptr()) } {
-                0 => Ok(false),
-                1 => Ok(true),
-                _ => Err(PyErr::fetch(any.py())),
-            }
-        }
-
         let py = self.py();
-        inner(
-            self,
-            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let value = value.into_pyobject_or_pyerr(py)?;
+        match unsafe { ffi::PySequence_Contains(self.as_ptr(), value.as_ptr()) } {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(PyErr::fetch(py)),
+        }
     }
 
     fn py_super(&self) -> PyResult<Bound<'py, PySuper>> {
