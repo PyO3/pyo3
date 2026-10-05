@@ -20,13 +20,12 @@ env:
 
 jobs:
 
-  # This job is a placeholder to define YAML anchors for reuse below. It is expected to never
-  # run as it should have an empty build matrix.
-  defs:
+  resolve:
     runs-on: ubuntu-latest
     strategy:
+      # Having a single matrix entry gives a location to define YAML anchors for static values
+      # that can be re-used through the rest of the file.
       matrix:
-        enabled: [false]
         definitions:
           - save-cache: &enable-cache-save >-
               ${{ github.ref == 'refs/heads/main' ||
@@ -48,11 +47,18 @@ jobs:
             # with the commit diff, because the merge may affect line numbers.
             coverage-sha: &coverage-sha >-
               ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-        # Exclude the only combination; this job exists solely to define YAML anchors.
-        exclude:
-          - enabled: false
+    outputs:
+      MSRV: ${{ steps.resolve-msrv.outputs.MSRV }}
+      # runner context is not available in `strategy` section so needs to become a full output
+      verbose: ${{ runner.debug == '1' }}
     steps:
-      - run: ":"
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: resolve MSRV
+        id: resolve-msrv
+        run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])'` >> $GITHUB_OUTPUT
 
   fmt:
     runs-on: ubuntu-latest
@@ -69,20 +75,6 @@ jobs:
           components: rustfmt
       - name: Check formatting and lints
         run: uvx nox -s fmt
-
-  resolve:
-    runs-on: ubuntu-latest
-    outputs:
-      MSRV: ${{ steps.resolve-msrv.outputs.MSRV }}
-      verbose: ${{ runner.debug == '1' }}
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.14"
-      - name: resolve MSRV
-        id: resolve-msrv
-        run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])'` >> $GITHUB_OUTPUT
 
   semver-checks:
     if: github.event_name == 'pull_request'
