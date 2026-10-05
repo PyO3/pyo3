@@ -26,9 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        enabled: [false]
         definitions:
-          - &definitions
-            save-cache: &enable-cache-save >-
+          - save-cache: &enable-cache-save >-
               ${{ github.ref == 'refs/heads/main' ||
                   contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
             fail-fast: &enable-fail-fast >-
@@ -50,7 +50,7 @@ jobs:
               ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         # Exclude the only combination; this job exists solely to define YAML anchors.
         exclude:
-          - definitions: *definitions
+          - enabled: false
     steps:
       - run: ":"
 
