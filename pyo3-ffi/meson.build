@@ -41,10 +41,13 @@ foreach i : range(MINIMUM_SUPPORTED_VERSION_MINOR, STABLE_ABI_MAX_MINOR + 2)
   endif
 endforeach
 
-foreach i : range(MINIMUM_SUPPORTED_VERSION_PYPY_MINOR, MAXIMUM_SUPPORTED_VERSION_PYPY_MINOR + 1)
+foreach i : range(MINIMUM_SUPPORTED_VERSION_PYPY_MINOR, MAXIMUM_SUPPORTED_VERSION_PYPY_MINOR + 2)
   # PyPy DLL names.
   dll_names += [f'libpypy3.@i@-c']
 endforeach
+
+# GraalPy DLL name
+dll_names += ['python-native']
 
 dll_names_quoted = []
 foreach name : dll_names
@@ -83,10 +86,18 @@ py_debug = py.get_variable('Py_DEBUG', 0) == 1
 
 
 # Implementation detection.
-soabi = py.get_variable('SOABI', 'cpython')
-is_pypy = soabi.startswith('pypy')
+implementation = run_command(
+  py, '-c', 'import sys; print(sys.implementation.name)',
+  check : true,
+).stdout().strip()
+is_pypy = implementation == 'pypy'
+is_graalpy = implementation == 'graalpy'
 if is_pypy
   extra_args += ['--cfg', 'PyPy']
+elif is_graalpy
+  extra_args += ['--cfg', 'GraalPy']
+elif implementation != 'cpython'
+  error(f'Unsupported Python implementation: @implementation@')
 endif
 
 
@@ -117,11 +128,8 @@ endif
 # or up to the abi3 floor when targeting the stable ABI.
 py_minor_version_max = py_minor_version
 if limited_api
-  if is_pypy
-    error('abi3 required but PyPy does not support it')
-  endif
-  if is_windows and py_debug
-    error('no stable-ABI python3.dll exists for debug CPython on Windows')
+  if is_pypy or is_graalpy
+    error('abi3 builds on PyPy/GraalPy are not supported yet')
   endif
 
   extra_args += ['--cfg', 'Py_LIMITED_API']
@@ -155,6 +163,8 @@ if is_windows
   # Windows: extension modules need to link to libpython.
   if is_pypy
     py_lib_name = f'libpypy3.@py_minor_version@-c'
+  elif is_graalpy
+    py_lib_name = 'python-native'
   else
     py_lib_name = 'python' + abi + (py_debug ? '_d' : '')
   endif
