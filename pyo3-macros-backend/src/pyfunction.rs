@@ -4,28 +4,28 @@ use crate::combine_errors::CombineErrors;
 use crate::introspection::{function_introspection_code, introspection_id_const};
 #[cfg(feature = "experimental-inspect")]
 use crate::py_expr::PyExpr;
+use crate::utils::Ctx;
 #[cfg(feature = "experimental-inspect")]
 use crate::utils::get_doc;
-use crate::utils::Ctx;
 use crate::{
     attributes::{
-        self, get_pyo3_options, take_attributes, take_pyo3_options, CrateAttribute,
-        FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
+        self, CrateAttribute, FromPyWithAttribute, NameAttribute, TextSignatureAttribute,
+        get_pyo3_options, take_attributes, take_pyo3_options,
     },
     method::{self, CallingConvention, ClassMethodReceiver, FnArg, SelfConversionPolicy},
     pymethod::check_generic,
 };
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use std::cmp::PartialEq;
 use std::ffi::CString;
 #[cfg(feature = "experimental-inspect")]
 use std::iter::empty;
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
 #[cfg(feature = "experimental-inspect")]
 use syn::ReturnType;
-use syn::{ext::IdentExt, spanned::Spanned, LitCStr, LitStr, Path, Result, Token};
+use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
+use syn::{LitCStr, LitStr, Path, Result, Token, ext::IdentExt, spanned::Spanned};
 
 mod signature;
 
@@ -63,33 +63,32 @@ impl PyFunctionArgPyO3Attributes {
             cancel_handle: None,
         };
         take_attributes(attrs, |attr| {
-            if let Some(pyo3_attrs) = get_pyo3_options(attr)? {
-                for attr in pyo3_attrs {
-                    match attr {
-                        PyFunctionArgPyO3Attribute::FromPyWith(from_py_with) => {
-                            ensure_spanned!(
-                                attributes.from_py_with.is_none(),
-                                from_py_with.span() => "`from_py_with` may only be specified once per argument"
-                            );
-                            attributes.from_py_with = Some(from_py_with);
-                        }
-                        PyFunctionArgPyO3Attribute::CancelHandle(cancel_handle) => {
-                            ensure_spanned!(
-                                attributes.cancel_handle.is_none(),
-                                cancel_handle.span() => "`cancel_handle` may only be specified once per argument"
-                            );
-                            attributes.cancel_handle = Some(cancel_handle);
-                        }
+            let Some(pyo3_attrs) = get_pyo3_options(attr)? else {
+                return Ok(false);
+            };
+            for attr in pyo3_attrs {
+                match attr {
+                    PyFunctionArgPyO3Attribute::FromPyWith(from_py_with) => {
+                        ensure_spanned!(
+                            attributes.from_py_with.is_none(),
+                            from_py_with.span() => "`from_py_with` may only be specified once per argument"
+                        );
+                        attributes.from_py_with = Some(from_py_with);
                     }
-                    ensure_spanned!(
-                        attributes.from_py_with.is_none() || attributes.cancel_handle.is_none(),
-                        attributes.cancel_handle.unwrap().span() => "`from_py_with` and `cancel_handle` cannot be specified together"
-                    );
+                    PyFunctionArgPyO3Attribute::CancelHandle(cancel_handle) => {
+                        ensure_spanned!(
+                            attributes.cancel_handle.is_none(),
+                            cancel_handle.span() => "`cancel_handle` may only be specified once per argument"
+                        );
+                        attributes.cancel_handle = Some(cancel_handle);
+                    }
                 }
-                Ok(true)
-            } else {
-                Ok(false)
+                ensure_spanned!(
+                    attributes.from_py_with.is_none() || attributes.cancel_handle.is_none(),
+                    attributes.cancel_handle.unwrap().span() => "`from_py_with` and `cancel_handle` cannot be specified together"
+                );
             }
+            Ok(true)
         })?;
         Ok(attributes)
     }

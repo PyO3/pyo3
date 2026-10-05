@@ -1,55 +1,55 @@
 error: getter function can only have one argument (of type pyo3::Python)
-  --> tests/ui/invalid_property_args.rs:13:56
+  --> tests/ui/invalid_property_args.rs:15:56
    |
-13 |     fn getter_with_arg(&self, _py: Python<'_>, _index: u32) {}
+15 |     fn getter_with_arg(&self, _py: Python<'_>, _index: u32) {}
    |                                                        ^^^
 
 error: setter function expected to have one argument
-  --> tests/ui/invalid_property_args.rs:23:8
+  --> tests/ui/invalid_property_args.rs:25:8
    |
-23 |     fn setter_with_no_arg(&mut self, _py: Python<'_>) {}
+25 |     fn setter_with_no_arg(&mut self, _py: Python<'_>) {}
    |        ^^^^^^^^^^^^^^^^^^
 
 error: setter function can have at most two arguments ([pyo3::Python,] and value)
-  --> tests/ui/invalid_property_args.rs:30:79
+  --> tests/ui/invalid_property_args.rs:32:79
    |
-30 |     fn setter_with_too_many_args(&mut self, _py: Python<'_>, _foo: u32, _bar: u32) {}
+32 |     fn setter_with_too_many_args(&mut self, _py: Python<'_>, _foo: u32, _bar: u32) {}
    |                                                                               ^^^
 
 error: `get` and `set` with tuple struct fields require `name`
-  --> tests/ui/invalid_property_args.rs:35:50
+  --> tests/ui/invalid_property_args.rs:37:50
    |
-35 | struct TupleGetterSetterNoName(#[pyo3(get, set)] i32);
+37 | struct TupleGetterSetterNoName(#[pyo3(get, set)] i32);
    |                                                  ^^^
 
 error: `get` may only be specified once
-  --> tests/ui/invalid_property_args.rs:39:32
+  --> tests/ui/invalid_property_args.rs:41:32
    |
-39 | struct MultipleGet(#[pyo3(get, get)] i32);
+41 | struct MultipleGet(#[pyo3(get, get)] i32);
    |                                ^^^
 
 error: `set` may only be specified once
-  --> tests/ui/invalid_property_args.rs:43:32
+  --> tests/ui/invalid_property_args.rs:45:32
    |
-43 | struct MultipleSet(#[pyo3(set, set)] i32);
+45 | struct MultipleSet(#[pyo3(set, set)] i32);
    |                                ^^^
 
 error: `name` may only be specified once
-  --> tests/ui/invalid_property_args.rs:47:42
+  --> tests/ui/invalid_property_args.rs:49:42
    |
-47 | struct MultipleName(#[pyo3(name = "foo", name = "bar")] i32);
+49 | struct MultipleName(#[pyo3(name = "foo", name = "bar")] i32);
    |                                          ^^^^
 
 error: `name` is useless without `get` or `set`
-  --> tests/ui/invalid_property_args.rs:51:33
+  --> tests/ui/invalid_property_args.rs:53:33
    |
-51 | struct NameWithoutGetSet(#[pyo3(name = "value")] i32);
+53 | struct NameWithoutGetSet(#[pyo3(name = "value")] i32);
    |                                 ^^^^^^^^^^^^^^
 
 error[E0277]: `PhantomData<i32>` cannot be converted to a Python object
-    --> tests/ui/invalid_property_args.rs:57:12
+    --> tests/ui/invalid_property_args.rs:59:12
      |
-  57 |     value: ::std::marker::PhantomData<i32>,
+  59 |     value: ::std::marker::PhantomData<i32>,
      |            ^ required by `#[pyo3(get)]` to create a readable property from a field of type `PhantomData<i32>`
      |
      = help: the trait `IntoPyObject<'_>` is not implemented for `PhantomData<i32>`

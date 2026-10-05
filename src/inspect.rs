@@ -267,7 +267,23 @@ impl fmt::Display for PyStaticExpr {
                     }
                     Ok(())
                 }
-                PyStaticConstant::Str(value) => write!(f, "{value:?}"),
+                PyStaticConstant::Str(value) => {
+                    // Not `{value:?}`: Rust escapes as `\u{1b}`, which Python cannot parse.
+                    f.write_char('"')?;
+                    for c in value.chars() {
+                        match c {
+                            '"' => f.write_str("\\\"")?,
+                            '\n' => f.write_str("\\n")?,
+                            '\r' => f.write_str("\\r")?,
+                            '\t' => f.write_str("\\t")?,
+                            '\\' => f.write_str("\\\\")?,
+                            '\0' => f.write_str("\\0")?,
+                            c @ '\x00'..'\x20' => write!(f, "\\x{:02x}", u32::from(c))?,
+                            c => f.write_char(c)?,
+                        }
+                    }
+                    f.write_char('"')
+                }
                 PyStaticConstant::Ellipsis => f.write_str("..."),
             },
             Self::Name { id, .. } => f.write_str(id),
@@ -302,8 +318,12 @@ impl fmt::Display for PyStaticExpr {
                 value.fmt(f)?;
                 f.write_char('[')?;
                 if let PyStaticExpr::Tuple { elts } = slice {
-                    // We don't display the tuple parentheses
-                    fmt_elements(elts, f)?;
+                    if elts.is_empty() {
+                        // Empty tuples need parentheses to avoid invalid syntax like `tuple[]`
+                        f.write_str("()")?;
+                    } else {
+                        fmt_elements(elts, f)?;
+                    }
                 } else {
                     slice.fmt(f)?;
                 }
@@ -470,6 +490,38 @@ mod tests {
             T.to_string(),
             "dict[int | typing.Literal[\"\\0\\t\\\\\\\"\"], datetime.time]"
         )
+    }
+
+    #[test]
+    fn test_control_characters_in_str_constants() {
+        // Rust's `{:?}` renders these as `\u{1b}`, which is not valid Python.
+        for (value, expected) in [
+            ("\u{1b}", r#""\x1b""#),
+            ("\u{7}", r#""\x07""#),
+            ("\u{b}\u{c}", r#""\x0b\x0c""#),
+            ("a\nb\r\u{1b}", r#""a\nb\r\x1b""#),
+        ] {
+            let expr = PyStaticExpr::Constant {
+                value: PyStaticConstant::Str(value),
+            };
+            assert_eq!(expr.to_string(), expected);
+        }
+    }
+
+    #[test]
+    fn test_empty_tuple_type_hints() {
+        use crate::IntoPyObject;
+
+        for (expr, expected) in [
+            (<()>::OUTPUT_TYPE, "builtins.tuple[()]"),
+            (<((),)>::OUTPUT_TYPE, "builtins.tuple[builtins.tuple[()]]"),
+            (
+                <(i32, ())>::OUTPUT_TYPE,
+                "builtins.tuple[builtins.int, builtins.tuple[()]]",
+            ),
+        ] {
+            assert_eq!(expr.to_string(), expected);
+        }
     }
 
     #[test]

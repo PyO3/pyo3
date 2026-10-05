@@ -9,7 +9,7 @@ dynamic = ["version"]
 
 [tool.towncrier]
 filename = "CHANGELOG.md"
-version = "0.29.2"
+version = "0.29.3"
 start_string = "<!-- towncrier release notes start -->\n"
 template = ".towncrier.template.md"
 title_format = "## [{version}] - {project_date}"
@@ -67,7 +67,11 @@ style = "fenced"
 [tool.uv]
 package = false
 
+[tool.uv.dependency-groups]
+codecov = { requires-python = ">=3.14,<3.15" }
+
 [dependency-groups]
+codecov = ["codecov-cli==11.3.1"]
 dev = [
   "ruff",
   "rumdl",

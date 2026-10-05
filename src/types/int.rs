@@ -1,10 +1,10 @@
 use super::any::PyAnyMethods;
-use crate::{ffi, instance::Bound, IntoPyObject, PyAny, Python};
+use crate::{IntoPyObject, PyAny, Python, ffi, instance::Bound};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
 use core::convert::Infallible;
 

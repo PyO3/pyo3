@@ -118,7 +118,7 @@ macro_rules! py_run_impl {
     }};
     ($py:expr, *$dict:expr, $code:expr) => {{
         use ::core::option::Option::*;
-        if let ::core::result::Result::Err(e) = $py.run(&::std::ffi::CString::new($code).unwrap(), None, Some(&$dict)) {
+        if let ::core::result::Result::Err(e) = $py.run(&$crate::impl_::alloc::ffi::CString::new($code).unwrap(), None, Some(&$dict)) {
             e.print($py);
             // So when this c api function the last line called printed the error to stderr,
             // the output is only written into a buffer which is never flushed because we

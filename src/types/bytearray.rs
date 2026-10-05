@@ -4,13 +4,13 @@ use crate::instance::{Borrowed, Bound};
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::critical_section::with_critical_section;
-use crate::{ffi, PyAny, Python};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
+use crate::{PyAny, Python, ffi};
 use core::slice;
 
 /// Represents a Python `bytearray`.
@@ -335,10 +335,11 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
     }
 }
 
+#[allow(clippy::disallowed_types, reason = "tests")]
 #[cfg(test)]
 mod tests {
     use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};
-    use crate::{exceptions, Bound, Py, PyAny, Python};
+    use crate::{Bound, Py, PyAny, Python, exceptions};
 
     #[test]
     fn test_len() {
@@ -465,10 +466,12 @@ mod tests {
                 Err(PyValueError::new_err("Hello Crustaceans!"))
             });
             assert!(py_bytearray_result.is_err());
-            assert!(py_bytearray_result
-                .err()
-                .unwrap()
-                .is_instance_of::<PyValueError>(py));
+            assert!(
+                py_bytearray_result
+                    .err()
+                    .unwrap()
+                    .is_instance_of::<PyValueError>(py)
+            );
         })
     }
 
@@ -481,11 +484,11 @@ mod tests {
     #[test]
     fn test_data_integrity_in_critical_section() {
         use crate::instance::Py;
-        use crate::sync::{critical_section::with_critical_section, MutexExt};
+        use crate::platform::sync::non_poison::Mutex;
+        use crate::sync::{MutexExt, critical_section::with_critical_section};
 
         use core::sync::atomic::{AtomicBool, Ordering};
         use core::time::Duration;
-        use std::sync::Mutex;
         use std::thread;
         use std::thread::ScopedJoinHandle;
 
@@ -508,12 +511,12 @@ mod tests {
             data: &Mutex<Py<PyByteArray>>,
             py: Python<'py>,
         ) -> Bound<'py, PyByteArray> {
-            data.lock_py_attached(py).unwrap().bind(py).clone()
+            data.lock_py_attached(py).bind(py).clone()
         }
 
         fn set_data(data: &Mutex<Py<PyByteArray>>, new: Bound<'_, PyByteArray>) {
             let py = new.py();
-            *data.lock_py_attached(py).unwrap() = new.unbind()
+            *data.lock_py_attached(py) = new.unbind()
         }
 
         let running = AtomicBool::new(true);

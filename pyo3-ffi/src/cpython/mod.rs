@@ -26,6 +26,7 @@ pub(crate) mod listobject;
 #[cfg(Py_3_13)]
 pub(crate) mod lock;
 pub(crate) mod longobject;
+#[cfg(not(GraalPy))]
 pub(crate) mod marshal;
 #[cfg(not(PyPy))]
 pub(crate) mod methodobject;
@@ -39,6 +40,7 @@ pub(crate) mod pylifecycle;
 pub(crate) mod pymem;
 pub(crate) mod pystate;
 pub(crate) mod pythonrun;
+pub(crate) mod pythread;
 // skipped sysmodule.h
 pub(crate) mod floatobject;
 pub(crate) mod pyframe;
@@ -61,7 +63,7 @@ pub use self::compile::*;
 pub use self::complexobject::*;
 pub use self::context::*;
 #[cfg(all(Py_3_14, Py_GIL_DISABLED))]
-pub use self::critical_section::{PyCriticalSection2_BeginMutex, PyCriticalSection_BeginMutex};
+pub use self::critical_section::{PyCriticalSection_BeginMutex, PyCriticalSection2_BeginMutex};
 pub use self::descrobject::*;
 pub use self::dictobject::*;
 pub use self::floatobject::*;
@@ -76,6 +78,7 @@ pub use self::listobject::*;
 #[cfg(Py_3_13)]
 pub use self::lock::*;
 pub use self::longobject::*;
+#[cfg(not(GraalPy))]
 pub use self::marshal::*;
 #[cfg(not(PyPy))]
 pub use self::methodobject::*;
@@ -91,6 +94,7 @@ pub use self::pylifecycle::*;
 pub use self::pymem::*;
 pub use self::pystate::*;
 pub use self::pythonrun::*;
+pub use self::pythread::*;
 pub use self::setobject::*;
 pub use self::traceback::*;
 pub use self::tupleobject::*;

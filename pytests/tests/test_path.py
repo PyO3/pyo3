@@ -1,7 +1,10 @@
 import pathlib
 
-import pyo3_pytests.path as rpath
 import pytest
+from pyo3_pytests import NO_STD
+from pyo3_pytests import path as rpath
+
+pytestmark = pytest.mark.skipif(NO_STD, reason="path is not available in `no_std`")
 
 
 def test_make_path():

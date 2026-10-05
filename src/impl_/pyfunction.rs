@@ -1,14 +1,10 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
-
 use core::cell::UnsafeCell;
 
 use crate::{
-    ffi,
+    Borrowed, Bound, PyResult, Python, ffi,
     ffi_ptr_ext::FfiPtrExt,
     py_result_ext::PyResultExt,
     types::{PyCFunction, PyModule, PyModuleMethods},
-    Borrowed, Bound, PyResult, Python,
 };
 
 pub use crate::impl_::pymethods::PyMethodDef;
@@ -48,7 +44,7 @@ pub trait WrapPyFunctionArg<'py, T>: wrap_pyfunctionarg::Sealed {
 
 /// Seals `WrapPyFunctionArg` so that types outside PyO3 cannot implement it.
 mod wrap_pyfunctionarg {
-    use crate::{types::PyModule, Borrowed, Bound, Python};
+    use crate::{Borrowed, Bound, Python, types::PyModule};
 
     pub trait Sealed {}
     impl<'py> Sealed for Bound<'py, PyModule> {}
@@ -125,6 +121,9 @@ pub unsafe fn create_py_c_function<'py>(
         .as_ref()
         .map_or(core::ptr::null_mut(), Bound::as_ptr);
 
+    // SAFETY: caller upholds that `method_def` outlives the returned function,
+    // and `PyCFunction_NewEx` returns a new owned reference to a builtin
+    // function object, or NULL with an exception set on error.
     unsafe {
         ffi::PyCFunction_NewEx(method_def, mod_ptr, module_name_ptr)
             .assume_owned_or_err(py)
@@ -138,7 +137,7 @@ mod tests {
     #[test]
     fn test_wrap_pyfunction_forms() {
         use crate::types::{PyAnyMethods, PyModule};
-        use crate::{wrap_pyfunction, Python};
+        use crate::{Python, wrap_pyfunction};
 
         #[crate::pyfunction(crate = "crate")]
         fn f() {}

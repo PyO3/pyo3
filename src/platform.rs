@@ -1,5 +1,6 @@
 //! This module is to support platform compatibility with `no_std` environments.
 #![allow(unused_imports)]
+#![doc(hidden)]
 
 /// This prelude is intended to be used instead of the prelude from `std`.
 pub(crate) mod prelude {
@@ -9,16 +10,19 @@ pub(crate) mod prelude {
         string::{String, ToString},
         vec::Vec,
     };
-
-    // TODO find a `no_std` replacement for eprintln
-    pub use std::eprintln;
 }
 
-#[cfg(feature = "hashbrown")]
-pub use hashbrown::{HashMap, HashSet};
+pub mod sync;
 
-#[cfg(all(not(feature = "hashbrown"), wip_feature_std))]
-pub use std::collections::{HashMap, HashSet};
+pub mod collections {
+    #[cfg(feature = "hashbrown")]
+    pub use hashbrown::{HashMap, HashSet};
 
-#[cfg(all(not(feature = "hashbrown"), not(wip_feature_std)))]
-compile_error!("Please enable at least one of the following features: hashbrown, std");
+    #[cfg(all(not(feature = "hashbrown"), wip_feature_std))]
+    pub use std::collections::{HashMap, HashSet};
+
+    #[cfg(all(not(feature = "hashbrown"), not(wip_feature_std)))]
+    compile_error!("Please enable at least one of the following features: hashbrown, std");
+}
+
+pub mod thread;

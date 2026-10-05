@@ -30,6 +30,7 @@
 //! }
 //!
 //! #[pymodule]
+//! # #[pyo3(name = "example_bigdecimal")]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(add_one, m)?)?;
 //!     Ok(())
@@ -58,10 +59,10 @@ use crate::platform::prelude::*;
 use crate::type_hint_identifier;
 use crate::types::PyTuple;
 use crate::{
+    Borrowed, Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
     exceptions::PyValueError,
     sync::PyOnceLock,
     types::{PyAnyMethods, PyStringMethods, PyType},
-    Borrowed, Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python,
 };
 use bigdecimal::BigDecimal;
 use num_bigint::Sign;
@@ -120,8 +121,8 @@ impl<'py> IntoPyObject<'py> for BigDecimal {
 #[cfg(test)]
 mod test_bigdecimal {
     use super::*;
-    use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
+    use crate::types::dict::PyDictMethods;
     use alloc::ffi::CString;
 
     use bigdecimal::{One, Zero};

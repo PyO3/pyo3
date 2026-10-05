@@ -1,5 +1,5 @@
 use crate::vectorcallfunc;
-use crate::{object, PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, Py_ssize_t};
+use crate::{Py_ssize_t, PyGetSetDef, PyMemberDef, PyMethodDef, PyObject, object};
 use core::ffi::{c_char, c_int, c_uint, c_void};
 
 // skipped private _Py_NewReference
@@ -340,8 +340,6 @@ extern_libpython! {
 
     // skipped private _PyObject_GetDictPtr
     pub fn PyObject_CallFinalizer(arg1: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPyObject_CallFinalizerFromDealloc")]
-    pub fn PyObject_CallFinalizerFromDealloc(arg1: *mut PyObject) -> c_int;
 
     // skipped private _PyObject_GenericGetAttrWithDict
     // skipped private _PyObject_GenericSetAttrWithDict
@@ -367,6 +365,7 @@ extern_libpython! {
 // skipped Py_TRASHCAN_END
 
 // skipped PyObject_GetItemData
+// skipped PyObject_GetItemData_DuringGC
 
 // skipped PyObject_VisitManagedDict
 // skipped _PyObject_SetManagedDict

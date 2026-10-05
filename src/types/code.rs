@@ -1,14 +1,16 @@
+//! Python code objects and related types.
+
 use super::PyDict;
 use super::{PyAnyMethods as _, PyDictMethods as _};
+#[cfg(any(Py_LIMITED_API, PyPy))]
+use crate::Py;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 #[cfg(any(Py_LIMITED_API, PyPy))]
 use crate::sync::PyOnceLock;
 #[cfg(any(Py_LIMITED_API, PyPy))]
 use crate::types::{PyType, PyTypeMethods};
-#[cfg(any(Py_LIMITED_API, PyPy))]
-use crate::Py;
-use crate::{ffi, Bound, PyAny, PyResult, Python};
+use crate::{Bound, PyAny, PyResult, Python, ffi};
 use core::ffi::CStr;
 
 /// Represents a Python code object.

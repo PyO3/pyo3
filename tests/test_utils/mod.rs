@@ -33,7 +33,7 @@ mod inner {
     use pyo3::types::{IntoPyDict, PyList};
 
     #[cfg(any(not(all(Py_GIL_DISABLED, Py_3_14)), feature = "macros"))]
-    use std::sync::{Mutex, PoisonError};
+    use pyo3::impl_::platform::sync::non_poison::Mutex;
 
     use uuid::Uuid;
 
@@ -65,7 +65,8 @@ mod inner {
         }};
         // Case2: dict & no err_msg
         ($py:expr, *$dict:expr, $code:expr, $err:ident) => {{
-            let res = $py.run(&std::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed()));
+            extern crate alloc;
+            let res = $py.run(&alloc::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed()));
             let err = res.expect_err(&format!("Did not raise {}", stringify!($err)));
             if !err.matches($py, $py.get_type::<pyo3::exceptions::$err>()).unwrap() {
                 panic!("Expected {} but got {:?}", stringify!($err), err)
@@ -103,7 +104,8 @@ mod inner {
         }};
         ($py:expr, *$dict:expr, $code:expr, [$(($warning_msg:literal, $warning_category:path)),+] $(,)?) => {{
             $crate::test_utils::CatchWarnings::enter($py, |warning_record| {
-                $py.run(&std::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed())).expect("Failed to run warning testing code");
+                extern crate alloc;
+                $py.run(&alloc::ffi::CString::new($code).unwrap(), None, Some(&$dict.as_borrowed())).expect("Failed to run warning testing code");
                 let expected_warnings = [$(($warning_msg, <$warning_category as pyo3::PyTypeInfo>::type_object($py))),+];
 
                 assert_eq!(warning_record.len(), expected_warnings.len(), "Expecting {} warnings but got {}", expected_warnings.len(), warning_record.len());
@@ -150,10 +152,7 @@ mod inner {
             // unraisablehook is a global, so only one thread can be using this struct at a time.
             static UNRAISABLE_HOOK_MUTEX: Mutex<()> = Mutex::new(());
 
-            // NB this is best-effort, other tests could always modify sys.unraisablehook directly.
-            let mutex_guard = UNRAISABLE_HOOK_MUTEX
-                .lock_py_attached(py)
-                .unwrap_or_else(PoisonError::into_inner);
+            let mutex_guard = UNRAISABLE_HOOK_MUTEX.lock_py_attached(py);
 
             let guard = Self {
                 hook: UnraisableCaptureHook::install(py),
@@ -169,7 +168,7 @@ mod inner {
 
         /// Takes the captured unraisable error, if any.
         pub fn take_capture(&self) -> Option<(PyErr, Bound<'py, PyAny>)> {
-            let mut guard = self.hook.get().capture.lock().unwrap();
+            let mut guard = self.hook.get().capture.lock();
             guard.take().map(|(e, o)| (e, o.into_bound(self.hook.py())))
         }
     }
@@ -195,7 +194,7 @@ mod inner {
         pub fn hook(&self, unraisable: Bound<'_, PyAny>) {
             let err = PyErr::from_value(unraisable.getattr("exc_value").unwrap());
             let instance = unraisable.getattr("object").unwrap();
-            self.capture.lock().unwrap().replace((err, instance.into()));
+            self.capture.lock().replace((err, instance.into()));
         }
     }
 
@@ -237,9 +236,7 @@ mod inner {
         ) -> PyResult<R> {
             // NB this is best-effort, other tests could always call the warnings API directly.
             #[cfg(not(all(Py_GIL_DISABLED, Py_3_14)))]
-            let _mutex_guard = CATCH_WARNINGS_MUTEX
-                .lock_py_attached(py)
-                .unwrap_or_else(PoisonError::into_inner);
+            let _mutex_guard = CATCH_WARNINGS_MUTEX.lock_py_attached(py);
             let warnings = py.import("warnings")?;
             let kwargs = [("record", true)].into_py_dict(py)?;
             let catch_warnings = warnings
@@ -285,9 +282,9 @@ mod inner {
     #[allow(unused_imports, reason = "not all tests use this macro")]
     pub(crate) use assert_warnings;
 
-    pub fn generate_unique_module_name(base: &str) -> std::ffi::CString {
+    pub fn generate_unique_module_name(base: &str) -> alloc::ffi::CString {
         let uuid = Uuid::new_v4().simple().to_string();
-        std::ffi::CString::new(format!("{base}_{uuid}")).unwrap()
+        alloc::ffi::CString::new(format!("{base}_{uuid}")).unwrap()
     }
 }
 

@@ -1,17 +1,19 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-#[cfg(not(any(PyPy, GraalPy)))]
-use crate::{ffi, internal::state::AttachGuard, Python};
+use crate::platform::sync::Once;
 
-static START: std::sync::Once = std::sync::Once::new();
+#[cfg(not(any(PyPy, GraalPy)))]
+use crate::{Python, ffi, internal::state::AttachGuard};
+
+static START: Once = Once::new();
 
 #[cfg(not(any(PyPy, GraalPy)))]
 pub(crate) fn initialize() {
     // Protect against race conditions when Python is not yet initialized and multiple threads
     // concurrently call 'initialize()'. Note that we do not protect against
     // concurrent initialization of the Python runtime by other users of the Python C API.
-    START.call_once_force(|_| unsafe {
+    START.call_once_force(|| unsafe {
         // Use call_once_force because if initialization panics, it's okay to try again.
         if ffi::Py_IsInitialized() == 0 {
             ffi::Py_InitializeEx(0);
@@ -39,11 +41,13 @@ pub(crate) fn initialize() {
 /// - This function should only ever be called once per process (usually as part of the `main`
 ///   function). It is also not thread-safe.
 /// - No Python APIs can be used after this function has finished executing.
+///   (Note: this also includes Rust 2024's merged doctests; doctests using this function should
+///   typically be marked with `standalone_crate`.)
 /// - The return value of the closure must not contain any Python value, _including_ `PyResult`.
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,standalone_crate
 /// unsafe {
 ///     pyo3::with_embedded_python_interpreter(|py| {
 ///         if let Err(e) = py.run(c"print('Hello World')", None, None) {
@@ -127,7 +131,7 @@ pub(crate) fn ensure_initialized() {
             initialize();
         }
 
-        START.call_once_force(|_| unsafe {
+        START.call_once_force(|| unsafe {
             // Use call_once_force because if there is a panic because the interpreter is
             // not initialized, it's fine for the user to initialize the interpreter and
             // retry.

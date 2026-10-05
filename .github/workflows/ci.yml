@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - "newsfragments/*.md"
   merge_group:
     types: [checks_requested]
   workflow_dispatch:
@@ -25,19 +27,13 @@ jobs:
         with:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - name: Check python formatting and lints (ruff)
-        run: uvx nox -s ruff
-      - name: Check rust formatting (rustfmt)
-        run: uvx nox -s rustfmt
-      - name: Check markdown formatting (rumdl)
-        run: uvx nox -s rumdl
-      - name: Check `required-features` in Cargo.toml
-        run: uvx nox -s check-test-features
-      - name: Spell check
-        run: uvx nox -s typos
+      - name: Check formatting and lints
+        run: uvx nox -s fmt
 
   resolve:
     runs-on: ubuntu-latest
@@ -97,6 +93,8 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
       # This is a smoke test to confirm that CI will run on MSRV (including dev dependencies)
       - name: Check with MSRV package versions
         run: |
@@ -295,7 +293,8 @@ jobs:
             "3.15-dev",
             "3.15t-dev",
             "pypy3.11",
-            "graalpy25.0",
+            "graalpy25.2", # 3.12
+            "graalpy25.3", # 3.13
           ]
         platform:
           [
@@ -432,6 +431,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@valgrind
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s test-rust -- release skip-full
     env:
       CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind --leak-check=no --error-exitcode=1
@@ -458,6 +459,8 @@ jobs:
           components: rust-src
       - uses: taiki-e/install-action@cargo-careful
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s test-rust -- careful skip-full
     env:
       RUST_BACKTRACE: 1
@@ -483,47 +486,38 @@ jobs:
   emscripten:
     name: emscripten
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
-    needs: [fmt]
+    needs: [fmt, resolve]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: astral-sh/setup-uv@v7
+      - uses: ./.github/actions/build-emscripten
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-emscripten
-          components: rust-src
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      - uses: actions/cache/restore@v6
-        id: cache
-        with:
-          path: |
-            .nox/emscripten
-          key: emscripten-${{ hashFiles('wasm/emscripten/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
-      - uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - name: Build
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: uvx nox -s build-emscripten
       - name: Test
         run: uvx nox -s test-emscripten
-      - uses: actions/cache/save@v6
-        if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-        with:
-          path: |
-            .nox/emscripten
-          key: emscripten-${{ hashFiles('wasm/emscripten/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ env.UV_PYTHON }}
 
   wasm32-wasip1:
     name: wasm32-wasip1
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
+    needs: [fmt, resolve]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: ./.github/actions/build-wasi
+        with:
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
+      - name: Test
+        run: uvx nox -s test-wasm
+
+  no_std:
     needs: [fmt]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        session: ["test-py", "test-rust", "clippy"]
+    env:
+      PYO3_WIP_NO_STD: "1"
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v7
@@ -532,44 +526,12 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-wasip1
           components: rust-src
-      - name: "Install wasmtime"
-        uses: bytecodealliance/actions/wasmtime/setup@v1
-      - name: "Install WASI SDK"
-        uses: bytecodealliance/setup-wasi-sdk-action@main
-        with:
-          version: "24"
-          # wasi sdk sets CC variables which break Python's configure script
-          # (it also sets WASI_SDK_PATH even without `add-to-path`, which is sufficient)
-          add-to-path: false
-      # Key the cache on the CPython version nox will actually build so a new
-      # patch release busts cache properly
-      - name: Resolve CPython version for the WASI build
-        id: wasi-python
-        run: |
-          version=$(uv run --no-project --python "$UV_PYTHON" python -c 'import sys; print(".".join(map(str, sys.version_info[:3])))')
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache/restore@v6
-        id: cache
-        with:
-          path: |
-            .nox/wasi
-          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.wasi-python.outputs.version }}
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - name: Build
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: uvx nox -s build-wasm
       - name: Test
-        run: uvx nox -s test-wasm
-      - uses: actions/cache/save@v6
-        if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-        with:
-          path: |
-            .nox/wasi
-          key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.wasi-python.outputs.version }}
+        run: uvx nox -s ${{ matrix.session }}
 
   test-debug:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
@@ -586,6 +548,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.13+debug"
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx python -m sysconfig
       - run: uvx nox -s test
 
@@ -604,6 +567,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.11+debug"
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx python -m sysconfig
       - run: uvx nox -s test
 
@@ -656,6 +620,8 @@ jobs:
         with:
           tool: cargo-hack,cargo-minimal-versions
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
       - run: uvx nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
 
   test-cross-compilation:
@@ -702,6 +668,7 @@ jobs:
           workspaces: examples/maturin-starter
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
           key: ${{ matrix.target }}
+      - uses: dtolnay/rust-toolchain@stable
       - name: Setup cross-compiler packages
         if: ${{ matrix.apt-packages }}
         run: sudo apt-get install -y ${{ matrix.apt-packages }}
@@ -811,6 +778,8 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s test-introspection
     env:
       CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
@@ -826,6 +795,8 @@ jobs:
         with:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s test-introspection
 
   pytests-type-checking:
@@ -845,6 +816,8 @@ jobs:
         with:
           python-version: "3.14"
       - uses: astral-sh/setup-uv@v7
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s ${{matrix.checker}}
         working-directory: pytests
 
@@ -860,6 +833,8 @@ jobs:
       - careful
       - docsrs
       - emscripten
+      - wasm32-wasip1
+      - no_std
       - test-debug
       - test-version-limits
       - check-feature-powerset

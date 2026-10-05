@@ -6,20 +6,18 @@ CURDIR=$(abspath .)
 BUILDROOT ?= $(CURDIR)/builddir
 PYTHON ?= python3
 PYMAJORMINORMICRO ?= $(shell $(PYTHON) --version 2>&1 | awk '{print $$2}')
+PYPRERELEASE ?=
 
 # Set version variables.
 version_tuple := $(subst ., ,$(PYMAJORMINORMICRO:v%=%))
 PYMAJOR=$(word 1,$(version_tuple))
 PYMINOR=$(word 2,$(version_tuple))
 PYMICRO=$(word 3,$(version_tuple))
-PYVERSION=$(PYMAJORMINORMICRO)
+PYVERSION=$(PYMAJORMINORMICRO)$(PYPRERELEASE)
 PYMAJORMINOR=$(PYMAJOR).$(PYMINOR)
 
-ifneq ($(PYMAJORMINOR),3.14)
-$(error PYMAJORMINOR must be 3.14, got '$(PYMAJORMINOR)')
-endif
-
-PYTHONURL=https://www.python.org/ftp/python/$(PYMAJORMINORMICRO)/Python-$(PYVERSION).tgz
+PYTHONRELEASE=$(shell echo $(PYVERSION) | sed -E 's/(a|b|rc)[0-9]+$$//')
+PYTHONURL=https://www.python.org/ftp/python/$(PYTHONRELEASE)/Python-$(PYVERSION).tgz
 PYTHONTARBALL=$(BUILDROOT)/downloads/Python-$(PYVERSION).tgz
 PYTHONBUILD=$(BUILDROOT)/build/Python-$(PYVERSION)
 
@@ -39,6 +37,12 @@ $(PYTHONBUILD)/.exists: $(PYTHONTARBALL)
 		tar -C $(dir $(PYTHONBUILD)) -xf $(PYTHONTARBALL) \
 	)
 	touch $@
+
+.PHONY: prepare clean
+
+# downloads the Python source and extracts ready for config
+# parsing and build
+prepare: $(PYTHONBUILD)/.exists
 
 clean:
 	rm -rf $(BUILDROOT)

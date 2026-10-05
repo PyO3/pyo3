@@ -1,10 +1,10 @@
 #![cfg(feature = "macros")]
 
+#[cfg(not(target_arch = "wasm32"))]
+use pyo3::PyClass;
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PyType;
-#[cfg(not(target_arch = "wasm32"))]
-use pyo3::PyClass;
 
 mod test_utils;
 
@@ -227,6 +227,7 @@ fn class_with_object_field() {
     });
 }
 
+#[cfg(wip_feature_std)]
 #[pyclass(frozen, eq, hash)]
 #[derive(PartialEq, Hash)]
 struct ClassWithHash {
@@ -234,6 +235,7 @@ struct ClassWithHash {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn class_with_hash() {
     Python::attach(|py| {
         use pyo3::types::IntoPyDict;
@@ -677,8 +679,8 @@ fn access_frozen_class_without_gil() {
 #[cfg_attr(target_arch = "wasm32", ignore)]
 fn drop_unsendable_elsewhere() {
     use std::sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     };
     use std::thread::spawn;
     use test_utils::UnraisableCapture;
@@ -726,7 +728,10 @@ fn drop_unsendable_elsewhere() {
             capture.take_capture().unwrap()
         });
 
-        assert_eq!(err.to_string(), "RuntimeError: test_class_basics::drop_unsendable_elsewhere::Unsendable is unsendable, but is being dropped on another thread");
+        assert_eq!(
+            err.to_string(),
+            "RuntimeError: test_class_basics::drop_unsendable_elsewhere::Unsendable is unsendable, but is being dropped on another thread"
+        );
         assert!(object.is_none());
     });
 }

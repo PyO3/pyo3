@@ -13,10 +13,10 @@ use crate::py_expr::PyExpr;
 use crate::pyfunction::FunctionSignature;
 use crate::utils::{PyO3CratePath, PythonDoc, StrOrExpr};
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use std::borrow::Cow;
-use std::collections::hash_map::DefaultHasher;
 use std::collections::BTreeMap;
+use std::collections::hash_map::DefaultHasher;
 use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
@@ -78,12 +78,28 @@ pub fn class_introspection_code(
     if let Some(extends) = extends {
         desc.insert("bases", IntrospectionNode::List(vec![extends.into()]));
     }
-    if is_final {
-        desc.insert(
-            "decorators",
-            IntrospectionNode::List(vec![PyExpr::module_attr("typing", "final").into()]),
-        );
-    }
+    desc.insert(
+        "decorators",
+        if is_final {
+            IntrospectionNode::List(vec![PyExpr::module_attr("typing", "final").into()])
+        } else {
+            // Being a disjoint base depends on the instance layout, so the compiler picks the list.
+            IntrospectionNode::If {
+                condition: quote! {
+                    #pyo3_crate_path::impl_::introspection::is_disjoint_base::<#ident>()
+                },
+                then: Box::new(IntrospectionNode::List(vec![
+                    PyExpr::attribute(
+                        // `typing.disjoint_base` is new in Python 3.15
+                        PyExpr::typing_or_extensions_if_less(15),
+                        "disjoint_base",
+                    )
+                    .into(),
+                ])),
+                otherwise: Box::new(IntrospectionNode::List(Vec::new())),
+            }
+        },
+    );
     if let Some(parent) = parent {
         desc.insert(
             "parent",
@@ -351,6 +367,12 @@ enum IntrospectionNode<'a> {
     Doc(&'a PythonDoc),
     Map(BTreeMap<&'static str, IntrospectionNode<'a>>),
     List(Vec<AttributedIntrospectionNode<'a>>),
+    /// Emits `if $condition { $then } else { $otherwise }`, for facts only the compiler knows.
+    If {
+        condition: TokenStream,
+        then: Box<IntrospectionNode<'a>>,
+        otherwise: Box<IntrospectionNode<'a>>,
+    },
 }
 
 impl IntrospectionNode<'_> {
@@ -361,6 +383,12 @@ impl IntrospectionNode<'_> {
             pyo3_crate_path,
             format_ident!("PYO3_INTROSPECTION_1_{}", unique_element_id()),
         )
+    }
+
+    fn serialize(self, pyo3_crate_path: &PyO3CratePath) -> TokenStream {
+        let mut content = ConcatenationBuilder::default();
+        self.add_to_serialization(&mut content, pyo3_crate_path);
+        content.into_token_stream(pyo3_crate_path)
     }
 
     fn add_to_serialization(
@@ -445,13 +473,27 @@ impl IntrospectionNode<'_> {
                             .map(|cfg| &cfg.tokens);
                         preceding.push(quote! { all(#(#cfgs),*) });
                         // We serialize the element to easily gate it behind the attributes
-                        let mut nested_builder = ConcatenationBuilder::default();
-                        node.add_to_serialization(&mut nested_builder, pyo3_crate_path);
-                        let nested_content = nested_builder.into_token_stream(pyo3_crate_path);
+                        let nested_content = node.serialize(pyo3_crate_path);
                         content.push_tokens(quote! { #(#attributes)* #nested_content });
                     }
                 }
                 content.push_str("]");
+            }
+            Self::If {
+                condition,
+                then,
+                otherwise,
+            } => {
+                // The casts unify the branches: a node serializes to `&[u8; N]` or `&[u8]`.
+                let then = then.serialize(pyo3_crate_path);
+                let otherwise = otherwise.serialize(pyo3_crate_path);
+                content.push_tokens(quote! {
+                    if #condition {
+                        (#then) as &[u8]
+                    } else {
+                        (#otherwise) as &[u8]
+                    }
+                });
             }
         }
     }
@@ -562,13 +604,13 @@ impl ConcatenationBuilder {
             elements.push(ConcatenationBuilderElement::String(self.current_string));
         }
 
-        // #[no_mangle] is required to make sure some linkers like Linux ones do not mangle the section name too.
+        // #[unsafe(no_mangle)] is required to make sure some linkers like Linux ones do not mangle the section name too.
         quote! {
             const _: () = {
                 const PIECES: &[&[u8]] = &[#(#elements , )*];
                 const PIECES_LEN: usize = #pyo3_crate_path::impl_::concat::combined_len(PIECES);
                 #[used]
-                #[no_mangle]
+                #[unsafe(no_mangle)]
                 static #ident: #pyo3_crate_path::impl_::introspection::SerializedIntrospectionFragment<PIECES_LEN> = #pyo3_crate_path::impl_::introspection::SerializedIntrospectionFragment {
                     length: PIECES_LEN as u32,
                     fragment: #pyo3_crate_path::impl_::concat::combine_to_array::<PIECES_LEN>(PIECES)

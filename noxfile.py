@@ -18,11 +18,7 @@ from functools import lru_cache
 from glob import glob
 from pathlib import Path
 from shlex import quote
-from typing import (
-    Any,
-    Callable,
-    Literal,
-)
+from typing import Any, Literal, Protocol
 
 import nox.command
 
@@ -128,7 +124,18 @@ def test_rust(session: nox.Session):
 
     _run_cargo_test(session, package="pyo3-ffi", extra_flags=extra_flags)
 
+    env = os.environ.copy()
     extra_flags.append("--no-default-features")
+
+    if is_rust_nightly():
+        # Forcing doctest merge helps smoke test that merged doctests are running
+        # correctly. Requires a nightly flag; Rust 2024 edition will attempt to
+        # merge doctests but silently fall back if the merge fails due to e.g.
+        # symbol conflicts. Using `standalone_crate` can isolate problematic tests
+        # as a short-term workaround.
+        env["RUSTDOCFLAGS"] = (
+            env.get("RUSTDOCFLAGS", "") + " -Z unstable-options --merge-doctests=yes"
+        )
 
     for feature_set in _get_feature_sets():
         flags = extra_flags.copy()
@@ -143,7 +150,7 @@ def test_rust(session: nox.Session):
         # We need to pass the feature set to the test command
         # so that it can be used in the test code
         # (e.g. for `#[cfg(feature = "abi3-py39")]`)
-        _run_cargo_test(session, features=feature_set, extra_flags=flags)
+        _run_cargo_test(session, features=feature_set, extra_flags=flags, env=env)
 
         if feature_set is not None and "full" in feature_set:
             # UI tests can have different output depending on features enabled, but
@@ -153,6 +160,7 @@ def test_rust(session: nox.Session):
                 session,
                 features=feature_set.replace("full", "macros"),
                 extra_flags=[*extra_flags, "--test", "test_compile_error"],
+                env=env,
             )
 
         if (
@@ -168,6 +176,7 @@ def test_rust(session: nox.Session):
                 session,
                 features=feature_set.replace("abi3", "abi3-py39"),
                 extra_flags=flags,
+                env=env,
             )
 
         if (
@@ -187,9 +196,18 @@ def test_rust(session: nox.Session):
 
 @nox.session(name="test-py", venv_backend="none")
 def test_py(session: nox.Session) -> None:
-    _run(session, "nox", "-f", "pytests/noxfile.py", external=True)
+    features = (
+        ",".join(f"pyo3/{feat}" for feat in _REQUIRED_FOR_NO_STD)
+        if _is_no_std()
+        else ""
+    )
+    extra_args = ("--", f"--features={features}") if features else ()
+
+    _run(session, "nox", "-f", "pytests/noxfile.py", *extra_args, external=True)
     for example in glob("examples/*/noxfile.py"):
-        _run(session, "nox", "-f", example, external=True)
+        if _is_no_std() and example.startswith("examples/setuptools-rust-starter"):
+            continue
+        _run(session, "nox", "-f", example, *extra_args, external=True)
     for example in glob("pyo3-ffi/examples/*/noxfile.py"):
         _run(session, "nox", "-f", example, external=True)
 
@@ -227,6 +245,19 @@ def generate_coverage_report(session: nox.Session) -> None:
         "report",
         *posargs,
     )
+
+
+@nox.session(venv_backend="none")
+def fmt(session: nox.Session):
+    """Check formatting and lints."""
+    for name in (
+        "ruff",
+        "rustfmt",
+        "rumdl",
+        "check-test-features",
+        "typos",
+    ):
+        session.notify(name)
 
 
 @nox.session(venv_backend="none")
@@ -269,10 +300,11 @@ def _clippy(
     *,
     env: dict[str, str] | None = None,
     version: tuple[int, int] | None = None,
+    free_threaded: bool = FREE_THREADED_BUILD,
 ) -> bool:
     success = True
     env = env or os.environ
-    for feature_set in _get_feature_sets(version):
+    for feature_set in _get_feature_sets(version=version, free_threaded=free_threaded):
         try:
             _run_cargo(
                 session,
@@ -328,23 +360,17 @@ def codspeed(session: nox.Session) -> bool:
     _run(session, "pytest", "--codspeed", external=True)
 
 
-@nox.session(name="codspeed-walltime")
-def codspeed_walltime(session: nox.Session) -> bool:
-    bench = "bench_attach_scaling"
-    os.chdir(PYO3_DIR / "pyo3-benches")
-    _run_cargo(session, "codspeed", "build", "--bench", bench)
-    _run_cargo(session, "codspeed", "run", "--bench", bench)
-
-
 @nox.session(name="clippy-all", venv_backend="none")
 def clippy_all(session: nox.Session) -> None:
     success = True
 
     def _clippy_with_config(
-        env: dict[str, str], version: tuple[int, int] | None
+        *, env: dict[str, str], version: tuple[int, int] | None, free_threaded: bool
     ) -> None:
         nonlocal success
-        success &= _clippy(session, env=env, version=version)
+        success &= _clippy(
+            session, env=env, version=version, free_threaded=free_threaded
+        )
 
     _for_all_version_configs(session, _clippy_with_config)
     success &= _clippy_additional_workspaces(session)
@@ -357,9 +383,13 @@ def clippy_all(session: nox.Session) -> None:
 def check_all(session: nox.Session) -> None:
     success = True
 
-    def _check(env: dict[str, str], version: tuple[int, int]) -> None:
+    def _check(
+        *, env: dict[str, str], version: tuple[int, int] | None, free_threaded: bool
+    ) -> None:
         nonlocal success
-        for feature_set in _get_feature_sets():
+        for feature_set in _get_feature_sets(
+            version=version, free_threaded=free_threaded
+        ):
             try:
                 _run_cargo(
                     session,
@@ -377,16 +407,6 @@ def check_all(session: nox.Session) -> None:
 
     if not success:
         session.error("one or more jobs failed")
-
-
-@nox.session(venv_backend="none")
-def publish(session: nox.Session) -> None:
-    _run_cargo_publish(session, package="pyo3-build-config")
-    _run_cargo_publish(session, package="pyo3-macros-backend")
-    _run_cargo_publish(session, package="pyo3-macros")
-    _run_cargo_publish(session, package="pyo3-ffi")
-    _run_cargo_publish(session, package="pyo3")
-    _run_cargo_publish(session, package="pyo3-introspection")
 
 
 @nox.session(venv_backend="none")
@@ -500,9 +520,13 @@ def test_emscripten(session: nox.Session):
             "-C link-arg=-sEXPORTED_FUNCTIONS=_main,__PyRuntime",
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
             "-C link-arg=-sSTACK_SIZE=262144",
+            # https://github.com/python/cpython/issues/156780
+            "-C link-arg=-sMAIN_MODULE=2",
         ]
     )
-    session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
+    session.env["RUSTDOCFLAGS"] = " ".join(
+        [session.env["RUSTFLAGS"], session.env.get("RUSTDOCFLAGS", "")]
+    )
     session.env["CARGO_BUILD_TARGET"] = target
     session.env["PYO3_CROSS_LIB_DIR"] = pythonlibdir
     _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
@@ -538,19 +562,39 @@ class WasiInfo:
         self.libdir = crossbuild_dir / "build" / f"lib.wasi-wasm32-{self.pymajorminor}"
 
 
-@nox.session(name="build-wasm", venv_backend="none")
-def build_wasm(session: nox.Session):
-    info = WasiInfo()
+def _make_wasm(session: nox.Session, info: WasiInfo, *targets: str):
     _run(
         session,
         "make",
         "-C",
         str(info.wasi_dir),
+        *targets,
         f"PYTHON={sys.executable}",
         f"BUILDROOT={info.builddir}",
         f"PYMAJORMINORMICRO={info.pyversion}",
         external=True,
     )
+
+
+@nox.session(name="prepare-wasm", venv_backend="none")
+def prepare_wasm(session: nox.Session):
+    import tomllib
+
+    info = WasiInfo()
+    _make_wasm(session, info, "prepare")
+
+    with (info.cpython_dir / "Platforms/WASI/config.toml").open("rb") as config_file:
+        wasi_sdk_version = tomllib.load(config_file)["targets"]["wasi-sdk"]
+
+    session.log("CPython requires WASI SDK %s", wasi_sdk_version)
+    if github_output := os.environ.get("GITHUB_OUTPUT"):
+        with open(github_output, "a") as output_file:
+            print(f"wasi-sdk-version={wasi_sdk_version}", file=output_file)
+
+
+@nox.session(name="build-wasm", venv_backend="none")
+def build_wasm(session: nox.Session):
+    _make_wasm(session, WasiInfo())
 
 
 @nox.session(name="test-wasm", venv_backend="none")
@@ -578,12 +622,19 @@ def test_wasm(session: nox.Session):
             "-C link-arg=-lwasi-emulated-signal",
             "-C link-arg=-lwasi-emulated-process-clocks",
             "-C link-arg=-lwasi-emulated-getpid",
-            "-C link-arg=-lmpdec",
+            "-C link-arg=-lpthread",
+            "-C link-arg=-lHacl_Hash_MD5",
+            "-C link-arg=-lHacl_Hash_SHA1",
+            "-C link-arg=-lHacl_Hash_SHA2",
+            "-C link-arg=-lHacl_Hash_SHA3",
+            "-C link-arg=-lHacl_Hash_BLAKE2",
             "-C link-arg=-lHacl_HMAC",
             "-C link-arg=-lexpat",
         ]
     )
-    session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
+    session.env["RUSTDOCFLAGS"] = " ".join(
+        [session.env["RUSTFLAGS"], session.env.get("RUSTDOCFLAGS", "")]
+    )
     _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
 
     _run(session, "cargo", "test", *session.posargs, external=True)
@@ -879,11 +930,18 @@ def check_guide(session: nox.Session):
     }
 
     excludes = [
+        # The current release tag may not exist yet (e.g. on the release PR itself).
+        rf"^https://github\.com/pyo3/pyo3/compare/[^/]+\.{{3}}v{re.escape(pyo3_version)}$",
         # exclude some old http links from copyright notices, known to fail
         "http://www.adobe.com/",
         "http://www.nhncorp.com/",
         # PR seems to be gone, possibly user deleted account?
         "https://github.com/PyO3/pyo3/pull/938",
+        # This article returns HTTP 202 on GitHub Actions runners.
+        (
+            r"^https://towardsdatascience\.com/"
+            r"nine-rules-for-writing-python-extensions-in-rust-d35ea3a4ec29/$"
+        ),
     ]
 
     common_args = (
@@ -1046,9 +1104,7 @@ def _format_ffi_extern(session: nox.Session, *, check: bool = False):
 
     # Run rustfmt on the modified files
     try:
-        _run(
-            session, "rustfmt", "--edition", "2021", *[str(f) for f in files_to_format]
-        )
+        _run(session, "rustfmt", *[str(f) for f in files_to_format])
     except Exception:
         # Restore originals on failure
         for path, content in originals.items():
@@ -1254,51 +1310,21 @@ def check_changelog(session: nox.Session):
 
 @nox.session(name="set-msrv-package-versions", venv_backend="none")
 def set_msrv_package_versions(session: nox.Session):
-    from collections import defaultdict
-
     projects = (
         PYO3_DIR,
         *(Path(p).parent for p in glob("examples/*/Cargo.toml")),
         *(Path(p).parent for p in glob("pyo3-ffi/examples/*/Cargo.toml")),
     )
-    min_pkg_versions = {}
 
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
     for project in projects:
         _run_cargo(
             session,
-            "+stable",
             "update",
             f"--manifest-path={project}/Cargo.toml",
             env=os.environ | {"CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS": "fallback"},
         )
-
-        lock_file = project / "Cargo.lock"
-
-        def load_pkg_versions():
-            cargo_lock = toml.loads(lock_file.read_text())  # noqa: B023
-            # Cargo allows to depends on multiple versions of the same package
-            pkg_versions = defaultdict(list)
-            for pkg in cargo_lock["package"]:
-                name = pkg["name"]
-                if name not in min_pkg_versions:
-                    continue
-                pkg_versions[name].append(pkg["version"])
-            return pkg_versions
-
-        pkg_versions = load_pkg_versions()
-        for pkg_name, min_version in min_pkg_versions.items():
-            versions = pkg_versions.get(pkg_name, [])
-            for version in versions:
-                if version != min_version:
-                    pkg_id = pkg_name + ":" + version
-                    _run_cargo_set_package_version(
-                        session, pkg_id, min_version, project=project
-                    )
-                    # assume `_run_cargo_set_package_version` has changed something
-                    # and re-read `Cargo.lock`
-                    pkg_versions = load_pkg_versions()
 
         # As a smoke test, cargo metadata solves all dependencies, so
         # will break if any crates rely on cargo features not
@@ -1313,13 +1339,16 @@ def set_msrv_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    extra_args = []
-    # This flag can be useful for debugging ffi-check errors, but overall the
-    # short message format is easier to read
-    if "--long-message-format" not in session.posargs:
-        extra_args.append("--message-format=short")
-
-    _run_cargo(session, "run", _FFI_CHECK, *extra_args)
+    # on windows, missing symbols are reported best at link time against a
+    # proper import library, so running with raw dylib disabled gets the best
+    # feedback. Exercise both paths.
+    no_raw_dylib_env = {**os.environ, "PYO3_USE_RAW_DYLIB": "0"}
+    raw_dylib_env = {**os.environ, "PYO3_USE_RAW_DYLIB": "1"}
+    if sys.platform == "win32":
+        # only relevant to run this on windows; the env var is ignored on
+        # other platforms
+        _run_cargo(session, "run", _FFI_CHECK, env=no_raw_dylib_env)
+    _run_cargo(session, "run", _FFI_CHECK, env=raw_dylib_env)
     _check_raw_dylib_macro(session)
 
 
@@ -1464,8 +1493,14 @@ def _check_raw_dylib_macro(session: nox.Session):
     pypy_min, pypy_max = _parse_supported_interpreter_version("pypy")
     pypy_min_minor = int(pypy_min.split(".")[1])
     pypy_max_minor = int(pypy_max.split(".")[1])
-    for minor in range(pypy_min_minor, pypy_max_minor + 1):
+    for minor in range(
+        pypy_min_minor,
+        pypy_max_minor + 2,  # allow prerelease of next version
+    ):
         expected_dlls.add(f"libpypy3.{minor}-c")
+
+    # GraalPy DLL (python-native.dll)
+    expected_dlls.add("python-native")
 
     # Parse the DLL name list in the extern_libpython!(@impl ...) invocation
     lib_rs = (PYO3_DIR / "pyo3-ffi" / "src" / "impl_" / "macros.rs").read_text()
@@ -1711,8 +1746,8 @@ def check_feature_powerset(session: nox.Session):
             "check",
             "--all-targets",
         ]
-        if not _is_no_std:
-            args.push(f"--features={comma_join(_REQUIRED_FOR_NO_STD)}")
+        if not _is_no_std():
+            args.append(f"--features={comma_join(_REQUIRED_FOR_NO_STD)}")
         _run_cargo(*args, env=env)
 
 
@@ -1724,6 +1759,14 @@ def update_ui_tests(session: nox.Session):
     _run_cargo(session, *command, "--features=macros", env=env)
     _run_cargo(session, *command, "--features=full", env=env)
     _run_cargo(session, *command, "--features=abi3,full", env=env)
+
+    env["PYO3_WIP_NO_STD"] = "1"
+    _run_cargo(
+        session,
+        *command,
+        f"--features=macros,{','.join(_REQUIRED_FOR_NO_STD)}",
+        env=env,
+    )
 
 
 @nox.session(name="test-introspection")
@@ -1825,7 +1868,9 @@ def _get_rust_default_target() -> str:
 
 @lru_cache
 def _get_feature_sets(
+    *,
     version: tuple[int, int] | None = None,
+    free_threaded: bool = FREE_THREADED_BUILD,
 ) -> tuple[str | None, ...]:
     """Returns feature sets to use for Rust jobs"""
     if version is None:
@@ -1844,7 +1889,7 @@ def _get_feature_sets(
     if is_rust_nightly():
         features += ",nightly"
 
-    if FREE_THREADED_BUILD:
+    if free_threaded:
         if version >= (3, 15):
             return (
                 required,
@@ -1973,26 +2018,13 @@ def _run_cargo_test(
     _run(session, *command, external=True, env=test_env)
 
 
-def _run_cargo_publish(session: nox.Session, *, package: str) -> None:
-    _run_cargo(session, "publish", f"--package={package}")
+class Job(Protocol):
+    def __call__(
+        self, *, env: dict[str, str], version: tuple[int, int], free_threaded: bool
+    ) -> None: ...
 
 
-def _run_cargo_set_package_version(
-    session: nox.Session,
-    pkg_id: str,
-    version: str,
-    *,
-    project: str | None = None,
-) -> None:
-    command = ["cargo", "update", "-p", pkg_id, "--precise", version, "--workspace"]
-    if project:
-        command.append(f"--manifest-path={project}/Cargo.toml")
-    _run(session, *command, external=True)
-
-
-def _for_all_version_configs(
-    session: nox.Session, job: Callable[[dict[str, str]], None]
-) -> None:
+def _for_all_version_configs(session: nox.Session, job: Job) -> None:
     env = os.environ.copy()
     with _config_file() as config_file:
         env["PYO3_CONFIG_FILE"] = config_file.name
@@ -2000,8 +2032,9 @@ def _for_all_version_configs(
         def _job_with_config(implementation, version):
             session.log(f"{implementation} {version}")
             config_file.set(implementation, version)
-            major_minor = tuple(map(int, version.strip("t").split(".")))
-            job(env, major_minor)
+            major_minor = tuple[int, int](map(int, version.strip("t").split(".")))
+            free_threaded = version.endswith("t")
+            job(env=env, version=major_minor, free_threaded=free_threaded)
 
         for version in PY_VERSIONS:
             _job_with_config("CPython", version)

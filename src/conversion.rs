@@ -1,7 +1,7 @@
 //! Defines conversions between Rust and Python types.
 use crate::err::PyResult;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, type_hint_subscript, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier, type_hint_subscript};
 use crate::platform::prelude::*;
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
@@ -393,7 +393,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
 
     /// Provides the type hint information for this type when it appears as an argument.
     ///
-    /// For example, `Vec<u32>` would be `collections.abc.Sequence[int]`.
+    /// For example, `Vec<u32>` would be `_typeshed.SupportsGetItem[int, typing.SupportsIndex]`.
     /// The default value is `typing.Any`, which is correct for any type.
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("_typeshed", "Incomplete");
@@ -440,8 +440,8 @@ pub trait FromPyObject<'a, 'py>: Sized {
 }
 
 mod from_py_object_sequence {
-    use crate::platform::prelude::*;
     use crate::PyResult;
+    use crate::platform::prelude::*;
 
     /// Private trait for implementing specialized sequence extraction for `Vec<u8>` and `[u8; N]`
     #[doc(hidden)]
@@ -581,7 +581,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[expect(deprecated)]
     fn test_pyclass_skip_from_py_object() {
-        use crate::{types::PyAnyMethods, FromPyObject, IntoPyObject, PyErr, Python};
+        use crate::{FromPyObject, IntoPyObject, PyErr, Python, types::PyAnyMethods};
 
         #[crate::pyclass(crate = "crate", skip_from_py_object)]
         #[derive(Clone)]
@@ -613,7 +613,7 @@ mod tests {
     #[test]
     #[cfg(feature = "macros")]
     fn test_pyclass_from_py_object() {
-        use crate::{types::PyAnyMethods, IntoPyObject, PyErr, Python};
+        use crate::{IntoPyObject, PyErr, Python, types::PyAnyMethods};
 
         #[crate::pyclass(crate = "crate", from_py_object)]
         #[derive(Clone)]

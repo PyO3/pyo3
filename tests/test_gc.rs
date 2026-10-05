@@ -1,19 +1,27 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "macros")]
+#![cfg_attr(
+    wip_feature_std,
+    expect(clippy::disallowed_types, reason = "mutex and once used for std tests")
+)]
 
+use core::ffi::{c_int, c_void};
+use core::num::NonZero;
 use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
-#[cfg(not(Py_GIL_DISABLED))]
+#[cfg(all(wip_feature_std, not(Py_GIL_DISABLED)))]
 use pyo3::py_run;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
 use std::collections::HashMap;
+#[cfg(wip_feature_std)]
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
-use std::sync::Once;
-use std::sync::{Arc, Mutex};
+#[cfg(wip_feature_std)]
+use std::sync::{Mutex, Once};
 
 mod test_utils;
 
@@ -71,6 +79,7 @@ fn multithreaded_class_with_freelist() {
 /// Helper function to create a pair of objects that can be used to test drops;
 /// the first object is a guard that records when it has been dropped, the second
 /// object is a check that can be used to assert that the guard has been dropped.
+#[cfg(wip_feature_std)]
 fn drop_check() -> (DropGuard, DropCheck) {
     let flag = Arc::new(Once::new());
     (DropGuard(flag.clone()), DropCheck(flag))
@@ -78,14 +87,18 @@ fn drop_check() -> (DropGuard, DropCheck) {
 
 /// Helper structure that records when it has been dropped
 #[pyclass]
+#[cfg(wip_feature_std)]
 struct DropGuard(Arc<Once>);
+#[cfg(wip_feature_std)]
 impl Drop for DropGuard {
     fn drop(&mut self) {
         self.0.call_once(|| ());
     }
 }
 
+#[cfg(wip_feature_std)]
 struct DropCheck(Arc<Once>);
+#[cfg(wip_feature_std)]
 impl DropCheck {
     #[track_caller]
     fn assert_not_dropped(&self) {
@@ -125,6 +138,7 @@ impl DropCheck {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn data_is_dropped() {
     #[pyclass]
     struct DataIsDropped {
@@ -150,12 +164,14 @@ fn data_is_dropped() {
     check2.assert_dropped();
 }
 
+#[cfg(wip_feature_std)]
 #[pyclass(subclass)]
 struct CycleWithClear {
     cycle: Option<Py<PyAny>>,
     _guard: DropGuard,
 }
 
+#[cfg(wip_feature_std)]
 #[pymethods]
 impl CycleWithClear {
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
@@ -168,6 +184,7 @@ impl CycleWithClear {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn test_cycle_clear() {
     let (guard, check) = drop_check();
 
@@ -235,6 +252,7 @@ fn gc_null_traversal() {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn inheritance_with_new_methods_with_drop() {
     #[pyclass(subclass)]
     struct BaseClassWithDrop {
@@ -312,15 +330,12 @@ fn gc_during_borrow() {
     }
 
     Python::attach(|py| {
-        // get the traverse function
-        let ty = py.get_type::<TraversableClass>();
-        let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
-
         // create an object and check that traversing it works normally
         // when it's not borrowed
         let cell = Bound::new(py, TraversableClass::new()).unwrap();
         assert!(!cell.borrow().traversed.load(Ordering::Relaxed));
-        unsafe { traverse(cell.as_ptr(), novisit, std::ptr::null_mut()) };
+
+        traverse_object(&cell, novisit);
         assert!(cell.borrow().traversed.load(Ordering::Relaxed));
 
         // create an object and check that it is not traversed if the GC
@@ -328,7 +343,8 @@ fn gc_during_borrow() {
         let cell2 = Bound::new(py, TraversableClass::new()).unwrap();
         let guard = cell2.borrow_mut();
         assert!(!guard.traversed.load(Ordering::Relaxed));
-        unsafe { traverse(cell2.as_ptr(), novisit, std::ptr::null_mut()) };
+
+        traverse_object(&cell2, novisit);
         assert!(!guard.traversed.load(Ordering::Relaxed));
         drop(guard);
     });
@@ -357,16 +373,9 @@ fn traverse_partial() {
     }
 
     Python::attach(|py| {
-        // get the traverse function
-        let ty = py.get_type::<PartialTraverse>();
-        let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
-
         // confirm that traversing errors
-        let obj = Py::new(py, PartialTraverse::new(py)).unwrap();
-        assert_eq!(
-            unsafe { traverse(obj.as_ptr(), visit_error, std::ptr::null_mut()) },
-            -1
-        );
+        let obj = Bound::new(py, PartialTraverse::new(py)).unwrap();
+        assert_eq!(traverse_object(&obj, visit_error), -1);
     })
 }
 
@@ -393,16 +402,9 @@ fn traverse_panic() {
     }
 
     Python::attach(|py| {
-        // get the traverse function
-        let ty = py.get_type::<PanickyTraverse>();
-        let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
-
         // confirm that traversing errors
-        let obj = Py::new(py, PanickyTraverse::new(py)).unwrap();
-        assert_eq!(
-            unsafe { traverse(obj.as_ptr(), novisit, std::ptr::null_mut()) },
-            -1
-        );
+        let obj = Bound::new(py, PanickyTraverse::new(py)).unwrap();
+        assert_eq!(traverse_object(&obj, novisit), -1);
     })
 }
 
@@ -420,16 +422,9 @@ fn tries_gil_in_traverse() {
     }
 
     Python::attach(|py| {
-        // get the traverse function
-        let ty = py.get_type::<TriesGILInTraverse>();
-        let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
-
         // confirm that traversing panicks
-        let obj = Py::new(py, TriesGILInTraverse {}).unwrap();
-        assert_eq!(
-            unsafe { traverse(obj.as_ptr(), novisit, std::ptr::null_mut()) },
-            -1
-        );
+        let obj = Bound::new(py, TriesGILInTraverse {}).unwrap();
+        assert_eq!(traverse_object(&obj, novisit), -1);
     })
 }
 
@@ -479,23 +474,22 @@ fn traverse_cannot_be_hijacked() {
     }
 
     Python::attach(|py| {
-        // get the traverse function
-        let ty = py.get_type::<HijackedTraverse>();
-        let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
-
         let cell = Bound::new(py, HijackedTraverse::new()).unwrap();
         assert_eq!(cell.borrow().traversed_and_hijacked(), (false, false));
-        unsafe { traverse(cell.as_ptr(), novisit, std::ptr::null_mut()) };
+
+        traverse_object(&cell, novisit);
         assert_eq!(cell.borrow().traversed_and_hijacked(), (true, false));
     })
 }
 
+#[cfg(wip_feature_std)]
 #[pyclass]
 struct DropDuringTraversal {
     cycle: Mutex<Option<Py<Self>>>,
     _guard: DropGuard,
 }
 
+#[cfg(wip_feature_std)]
 #[pymethods]
 impl DropDuringTraversal {
     #[expect(clippy::unnecessary_wraps)]
@@ -507,6 +501,7 @@ impl DropDuringTraversal {
 }
 
 #[cfg(not(pyo3_disable_reference_pool))]
+#[cfg(wip_feature_std)]
 #[test]
 fn drop_during_traversal_with_gil() {
     let (guard, check) = drop_check();
@@ -541,6 +536,7 @@ fn drop_during_traversal_with_gil() {
 }
 
 #[cfg(not(pyo3_disable_reference_pool))]
+#[cfg(wip_feature_std)]
 #[test]
 fn drop_during_traversal_without_gil() {
     let (guard, check) = drop_check();
@@ -587,16 +583,8 @@ fn unsendable_are_not_traversed_on_foreign_thread() {
         }
     }
 
-    #[derive(Clone, Copy)]
-    struct SendablePtr(*mut pyo3::ffi::PyObject);
-
-    unsafe impl Send for SendablePtr {}
-
     Python::attach(|py| {
-        let ty = py.get_type::<UnsendableTraversal>();
-        let traverse = unsafe { get_type_traverse(ty.as_type_ptr()).unwrap() };
-
-        let obj = Bound::new(
+        let obj = Py::new(
             py,
             UnsendableTraversal {
                 traversed: Cell::new(false),
@@ -604,31 +592,32 @@ fn unsendable_are_not_traversed_on_foreign_thread() {
         )
         .unwrap();
 
-        let ptr = SendablePtr(obj.as_ptr());
+        py.detach(|| {
+            std::thread::scope(|s| {
+                s.spawn(|| {
+                    Python::attach(|py| {
+                        // traversal on foreign thread is a no-op
+                        assert_eq!(traverse_object(obj.bind(py), novisit), 0);
+                    })
+                })
+                .join()
+                .unwrap();
+            });
+        });
 
-        std::thread::spawn(move || {
-            // traversal on foreign thread is a no-op
-            assert_eq!(
-                unsafe { traverse({ ptr }.0, novisit, std::ptr::null_mut()) },
-                0
-            );
-        })
-        .join()
-        .unwrap();
+        let obj = obj.bind(py);
 
         assert!(!obj.borrow().traversed.get());
 
         // traversal on home thread still works
-        assert_eq!(
-            unsafe { traverse({ ptr }.0, novisit, std::ptr::null_mut()) },
-            0
-        );
+        assert_eq!(traverse_object(obj, novisit), 0);
 
         assert!(obj.borrow().traversed.get());
     });
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn test_traverse_subclass() {
     #[pyclass(extends = CycleWithClear)]
     struct SubOverrideTraverse {}
@@ -670,6 +659,7 @@ fn test_traverse_subclass() {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn test_traverse_subclass_override_clear() {
     #[pyclass(extends = CycleWithClear)]
     struct SubOverrideClear {}
@@ -716,40 +706,6 @@ fn test_traverse_subclass_override_clear() {
     });
 }
 
-// Manual traversal utilities
-
-unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ffi::traverseproc> {
-    unsafe { std::mem::transmute(pyo3::ffi::PyType_GetSlot(tp, pyo3::ffi::Py_tp_traverse)) }
-}
-
-// a dummy visitor function
-extern "C" fn novisit(
-    _object: *mut pyo3::ffi::PyObject,
-    _arg: *mut core::ffi::c_void,
-) -> std::ffi::c_int {
-    0
-}
-
-// a visitor function which errors (returns nonzero code)
-extern "C" fn visit_error(
-    _object: *mut pyo3::ffi::PyObject,
-    _arg: *mut core::ffi::c_void,
-) -> std::ffi::c_int {
-    -1
-}
-
-#[derive(Default)]
-struct VisitCounter(HashMap<*mut ffi::PyObject, usize>);
-
-extern "C" fn count_visits(
-    object: *mut ffi::PyObject,
-    arg: *mut core::ffi::c_void,
-) -> std::ffi::c_int {
-    let counter = unsafe { &mut *arg.cast::<VisitCounter>() };
-    *counter.0.entry(object).or_default() += 1;
-    0
-}
-
 // the fields visited below, set before driving the traversal
 static BASE_FIELD: AtomicPtr<pyo3::ffi::PyObject> = AtomicPtr::new(std::ptr::null_mut());
 static CHILD_FIELD: AtomicPtr<pyo3::ffi::PyObject> = AtomicPtr::new(std::ptr::null_mut());
@@ -757,21 +713,20 @@ static BASE_VISITED: AtomicBool = AtomicBool::new(false);
 static CHILD_VISITED: AtomicBool = AtomicBool::new(false);
 
 // a visitor function which errors on `BASE_FIELD` only
-extern "C" fn visit_error_on_base_field(
-    object: *mut pyo3::ffi::PyObject,
-    _arg: *mut core::ffi::c_void,
-) -> std::ffi::c_int {
+fn visit_error_on_base_field(object: Borrowed<'_, '_, PyAny>) -> Result<(), NonZero<i32>> {
+    let object = object.as_ptr();
     if object == CHILD_FIELD.load(Ordering::SeqCst) {
         CHILD_VISITED.store(true, Ordering::SeqCst);
     }
     if object == BASE_FIELD.load(Ordering::SeqCst) {
         BASE_VISITED.store(true, Ordering::SeqCst);
-        return -1;
+        return Err(NonZero::new(-1).unwrap());
     }
-    0
+    Ok(())
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))] // buffer availability
 fn test_drop_buffer_during_traversal_without_gil() {
     use pyo3::buffer::PyBuffer;
@@ -837,14 +792,18 @@ fn type_object_is_visited_once_when_pyclasses_subtype_each_other() {
             PyClassInitializer::from(TraverseBase).add_subclass(TraverseChild),
         )
         .unwrap();
-        let child_type = py.get_type::<TraverseChild>();
-        let traverse = unsafe { get_type_traverse(child_type.as_type_ptr()).unwrap() };
-        let mut counter = VisitCounter::default();
+        let child_type = child.get_type();
 
-        let retval = unsafe { traverse(child.as_ptr(), count_visits, (&raw mut counter).cast()) };
+        let mut counter = HashMap::new();
+        let count_visits = |object: Borrowed<'_, '_, PyAny>| {
+            *counter.entry(object.as_ptr()).or_default() += 1;
+            Ok(())
+        };
+
+        let retval = traverse_object(&child, count_visits);
 
         assert_eq!(retval, 0);
-        assert_eq!(counter.0.get(&child_type.as_ptr()), Some(&1));
+        assert_eq!(counter.get(&child_type.as_ptr()), Some(&1));
     });
 }
 
@@ -889,16 +848,7 @@ fn test_super_traverse_early_return_does_not_abort() {
         BASE_FIELD.store(base_field.as_ptr(), Ordering::SeqCst);
         CHILD_FIELD.store(child_field.as_ptr(), Ordering::SeqCst);
 
-        let traverse =
-            unsafe { get_type_traverse(py.get_type::<TraverseChild>().as_type_ptr()).unwrap() };
-
-        let retval = unsafe {
-            traverse(
-                child.as_ptr(),
-                visit_error_on_base_field,
-                std::ptr::null_mut(),
-            )
-        };
+        let retval = traverse_object(&child, visit_error_on_base_field);
 
         assert!(
             BASE_VISITED.load(Ordering::SeqCst),
@@ -916,6 +866,7 @@ fn test_super_traverse_early_return_does_not_abort() {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn python_subclass_type_cycle_is_collected() {
     #[pyclass(subclass)]
     struct Base {
@@ -971,6 +922,7 @@ class Sub(Base):
 // type-creation time.
 
 #[test]
+#[cfg(wip_feature_std)]
 fn dict_class_is_a_gc_type() {
     Python::attach(|py| {
         let ty = py.get_type::<DictCycleNoTraverse>();
@@ -980,12 +932,14 @@ fn dict_class_is_a_gc_type() {
 }
 
 /// `#[pyclass(dict)]` with neither `__traverse__` nor `__clear__`: both slots are synthesized.
+#[cfg(wip_feature_std)]
 #[pyclass(dict)]
 struct DictCycleNoTraverse {
     _guard: DropGuard,
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn dict_cycle_collected_without_traverse() {
     let (guard, check) = drop_check();
 
@@ -1003,10 +957,12 @@ fn dict_cycle_collected_without_traverse() {
 /// `#[pyclass(dict)]` with `__traverse__` but no `__clear__`: the `__dict__` is visited by
 /// `_call_traverse` and cleared by a synthesized `tp_clear`.
 #[pyclass(dict)]
+#[cfg(wip_feature_std)]
 struct DictCycleTraverseOnly {
     _guard: DropGuard,
 }
 
+#[cfg(wip_feature_std)]
 #[pymethods]
 impl DictCycleTraverseOnly {
     #[expect(clippy::unnecessary_wraps)]
@@ -1017,6 +973,7 @@ impl DictCycleTraverseOnly {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn dict_cycle_collected_with_traverse_only() {
     let (guard, check) = drop_check();
 
@@ -1032,12 +989,14 @@ fn dict_cycle_collected_with_traverse_only() {
 
 /// `#[pyclass(dict)]` with both `__traverse__` and `__clear__`: the `__dict__` is folded into
 /// the user-defined slots by `_call_traverse` / `_call_clear`.
+#[cfg(wip_feature_std)]
 #[pyclass(dict)]
 struct DictCycleTraverseAndClear {
     _guard: DropGuard,
     field: Option<Py<PyAny>>,
 }
 
+#[cfg(wip_feature_std)]
 #[pymethods]
 impl DictCycleTraverseAndClear {
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
@@ -1053,6 +1012,7 @@ impl DictCycleTraverseAndClear {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn dict_cycle_collected_with_traverse_and_clear() {
     let (guard, check) = drop_check();
 
@@ -1074,6 +1034,7 @@ fn dict_cycle_collected_with_traverse_and_clear() {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 fn test_subclass_clear() {
     // An incorrect PyO3 implementation would prevent subclass `__clear__`
     // from ever being installed, thus causing this cycle test to leak.
@@ -1123,4 +1084,123 @@ fn test_subclass_clear() {
     });
 
     check.assert_drops_with_gc(ptr);
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn test_gc_during_classattr_initialization() {
+    static TRAVERSE_CALLED: AtomicBool = AtomicBool::new(false);
+    static CLASSATTR_CALLED: AtomicBool = AtomicBool::new(false);
+
+    #[cfg_attr(not(Py_3_12), pyclass(frozen))]
+    #[cfg_attr(Py_3_12, pyclass(frozen, extends=pyo3::types::PyList))]
+    struct GcDuringClassattr;
+
+    #[pymethods]
+    impl GcDuringClassattr {
+        #[classattr]
+        fn instance(py: Python<'_>) -> PyResult<Py<PyAny>> {
+            // Prevent infinite recursion of new threads & nested GC traversals.
+            assert!(
+                !CLASSATTR_CALLED.swap(true, Ordering::SeqCst),
+                "class attribute initializer called more than once",
+            );
+
+            let instance = Py::new(py, Self)?;
+
+            // Run GC traversal on a separate thread; an incorrect PyO3 implementation could
+            // trigger class attribute initialization to be triggered during GC traversal,
+            // which will corrupt GC state.
+            //
+            // (This is because class attribute initialization is currently allowed to be
+            // racy between threads.)
+            //
+            // FIXME https://github.com/PyO3/pyo3/issues/5211
+            // - this test may be redundant once that is resolved.
+            py.detach(|| {
+                std::thread::scope(|s| {
+                    s.spawn(|| {
+                        Python::attach(|py| {
+                            TRAVERSE_CALLED.store(false, Ordering::SeqCst);
+                            assert_eq!(traverse_object(instance.bind(py), novisit), 0);
+                            assert!(TRAVERSE_CALLED.load(Ordering::SeqCst));
+                        });
+                    })
+                    .join()
+                    .unwrap();
+                });
+            });
+            Ok(instance.into_any())
+        }
+
+        #[expect(clippy::unnecessary_wraps)]
+        fn __traverse__(&self, _visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            TRAVERSE_CALLED.store(true, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    Python::attach(|py| {
+        // Trigger type instantiation and class attribute initialization
+        let _ = py.get_type::<GcDuringClassattr>();
+        assert!(CLASSATTR_CALLED.load(Ordering::SeqCst));
+    });
+}
+
+// Manual traversal utilities
+
+unsafe fn get_type_traverse(tp: *mut pyo3::ffi::PyTypeObject) -> Option<pyo3::ffi::traverseproc> {
+    unsafe { std::mem::transmute(pyo3::ffi::PyType_GetSlot(tp, pyo3::ffi::Py_tp_traverse)) }
+}
+
+/// Traverse `obj` with the given `visitor` function. This is guaranteed to not
+/// temporarily release the thread state as long as `visitor` cannot; which allows
+/// for strong guarantees about the traversal functions of `obj`.
+///
+/// (The actual Python GC cannot run in another thread while this thread is attached.)
+///
+/// Note that `obj` itself is not passed to `visitor` unless it's reachable from its own `__traverse__`
+/// as part of a cycle (in which case `visitor` is responsible for avoiding infinite recursion).
+fn traverse_object<F>(obj: &Bound<'_, PyAny>, mut visitor: F) -> c_int
+where
+    F: FnMut(Borrowed<'_, '_, PyAny>) -> Result<(), NonZero<c_int>>,
+{
+    unsafe extern "C" fn visit_func<F>(obj: *mut ffi::PyObject, arg: *mut c_void) -> c_int
+    where
+        F: FnMut(Borrowed<'_, '_, PyAny>) -> Result<(), NonZero<c_int>>,
+    {
+        // SAFETY: traversal is called with closure as a pointer, lifetime
+        // is scoped to the call below
+        let visitor = unsafe { arg.cast::<F>().as_mut().unwrap() };
+
+        // SAFETY: visitor is called with a valid pointer to a PyObject, and `traverse_object` is
+        // called with an attached thread state. (Note that this is unlike true GC which has no,
+        // thread state, but this does not materially affect these tests.)
+        let obj = unsafe { Borrowed::from_ptr(Python::assume_attached(), obj) };
+
+        match visitor(obj) {
+            Ok(()) => 0,
+            Err(err) => err.get(),
+        }
+    }
+
+    let visitor_ptr = std::ptr::from_mut(&mut visitor);
+    let type_obj = obj.get_type();
+
+    // SAFETY: type_obj is known to be a valid type object
+    let traverse = unsafe { get_type_traverse(type_obj.as_type_ptr()).unwrap() };
+
+    // SAFETY: traverse is a valid function pointer, and visitor_ptr is a valid pointer to the closure
+    unsafe { traverse(obj.as_ptr(), visit_func::<F>, visitor_ptr.cast()) }
+}
+
+// a dummy visitor function
+#[expect(clippy::unnecessary_wraps)]
+fn novisit(_obj: Borrowed<'_, '_, PyAny>) -> Result<(), NonZero<c_int>> {
+    Ok(())
+}
+
+// a visitor function which errors (returns nonzero code)
+fn visit_error(_obj: Borrowed<'_, '_, PyAny>) -> Result<(), NonZero<c_int>> {
+    Err(NonZero::new(-1).unwrap())
 }

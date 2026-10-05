@@ -1,3 +1,5 @@
+//! Python slices and related types.
+
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -6,13 +8,13 @@ use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyRange, PyRangeMethods};
+use crate::{Bound, IntoPyObject, PyAny, Python};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
-use crate::{Bound, IntoPyObject, PyAny, Python};
 use core::convert::Infallible;
 
 /// Represents a Python `slice`.

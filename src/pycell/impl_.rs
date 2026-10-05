@@ -3,18 +3,19 @@
 
 use core::cell::UnsafeCell;
 use core::marker::PhantomData;
-use core::mem::{offset_of, ManuallyDrop, MaybeUninit};
+use core::mem::{ManuallyDrop, MaybeUninit, offset_of};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
+use crate::instance::PyBorrowedUnbound;
 use crate::internal::get_slot::{TP_DEALLOC, TP_FREE};
 #[cfg(RustPython)]
 use crate::sync::PyOnceLock;
 use crate::type_object::{PyLayout, PySizedLayout, PyTypeInfo};
 use crate::types::PyType;
-use crate::{ffi, PyClass, Python};
+use crate::{PyClass, Python, ffi};
 
 use crate::types::PyTypeMethods;
 
@@ -176,7 +177,7 @@ impl PyClassBorrowChecker for BorrowChecker {
     }
 
     fn release_borrow_mut(&self) {
-        self.0 .0.store(BorrowFlag::UNUSED, Ordering::Release)
+        self.0.0.store(BorrowFlag::UNUSED, Ordering::Release)
     }
 }
 
@@ -184,28 +185,50 @@ pub trait GetBorrowChecker<T: PyClassImpl> {
     fn borrow_checker(
         class_object: &T::Layout,
     ) -> &<T::PyClassMutability as PyClassMutability>::Checker;
+
+    #[allow(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(
+        class_object: PyBorrowedUnbound<'_, T>,
+    ) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
 impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for MutableClass {
     fn borrow_checker(class_object: &T::Layout) -> &BorrowChecker {
         &class_object.contents().borrow_checker
     }
-}
 
-impl<T: PyClassImpl<PyClassMutability = Self>> GetBorrowChecker<T> for ImmutableClass {
-    fn borrow_checker(class_object: &T::Layout) -> &EmptySlot {
-        &class_object.contents().borrow_checker
+    #[allow(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(class_object: PyBorrowedUnbound<'_, T>) -> &BorrowChecker {
+        &T::Layout::contents_during_gc(class_object).borrow_checker
     }
 }
 
-impl<T: PyClassImpl<PyClassMutability = Self>, M: PyClassMutability> GetBorrowChecker<T>
+impl<T: PyClass<PyClassMutability = Self>> GetBorrowChecker<T> for ImmutableClass {
+    fn borrow_checker(class_object: &T::Layout) -> &EmptySlot {
+        &class_object.contents().borrow_checker
+    }
+
+    #[allow(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(class_object: PyBorrowedUnbound<'_, T>) -> &EmptySlot {
+        &T::Layout::contents_during_gc(class_object).borrow_checker
+    }
+}
+
+impl<T: PyClass<PyClassMutability = Self>, M: PyClassMutability> GetBorrowChecker<T>
     for ExtendsMutableAncestor<M>
 where
     T::BaseType: PyClassImpl + PyClassBaseType<LayoutAsBase = <T::BaseType as PyClassImpl>::Layout>,
     <T::BaseType as PyClassImpl>::PyClassMutability: PyClassMutability<Checker = BorrowChecker>,
 {
     fn borrow_checker(class_object: &T::Layout) -> &BorrowChecker {
-        <<T::BaseType as PyClassImpl>::PyClassMutability as GetBorrowChecker<T::BaseType>>::borrow_checker(class_object.ob_base())
+        <<T::BaseType as PyClassImpl>::Layout>::borrow_checker(class_object.ob_base())
+    }
+
+    #[allow(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(class_object: PyBorrowedUnbound<'_, T>) -> &BorrowChecker {
+        // SAFETY: `T` can always be interpreted as its base type
+        let super_obj = unsafe { class_object.cast_unchecked() };
+        <<T::BaseType as PyClassImpl>::Layout>::borrow_checker_during_gc(super_obj)
     }
 }
 
@@ -350,6 +373,10 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     /// ([docs](https://docs.python.org/3/c-api/type.html#c.PyType_Spec.basicsize))
     const BASIC_SIZE: ffi::Py_ssize_t;
 
+    /// Whether instances are laid out differently from the base class, making the class a
+    /// [disjoint base](https://peps.python.org/pep-0800/).
+    const IS_DISJOINT_BASE: bool;
+
     /// Gets the offset of the dictionary from the start of the struct in bytes.
     const DICT_OFFSET: PyObjectOffset;
 
@@ -369,6 +396,10 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     /// Obtain a mutable reference to the structure that contains the pyclass struct and associated metadata.
     fn contents_mut(&mut self) -> &mut PyClassObjectContents<T>;
 
+    /// Variant of the above which is correct to call during GC (e.g. no refcounting)
+    #[allow(private_interfaces, reason = "only intended for use within PyO3")]
+    fn contents_during_gc(this: PyBorrowedUnbound<'_, T>) -> &PyClassObjectContents<T>;
+
     /// Obtain a pointer to the pyclass struct.
     fn get_ptr(&self) -> *mut T;
 
@@ -376,6 +407,11 @@ pub trait PyClassObjectLayout<T: PyClassImpl>: PyClassObjectBaseLayout<T> {
     fn ob_base(&self) -> &<T::BaseType as PyClassBaseType>::LayoutAsBase;
 
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker;
+
+    #[allow(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(
+        this: PyBorrowedUnbound<'_, T>,
+    ) -> &<T::PyClassMutability as PyClassMutability>::Checker;
 }
 
 #[repr(C)]
@@ -429,6 +465,11 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyStaticClassObje
         size as _
     };
 
+    // Not just `size_of::<PyClassObjectContents<T>>() > 0`: empty contents aligned more
+    // strictly than the base still grow the instance, through `repr(C)` padding.
+    const IS_DISJOINT_BASE: bool = core::mem::size_of::<Self>()
+        != core::mem::size_of::<<T::BaseType as PyClassBaseType>::LayoutAsBase>();
+
     const DICT_OFFSET: PyObjectOffset = {
         let offset = offset_of!(PyStaticClassObject<T>, contents)
             + offset_of!(PyClassObjectContents<T>, dict);
@@ -463,6 +504,12 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyStaticClassObje
         &mut self.contents
     }
 
+    #[allow(private_interfaces, reason = "only intended for use within PyO3")]
+    fn contents_during_gc(this: PyBorrowedUnbound<'_, T>) -> &PyClassObjectContents<T> {
+        let this = this.as_non_null().cast::<Self>();
+        unsafe { &this.as_ref().contents }
+    }
+
     fn get_ptr(&self) -> *mut T {
         self.contents.value.get()
     }
@@ -473,6 +520,13 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyStaticClassObje
 
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
         T::PyClassMutability::borrow_checker(self)
+    }
+
+    #[allow(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(
+        this: PyBorrowedUnbound<'_, T>,
+    ) -> &<T::PyClassMutability as PyClassMutability>::Checker {
+        T::PyClassMutability::borrow_checker_during_gc(this)
     }
 }
 
@@ -522,6 +576,7 @@ impl<T: PyClass<Layout = Self>> PyVariableClassObject<T> {
         // 3.14's PyType_GetBaseByToken, to support PEP 587 / multiple interpreters better
         // SAFETY: caller guarantees attached to the interpreter
         let type_obj = T::type_object_raw(unsafe { Python::assume_attached() });
+        // SAFETY: `obj` and `type_obj` known to be valid pointers
         let pointer = unsafe { ffi::PyObject_GetTypeData(obj, type_obj) };
         pointer.cast()
     }
@@ -544,6 +599,10 @@ impl<T: PyClass<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassObject
         // negative to indicate 'extra' space that cpython will allocate for us
         -(size as ffi::Py_ssize_t)
     };
+
+    // cpython appends the contents, reusing the base's size when there are none.
+    const IS_DISJOINT_BASE: bool = core::mem::size_of::<PyClassObjectContents<T>>() > 0;
+
     const DICT_OFFSET: PyObjectOffset = {
         let offset = offset_of!(PyClassObjectContents<T>, dict);
         assert!(offset <= ffi::Py_ssize_t::MAX as usize);
@@ -579,8 +638,38 @@ impl<T: PyClass<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassObject
             .expect("should be able to cast PyClassObjectContents pointer")
     }
 
+    #[allow(private_interfaces, reason = "only intended for use within PyO3")]
+    fn contents_during_gc(this: PyBorrowedUnbound<'_, T>) -> &PyClassObjectContents<T> {
+        let obj: *mut ffi::PyObject = this.as_ptr();
+        // This goes through PyO3 statics which is technically not correct once PyO3 supports
+        // reloadable modules / module state.
+        let type_obj = T::lazy_type_object()
+            .get_during_gc()
+            .as_ptr()
+            .cast::<ffi::PyTypeObject>();
+
+        let pointer = cfg_select! {
+            // SAFETY: `obj` and `type_obj` known to be valid pointers by the `get_during_gc` call
+            Py_3_15 => unsafe { ffi::PyObject_GetTypeData_DuringGC(obj, type_obj) },
+            // SAFETY: `obj` and `type_obj` known to be valid pointers by the `get_during_gc` call,
+            // there's not a better option for this in 3.14
+            not(Py_3_15) => unsafe { ffi::PyObject_GetTypeData(obj, type_obj) },
+        };
+
+        // SAFETY: `PyObject_GetTypeData[_DuringGC]` returns a borrowed pointer to the contents of the object,
+        // valid for the lifetime of the object.
+        unsafe { &*pointer.cast() }
+    }
+
     fn borrow_checker(&self) -> &<T::PyClassMutability as PyClassMutability>::Checker {
         T::PyClassMutability::borrow_checker(self)
+    }
+
+    #[allow(private_interfaces, reason = "only intended for use within PyO3")]
+    fn borrow_checker_during_gc(
+        this: PyBorrowedUnbound<'_, T>,
+    ) -> &<T::PyClassMutability as PyClassMutability>::Checker {
+        T::PyClassMutability::borrow_checker_during_gc(this)
     }
 }
 
@@ -759,37 +848,53 @@ mod tests {
             let mmm_refmut = mmm_bound.borrow_mut();
 
             // Cannot take any other mutable or immutable borrows whilst the object is borrowed mutably
-            assert!(mmm_bound
-                .extract::<PyRef<'_, MutableChildOfMutableChildOfMutableBase>>()
-                .is_err());
-            assert!(mmm_bound
-                .extract::<PyRef<'_, MutableChildOfMutableBase>>()
-                .is_err());
+            assert!(
+                mmm_bound
+                    .extract::<PyRef<'_, MutableChildOfMutableChildOfMutableBase>>()
+                    .is_err()
+            );
+            assert!(
+                mmm_bound
+                    .extract::<PyRef<'_, MutableChildOfMutableBase>>()
+                    .is_err()
+            );
             assert!(mmm_bound.extract::<PyRef<'_, MutableBase>>().is_err());
-            assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableChildOfMutableBase>>()
-                .is_err());
-            assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableBase>>()
-                .is_err());
+            assert!(
+                mmm_bound
+                    .extract::<PyRefMut<'_, MutableChildOfMutableChildOfMutableBase>>()
+                    .is_err()
+            );
+            assert!(
+                mmm_bound
+                    .extract::<PyRefMut<'_, MutableChildOfMutableBase>>()
+                    .is_err()
+            );
             assert!(mmm_bound.extract::<PyRefMut<'_, MutableBase>>().is_err());
 
             // With the borrow dropped, all other borrow attempts will succeed
             drop(mmm_refmut);
 
-            assert!(mmm_bound
-                .extract::<PyRef<'_, MutableChildOfMutableChildOfMutableBase>>()
-                .is_ok());
-            assert!(mmm_bound
-                .extract::<PyRef<'_, MutableChildOfMutableBase>>()
-                .is_ok());
+            assert!(
+                mmm_bound
+                    .extract::<PyRef<'_, MutableChildOfMutableChildOfMutableBase>>()
+                    .is_ok()
+            );
+            assert!(
+                mmm_bound
+                    .extract::<PyRef<'_, MutableChildOfMutableBase>>()
+                    .is_ok()
+            );
             assert!(mmm_bound.extract::<PyRef<'_, MutableBase>>().is_ok());
-            assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableChildOfMutableBase>>()
-                .is_ok());
-            assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableBase>>()
-                .is_ok());
+            assert!(
+                mmm_bound
+                    .extract::<PyRefMut<'_, MutableChildOfMutableChildOfMutableBase>>()
+                    .is_ok()
+            );
+            assert!(
+                mmm_bound
+                    .extract::<PyRefMut<'_, MutableChildOfMutableBase>>()
+                    .is_ok()
+            );
             assert!(mmm_bound.extract::<PyRefMut<'_, MutableBase>>().is_ok());
         })
     }
@@ -810,32 +915,44 @@ mod tests {
             let mmm_refmut = mmm_bound.borrow();
 
             // Further immutable borrows are ok
-            assert!(mmm_bound
-                .extract::<PyRef<'_, MutableChildOfMutableChildOfMutableBase>>()
-                .is_ok());
-            assert!(mmm_bound
-                .extract::<PyRef<'_, MutableChildOfMutableBase>>()
-                .is_ok());
+            assert!(
+                mmm_bound
+                    .extract::<PyRef<'_, MutableChildOfMutableChildOfMutableBase>>()
+                    .is_ok()
+            );
+            assert!(
+                mmm_bound
+                    .extract::<PyRef<'_, MutableChildOfMutableBase>>()
+                    .is_ok()
+            );
             assert!(mmm_bound.extract::<PyRef<'_, MutableBase>>().is_ok());
 
             // Further mutable borrows are not ok
-            assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableChildOfMutableBase>>()
-                .is_err());
-            assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableBase>>()
-                .is_err());
+            assert!(
+                mmm_bound
+                    .extract::<PyRefMut<'_, MutableChildOfMutableChildOfMutableBase>>()
+                    .is_err()
+            );
+            assert!(
+                mmm_bound
+                    .extract::<PyRefMut<'_, MutableChildOfMutableBase>>()
+                    .is_err()
+            );
             assert!(mmm_bound.extract::<PyRefMut<'_, MutableBase>>().is_err());
 
             // With the borrow dropped, all mutable borrow attempts will succeed
             drop(mmm_refmut);
 
-            assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableChildOfMutableBase>>()
-                .is_ok());
-            assert!(mmm_bound
-                .extract::<PyRefMut<'_, MutableChildOfMutableBase>>()
-                .is_ok());
+            assert!(
+                mmm_bound
+                    .extract::<PyRefMut<'_, MutableChildOfMutableChildOfMutableBase>>()
+                    .is_ok()
+            );
+            assert!(
+                mmm_bound
+                    .extract::<PyRefMut<'_, MutableChildOfMutableBase>>()
+                    .is_ok()
+            );
             assert!(mmm_bound.extract::<PyRefMut<'_, MutableBase>>().is_ok());
         })
     }

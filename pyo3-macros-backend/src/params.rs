@@ -138,9 +138,9 @@ pub fn impl_arg_params(
     };
 
     let cls_name = if let Some(cls) = self_ {
-        quote! { ::std::option::Option::Some(<#cls as #pyo3_path::PyClass>::NAME) }
+        quote! { ::core::option::Option::Some(<#cls as #pyo3_path::PyClass>::NAME) }
     } else {
-        quote! { ::std::option::Option::None }
+        quote! { ::core::option::Option::None }
     };
     let python_name = &spec.python_name;
 
@@ -180,7 +180,7 @@ pub fn impl_arg_params(
                         #required_positional_parameters,
                         &[#(#keyword_only_parameters),*],
                     );
-                let mut #args_array = [::std::option::Option::None; #num_params];
+                let mut #args_array = [::core::option::Option::None; #num_params];
                 let (_args, _kwargs) = #extract_expression;
                 #from_py_with
         },
@@ -226,7 +226,7 @@ fn impl_arg_param(
                     _kwargs.as_ref().map(|d| d.as_any().as_borrowed()),
                     &mut #holder,
                     #name_str,
-                    || ::std::option::Option::None
+                    || ::core::option::Option::None
                 )?
             }
         }

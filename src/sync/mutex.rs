@@ -133,17 +133,17 @@ pub struct PyMutexGuard<'a, T: ?Sized> {
     _phantom: PhantomData<*const ()>,
 }
 
-/// `T` must be `Sync` for a [`PyMutexGuard<T>`] to be `Sync`
+/// SAFETY: `T` must be `Sync` for a [`PyMutexGuard<T>`] to be `Sync`
 /// because it is possible to get a `&T` from `&MutexGuard` (via `Deref`).
 unsafe impl<T: ?Sized + Sync> Sync for PyMutexGuard<'_, T> {}
 
-/// `T` must be `Send` for a [`PyMutex`] to be `Send` because it is possible to acquire
+/// SAFETY: `T` must be `Send` for a [`PyMutex`] to be `Send` because it is possible to acquire
 /// the owned `T` from the `PyMutex` via [`into_inner`].
 ///
 /// [`into_inner`]: PyMutex::into_inner
 unsafe impl<T: ?Sized + Send> Send for PyMutex<T> {}
 
-/// `T` must be `Send` for [`PyMutex`] to be `Sync`.
+/// SAFETY: `T` must be `Send` for [`PyMutex`] to be `Sync`.
 /// This ensures that the protected data can be accessed safely from multiple threads
 /// without causing data races or other unsafe behavior.
 ///
@@ -164,7 +164,9 @@ unsafe impl<T: ?Sized + Send> Sync for PyMutex<T> {}
 impl<T> PyMutex<T> {
     /// Acquire the mutex, blocking the current thread until it is able to do so.
     pub fn lock(&self) -> LockResult<PyMutexGuard<'_, T>> {
-        unsafe { crate::ffi::PyMutex_Lock(UnsafeCell::raw_get(&self.mutex)) };
+        // SAFETY: valid pointer to mutex passed to `PyMutex_Lock`
+        // and the mutex is not moved while locked
+        unsafe { crate::ffi::PyMutex_Lock(self.mutex.get()) };
         PyMutexGuard::new(self)
     }
 
@@ -184,7 +186,8 @@ impl<T> PyMutex<T> {
     /// change immediately after the check.
     #[cfg(Py_3_14)]
     pub fn is_locked(&self) -> bool {
-        let ret = unsafe { crate::ffi::PyMutex_IsLocked(UnsafeCell::raw_get(&self.mutex)) };
+        // SAFETY: valid pointer to mutex passed to `PyMutex_IsLocked`
+        let ret = unsafe { crate::ffi::PyMutex_IsLocked(self.mutex.get()) };
         ret != 0
     }
 
@@ -243,10 +246,9 @@ impl<'mutex, T: ?Sized> PyMutexGuard<'mutex, T> {
 
 impl<'a, T: ?Sized> Drop for PyMutexGuard<'a, T> {
     fn drop(&mut self) {
-        unsafe {
-            self.inner.poison.done(&self.poison);
-            crate::ffi::PyMutex_Unlock(UnsafeCell::raw_get(&self.inner.mutex))
-        };
+        self.inner.poison.done(&self.poison);
+        // SAFETY: valid pointer to mutex passed to `PyMutex_Unlock`
+        unsafe { crate::ffi::PyMutex_Unlock(self.inner.mutex.get()) };
     }
 }
 
@@ -279,11 +281,11 @@ mod tests {
 
     use super::*;
     #[cfg(not(target_arch = "wasm32"))]
-    use crate::types::{PyAnyMethods, PyDict, PyDictMethods, PyNone};
-    #[cfg(not(target_arch = "wasm32"))]
     use crate::Py;
     #[cfg(not(target_arch = "wasm32"))]
     use crate::Python;
+    #[cfg(not(target_arch = "wasm32"))]
+    use crate::types::{PyAnyMethods, PyDict, PyDictMethods, PyNone};
 
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
@@ -317,12 +319,13 @@ mod tests {
             assert!(mutex.is_locked());
             let d = dict_guard.bind(py);
 
-            assert!(d
-                .get_item(PyNone::get(py))
-                .unwrap()
-                .unwrap()
-                .eq(PyNone::get(py))
-                .unwrap());
+            assert!(
+                d.get_item(PyNone::get(py))
+                    .unwrap()
+                    .unwrap()
+                    .eq(PyNone::get(py))
+                    .unwrap()
+            );
             #[cfg(Py_3_14)]
             assert!(mutex.is_locked());
             drop(dict_guard);
@@ -458,7 +461,7 @@ mod tests {
 
     #[test]
     fn test_send_not_send() {
-        use crate::impl_::pyclass::{value_of, IsSend, IsSync};
+        use crate::impl_::pyclass::{IsSend, IsSync, value_of};
 
         assert!(!value_of!(IsSend, PyMutexGuard<'_, i32>));
         assert!(value_of!(IsSync, PyMutexGuard<'_, i32>));

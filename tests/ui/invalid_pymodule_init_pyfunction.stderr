@@ -1,0 +1,7 @@
+error: `#[pyfunction]` cannot be used alongside `#[pymodule_init]`
+ --> tests/ui/invalid_pymodule_init_pyfunction.rs:8:5
+  |
+8 |     #[pyfunction]
+  |     ^
+
+error: aborting due to 1 previous error

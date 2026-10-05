@@ -27,6 +27,8 @@ jobs:
           manylinux: auto
           working-directory: pyo3-introspection
       - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx twine check pyo3-introspection/dist/*
       - uses: actions/upload-artifact@v7
         with:
@@ -53,6 +55,8 @@ jobs:
           args: --release --out dist --compatibility pypi
           working-directory: pyo3-introspection
       - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx twine check pyo3-introspection/dist/*
       - uses: actions/upload-artifact@v7
         with:
@@ -76,6 +80,8 @@ jobs:
           args: --release --out dist --compatibility pypi
           working-directory: pyo3-introspection
       - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx twine check pyo3-introspection/dist/*
       - uses: actions/upload-artifact@v7
         with:
@@ -92,6 +98,8 @@ jobs:
           args: --out dist
           working-directory: pyo3-introspection
       - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx twine check pyo3-introspection/dist/*
       - uses: actions/upload-artifact@v7
         with:

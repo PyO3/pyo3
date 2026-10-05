@@ -102,6 +102,7 @@ mod scaling {
 
 fn criterion_benchmark(_c: &mut Criterion) {
     #[cfg(Py_GIL_DISABLED)]
+    #[cfg(not(codspeed))]
     scaling::benchmarks(_c);
 }
 

@@ -151,7 +151,7 @@
 //!
 //! # Minimum supported Rust and Python versions
 //!
-//! Requires Rust 1.83 or greater.
+//! Requires Rust 1.85 or greater.
 //!
 //! PyO3 supports the following Python distributions:
 //!   - CPython 3.9 or greater
@@ -173,7 +173,7 @@
 //! [package]
 //! name = "string-sum"
 //! version = "0.1.0"
-//! edition = "2021"
+//! edition = "2024"
 //!
 //! [lib]
 //! name = "string_sum"
@@ -200,6 +200,7 @@
 //!
 //! /// A Python module implemented in Rust.
 //! #[pymodule]
+//! # #[pyo3(name = "example_string_sum_lib_rs")]
 //! fn string_sum(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
 //!
@@ -364,8 +365,6 @@ pub(crate) mod ffi_ptr_ext;
 pub(crate) mod py_result_ext;
 pub(crate) mod sealed;
 
-mod platform;
-
 /// Old module which contained some implementation details of the `#[pyproto]` module.
 ///
 /// Prefer using the same content from `pyo3::pyclass`, e.g. `use pyo3::pyclass::CompareOp` instead
@@ -415,6 +414,8 @@ mod internal;
 #[macro_use]
 mod internal_tricks;
 
+mod platform;
+
 // Macro dependencies, also contains macros exported for use across the codebase and
 // in expanded macros.
 #[doc(hidden)]
@@ -436,7 +437,7 @@ pub mod marker;
 pub mod marshal;
 #[macro_use]
 pub mod sync;
-pub(crate) mod byteswriter;
+#[cfg(wip_feature_std)]
 pub mod panic;
 pub mod pybacked;
 pub mod pycell;
@@ -455,7 +456,7 @@ pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{
-    pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef,
+    FromPyObject, IntoPyObject, IntoPyObjectRef, pyfunction, pymethods, pymodule,
 };
 
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.

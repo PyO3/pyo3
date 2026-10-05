@@ -2,25 +2,24 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 
 use crate::platform::prelude::*;
+use crate::platform::thread::{self, ThreadId};
 use core::{ffi::CStr, marker::PhantomData};
-use std::thread::{self, ThreadId};
 
 #[cfg(Py_3_14)]
 use crate::err::error_on_minusone;
+use crate::platform::sync::non_poison::Mutex;
 #[allow(deprecated)]
 use crate::sync::GILOnceCell;
 #[cfg(Py_3_14)]
 use crate::types::PyTypeMethods;
 use crate::{
+    Bound, Py, PyAny, PyClass, PyErr, PyResult, Python,
     exceptions::PyRuntimeError,
     ffi,
     impl_::pymethods::PyMethodDefType,
-    pyclass::{create_type_object, PyClassTypeObject},
+    pyclass::{PyClassTypeObject, create_type_object},
     types::PyType,
-    Bound, Py, PyAny, PyClass, PyErr, PyResult, Python,
 };
-
-use std::sync::Mutex;
 
 use super::PyClassItemsIter;
 
@@ -76,6 +75,18 @@ impl<T: PyClass> LazyTypeObject<T> {
             <T as PyClass>::NAME,
             T::items_iter(),
         )
+    }
+
+    /// Gets the type object contained without performing any initialization work.
+    /// This avoids unsafe operations during GC.
+    #[cfg(Py_3_12)]
+    pub(crate) fn get_during_gc(&self) -> &Py<PyType> {
+        &self
+            .0
+            .value
+            .get_during_gc()
+            .expect("PyClass type object should have been created to reach GC")
+            .type_object
     }
 }
 
@@ -136,7 +147,7 @@ impl LazyTypeObjectInner {
 
         let thread_id = thread::current().id();
         {
-            let mut threads = self.initializing_threads.lock().unwrap();
+            let mut threads = self.initializing_threads.lock();
             if threads.contains(&thread_id) {
                 // Reentrant call: just return the type object, even if the
                 // `tp_dict` is not filled yet.
@@ -151,7 +162,7 @@ impl LazyTypeObjectInner {
         }
         impl Drop for InitializationGuard<'_> {
             fn drop(&mut self) {
-                let mut threads = self.initializing_threads.lock().unwrap();
+                let mut threads = self.initializing_threads.lock();
                 threads.retain(|id| *id != self.thread_id);
             }
         }
@@ -180,7 +191,7 @@ impl LazyTypeObjectInner {
                                     name,
                                     attr.name.to_str().unwrap()
                                 ),
-                            ))
+                            ));
                         }
                     }
                 }
@@ -218,7 +229,7 @@ impl LazyTypeObjectInner {
             // (No further calls to get_or_init() will try to init, on any thread.)
             let mut threads = {
                 drop(guard);
-                self.initializing_threads.lock().unwrap()
+                self.initializing_threads.lock()
             };
             threads.clear();
             Ok(type_object.clone().unbind())

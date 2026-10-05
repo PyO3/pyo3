@@ -3,35 +3,36 @@
 
 use crate::exceptions::PyAttributeError;
 use crate::impl_::pymethods::{Deleter, PyDeleterDef};
-use crate::internal::get_slot::{get_slot, TP_CLEAR};
+use crate::internal::get_slot::{TP_CLEAR, get_slot};
+use crate::platform::collections::HashMap;
 use crate::platform::prelude::*;
-use crate::platform::HashMap;
 #[cfg(not(Py_3_10))]
 use crate::types::typeobject::PyTypeMethods;
 use crate::{
-    ffi,
+    Py, PyClass, PyResult, PyTypeInfo, Python, ffi,
     ffi_ptr_ext::FfiPtrExt,
     impl_::{
         pyclass::{
-            assign_sequence_item_from_mapping, get_sequence_item_from_mapping, tp_dealloc,
-            PyClassImpl, PyClassItemsIter, PyObjectOffset,
+            PyClassImpl, PyClassItemsIter, PyObjectOffset, assign_sequence_item_from_mapping,
+            get_sequence_item_from_mapping, tp_dealloc,
         },
         pymethods::{
-            synthesized_clear, tp_traverse, Getter, PyGetterDef, PyMethodDefType, PySetterDef,
-            Setter,
+            Getter, PyGetterDef, PyMethodDefType, PySetterDef, Setter, synthesized_clear,
+            tp_traverse,
         },
         trampoline::trampoline,
     },
     pycell::impl_::PyClassObjectLayout,
     types::PyType,
-    Py, PyClass, PyResult, PyTypeInfo, Python,
 };
+
 use core::{
     ffi::CStr,
     ffi::{c_int, c_ulong, c_void},
     ptr::{self, NonNull},
 };
-use std::ffi::CString;
+
+use alloc::ffi::CString;
 
 pub(crate) struct PyClassTypeObject {
     pub type_object: Py<PyType>,

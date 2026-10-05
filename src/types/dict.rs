@@ -1,16 +1,22 @@
+//! Python dictionaries and related types.
+
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyList, PyMapping};
-use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
+use crate::{BoundObject, IntoPyObject, IntoPyObjectExt, Python, ffi};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
+
+pub(crate) mod items;
+pub(crate) mod keys;
+pub(crate) mod values;
 
 /// Represents a Python `dict`.
 ///
@@ -45,48 +51,6 @@ pyobject_native_type_core!(
     "builtins",
     "dict",
     #checkfunction=ffi::PyDict_Check
-);
-
-/// Represents a Python `dict_keys`.
-#[cfg(not(any(PyPy, GraalPy, RustPython)))]
-#[repr(transparent)]
-pub struct PyDictKeys(PyAny);
-
-#[cfg(not(any(PyPy, GraalPy, RustPython)))]
-pyobject_native_type_core!(
-    PyDictKeys,
-    pyobject_native_static_type_object!(ffi::PyDictKeys_Type),
-    "builtins",
-    "dict_keys",
-    #checkfunction=ffi::PyDictKeys_Check
-);
-
-/// Represents a Python `dict_values`.
-#[cfg(not(any(PyPy, GraalPy, RustPython)))]
-#[repr(transparent)]
-pub struct PyDictValues(PyAny);
-
-#[cfg(not(any(PyPy, GraalPy, RustPython)))]
-pyobject_native_type_core!(
-    PyDictValues,
-    pyobject_native_static_type_object!(ffi::PyDictValues_Type),
-    "builtins",
-    "dict_values",
-    #checkfunction=ffi::PyDictValues_Check
-);
-
-/// Represents a Python `dict_items`.
-#[cfg(not(any(PyPy, GraalPy, RustPython)))]
-#[repr(transparent)]
-pub struct PyDictItems(PyAny);
-
-#[cfg(not(any(PyPy, GraalPy, RustPython)))]
-pyobject_native_type_core!(
-    PyDictItems,
-    pyobject_native_static_type_object!(ffi::PyDictItems_Type),
-    "builtins",
-    "dict_items",
-    #checkfunction=ffi::PyDictItems_Check
 );
 
 impl PyDict {
@@ -477,7 +441,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
             value: Borrowed<'_, '_, PyAny>,
             py: Python<'py>,
         ) -> PyResult<(bool, Bound<'py, PyAny>)> {
-            let mut result = core::ptr::NonNull::dangling().as_ptr();
+            let mut result = core::ptr::dangling_mut();
             let code = setdefault_result_from_nonerror_return_code(
                 err::error_on_minusone_with_result(dict.py(), unsafe {
                     ffi::compat::PyDict_SetDefaultRef(
@@ -951,9 +915,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::collections::HashMap;
     use crate::platform::prelude::*;
-    use crate::platform::HashMap;
     use crate::types::{PyAnyMethods as _, PyTuple};
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
+    use crate::types::{PyDictItems, PyDictKeys, PyDictValues};
     use alloc::collections::BTreeMap;
 
     #[test]
@@ -1733,10 +1699,11 @@ mod tests {
                 .into_py_dict(py)
                 .unwrap();
 
-            assert!(dict
-                .iter()
-                .find(|(_, v)| v.extract::<bool>().unwrap())
-                .is_none());
+            assert!(
+                dict.iter()
+                    .find(|(_, v)| v.extract::<bool>().unwrap())
+                    .is_none()
+            );
         });
     }
 
@@ -1755,10 +1722,11 @@ mod tests {
             let dict = [(1, false), (2, false), (3, false)]
                 .into_py_dict(py)
                 .unwrap();
-            assert!(dict
-                .iter()
-                .position(|(_, v)| v.extract::<bool>().unwrap())
-                .is_none());
+            assert!(
+                dict.iter()
+                    .position(|(_, v)| v.extract::<bool>().unwrap())
+                    .is_none()
+            );
         });
     }
 
@@ -1784,10 +1752,11 @@ mod tests {
             assert_eq!(sum, 6);
 
             let dict = [(1, "foo"), (2, "bar")].into_py_dict(py).unwrap();
-            assert!(dict
-                .iter()
-                .try_fold(0, |acc, (_, v)| PyResult::Ok(acc + v.extract::<i32>()?))
-                .is_err());
+            assert!(
+                dict.iter()
+                    .try_fold(0, |acc, (_, v)| PyResult::Ok(acc + v.extract::<i32>()?))
+                    .is_err()
+            );
         });
     }
 

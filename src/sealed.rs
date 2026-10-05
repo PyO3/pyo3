@@ -8,7 +8,7 @@ use crate::types::{
     PyMapping, PyMappingProxy, PyModule, PyRange, PySequence, PySet, PySlice, PyString,
     PyTraceback, PyTuple, PyType, PyWeakref, PyWeakrefProxy, PyWeakrefReference,
 };
-use crate::{ffi, Bound, PyAny, PyResult};
+use crate::{Bound, PyAny, PyResult, ffi};
 
 use crate::pyclass_init::PyClassInitializer;
 
@@ -66,16 +66,7 @@ impl<T: crate::type_object::PyTypeInfo> Sealed for PyNativeTypeInitializer<T> {}
 impl<T: crate::pyclass::PyClass> Sealed for PyClassInitializer<T> {}
 
 #[cfg(wip_feature_std)]
+#[allow(clippy::disallowed_types)]
 impl Sealed for std::sync::Once {}
-#[cfg(wip_feature_std)]
-impl<T> Sealed for std::sync::Mutex<T> {}
-#[cfg(feature = "lock_api")]
-impl<R, T> Sealed for lock_api::Mutex<R, T> {}
 #[cfg(feature = "parking_lot")]
 impl Sealed for parking_lot::Once {}
-#[cfg(feature = "arc_lock")]
-impl<R, T> Sealed for alloc::sync::Arc<lock_api::Mutex<R, T>> {}
-#[cfg(feature = "lock_api")]
-impl<R, G, T> Sealed for lock_api::ReentrantMutex<R, G, T> {}
-#[cfg(feature = "arc_lock")]
-impl<R, G, T> Sealed for alloc::sync::Arc<lock_api::ReentrantMutex<R, G, T>> {}

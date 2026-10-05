@@ -9,7 +9,7 @@
 //! yourself to import Python classes that are ultimately derived from
 //! `BaseException`.
 
-use crate::{ffi, Bound, PyResult, Python};
+use crate::{Bound, PyResult, Python, ffi};
 use core::ffi::CStr;
 use core::ops;
 
@@ -123,6 +123,7 @@ macro_rules! import_exception {
 /// }
 ///
 /// #[pymodule]
+/// # #[pyo3(name = "example_exceptions")]
 /// fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 ///     m.add("MyError", m.py().get_type::<MyError>())?;
 ///     m.add_function(wrap_pyfunction!(raise_myerror, m)?)?;

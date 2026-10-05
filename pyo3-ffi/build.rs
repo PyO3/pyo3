@@ -1,11 +1,11 @@
 use pyo3_build_config::{
-    bail, ensure,
+    InterpreterConfig, PythonAbiKind, PythonImplementation, PythonVersion, StableAbi, bail, ensure,
     pyo3_build_script_impl::{
-        cargo_env_var, env_var, errors::Result, is_linking_libpython_for_target,
-        print_feature_cfgs, print_libpython_rpath_link_args, resolve_build_config,
-        target_triple_from_env, BuildConfig, BuildConfigSource, MaximumVersionExceeded,
+        BuildConfig, BuildConfigSource, MaximumVersionExceeded, cargo_env_var, env_var,
+        errors::Result, is_linking_libpython_for_target, print_feature_cfgs,
+        print_libpython_rpath_link_args, resolve_build_config, target_triple_from_env,
     },
-    warn, InterpreterConfig, PythonAbiKind, PythonImplementation, PythonVersion, StableAbi,
+    warn,
 };
 
 /// Minimum Python version PyO3 supports.
@@ -195,10 +195,12 @@ fn ensure_target_pointer_width(interpreter_config: &InterpreterConfig) -> Result
 /// (see https://internals.rust-lang.org/t/support-renames-with-link-name-kind-raw-dylib/24415)
 /// so if the lib name is not one of the known subset, we must fall back to full linking.
 fn lib_name_is_known_for_raw_dylib(lib_name: &str) -> bool {
-    // pyo3_dll cfg for raw-dylib linking on Windows
     if matches!(
         lib_name,
+        // pyo3_dll cfg for raw-dylib linking on Windows
         "python3" | "python3_d" | "python3t" | "python3t_d"
+        // GraalPy DLL name
+        | "python-native"
     ) {
         return true;
     }
@@ -275,6 +277,30 @@ fn emit_link_config(build_config: &BuildConfig) -> Result<()> {
         println!("cargo:rustc-cfg=pyo3_dll=\"{lib_name}\"");
         return Ok(());
     }
+
+    // Not using raw-dylib linking: PyPy dll needs to be the import library not the DLL name
+    let lib_name = if interpreter_config.target_abi().implementation() == PythonImplementation::PyPy
+        && target_os == "windows"
+    {
+        // FIXME: this should probably be done with better configuration in pyo3-build-config
+        // for `raw-dylib` in general, rather than as a patch here.
+        //
+        // Assert expected raw pypy dll name as a sanity check for now
+        assert_eq!(
+            lib_name,
+            format!(
+                "libpypy3.{}-c",
+                interpreter_config.target_abi().version().minor
+            )
+        );
+        format!(
+            "python{}{}",
+            interpreter_config.target_abi().version().major,
+            interpreter_config.target_abi().version().minor
+        )
+    } else {
+        lib_name.to_string()
+    };
 
     println!(
         "cargo:rustc-link-lib={link_model}{alias}{lib_name}",
@@ -356,7 +382,9 @@ fn print_config_and_exit(config: &InterpreterConfig) {
     config
         .to_writer(std::io::stdout())
         .expect("failed to print config to stdout");
-    println!("\nnote: unset the PYO3_PRINT_CONFIG environment variable and retry to compile with the above config");
+    println!(
+        "\nnote: unset the PYO3_PRINT_CONFIG environment variable and retry to compile with the above config"
+    );
     std::process::exit(101);
 }
 

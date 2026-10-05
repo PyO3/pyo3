@@ -1,12 +1,12 @@
 //! `PyClass` and related traits.
-use crate::{ffi, impl_::pyclass::PyClassImpl, PyTypeInfo};
+use crate::{PyTypeInfo, ffi, impl_::pyclass::PyClassImpl};
 use core::{cmp::Ordering, ffi::c_int};
 
 mod create_type_object;
 pub(crate) mod gc;
 mod guard;
 
-pub(crate) use self::create_type_object::{create_type_object, PyClassTypeObject};
+pub(crate) use self::create_type_object::{PyClassTypeObject, create_type_object};
 
 pub use self::gc::{PyTraverseError, PyVisit};
 pub use self::guard::{

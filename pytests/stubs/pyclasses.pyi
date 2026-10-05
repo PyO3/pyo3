@@ -1,6 +1,9 @@
+from .awaitable import IterAwaitable
 from _typeshed import Incomplete
-from typing import Final, final
+from typing import Final, SupportsIndex, final
+from typing_extensions import disjoint_base
 
+@disjoint_base
 class AssertingBaseClass:
     """
     Demonstrates a base class which can operate on the relevant subclass in its constructor.
@@ -25,7 +28,7 @@ class ClassWithDecorators:
         A deleter
         """
     @attr.setter
-    def attr(self, /, value: int) -> None:
+    def attr(self, /, value: SupportsIndex) -> None:
         """
         A setter
         """
@@ -76,10 +79,10 @@ class Number:
     def __mul__(self, other: object, /) -> Number: ...
     def __ne__(self, other: object, /) -> bool: ...
     def __neg__(self, /) -> Number: ...
-    def __new__(cls, /, value: int) -> Number: ...
+    def __new__(cls, /, value: SupportsIndex) -> Number: ...
     def __or__(self, other: object, /) -> Number: ...
     def __pos__(self, /) -> Number: ...
-    def __pow__(self, other: object, modulo: object, /) -> Number: ...
+    def __pow__(self, other: object, modulo: object = None, /) -> Number: ...
     def __repr__(self, /) -> str: ...
     def __rshift__(self, other: object, /) -> Number: ...
     def __str__(self, /) -> str: ...
@@ -95,7 +98,7 @@ class PlainObject:
         Bar
         """
     @bar.setter
-    def bar(self, /, value: int) -> None:
+    def bar(self, /, value: SupportsIndex) -> None:
         """
         Bar
         """
@@ -119,6 +122,33 @@ class PyClassIter:
         """
         A constructor
         """
+    def __next__(self, /) -> int: ...
+
+@final
+class PyClassOptionAsyncIter:
+    """
+    This is for demonstrating how to stop iteration by returning `None` from __anext__
+    """
+    def __aiter__(self, /) -> PyClassOptionAsyncIter: ...
+    def __anext__(self, /) -> IterAwaitable: ...
+    def __new__(cls, /) -> PyClassOptionAsyncIter: ...
+
+@final
+class PyClassOptionIter:
+    """
+    This is for demonstrating how to stop iteration by returning `None` from __next__
+    """
+    def __iter__(self, /) -> PyClassOptionIter: ...
+    def __new__(cls, /) -> PyClassOptionIter: ...
+    def __next__(self, /) -> int: ...
+
+@final
+class PyClassResultOptionIter:
+    """
+    This is for demonstrating how to stop iteration by returning `None` from a fallible __next__
+    """
+    def __iter__(self, /) -> PyClassResultOptionIter: ...
+    def __new__(cls, /) -> PyClassResultOptionIter: ...
     def __next__(self, /) -> int: ...
 
 @final

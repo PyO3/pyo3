@@ -1,9 +1,12 @@
 #![cfg(not(Py_LIMITED_API))]
 
+#[cfg(wip_feature_std)]
 use pyo3::{prelude::*, types::PyDate};
+#[cfg(wip_feature_std)]
 use tempfile::Builder;
 
 #[test]
+#[cfg(wip_feature_std)]
 #[should_panic(expected = "module 'datetime' has no attribute 'datetime_CAPI'")]
 fn test_bad_datetime_module_panic() {
     // Create an empty temporary directory

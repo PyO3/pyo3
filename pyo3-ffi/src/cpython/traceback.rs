@@ -1,5 +1,5 @@
-use crate::object::PyObject;
 use crate::PyFrameObject;
+use crate::object::PyObject;
 use core::ffi::c_int;
 
 #[repr(C)]

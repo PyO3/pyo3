@@ -43,6 +43,9 @@ The table below contains the Python type and the corresponding function argument
 | `pathlib.Path` | `PathBuf`, `Path`              | `PyString` |
 | `typing.Optional[T]` | `Option<T>`              | -                    |
 | `typing.Sequence[T]` | `Vec<T>`                 | `PySequence`        |
+| `_typeshed.SupportsGetItem[int, T]` | `Vec<T>`, `smallvec::SmallVec<[T; N]>`[^11] | - |
+| `_typeshed.SupportsGetItem[int, typing.SupportsIndex]` | `Cow<[u8]>` | - |
+| `_typeshed.SupportsLenAndGetItem[T]` | `[T; N]` | - |
 | `typing.Mapping[K, V]` | `HashMap<K, V>`, `BTreeMap<K, V>`, `hashbrown::HashMap<K, V>`[^5], `indexmap::IndexMap<K, V>`[^6] | `&PyMapping` |
 | `typing.Iterator[Any]` | -                      | `PyIterator`        |
 | `typing.Union[...]` | See [`#[derive(FromPyObject)]`](traits.md#deriving-frompyobject-for-enums) | - |
@@ -127,3 +130,5 @@ Finally, the following Rust types are also able to convert to Python as return v
 [^9]: Requires the `rust_decimal` optional feature.
 
 [^10]: Requires the `bigdecimal` optional feature.
+
+[^11]: Requires the `smallvec` optional feature.
