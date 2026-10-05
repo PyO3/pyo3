@@ -1,0 +1,3 @@
+# this directory is used by `meson` and needs to exist for the build to work
+*
+!.gitignore

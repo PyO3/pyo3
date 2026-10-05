@@ -1,0 +1,13 @@
+[build-system]
+requires = [
+    "meson-python>=0.18",
+    "meson>=1.12.1"
+]
+build-backend = "mesonpy"
+
+[project]
+name = "{{project-name}}"
+version = "0.1.0"
+
+[project.optional-dependencies]
+dev = ["pytest"]
