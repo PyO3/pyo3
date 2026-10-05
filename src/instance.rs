@@ -2485,6 +2485,8 @@ fn panic_on_null(py: Python<'_>) -> ! {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::{Bound, IntoPyObject, Py};
     #[cfg(all(feature = "macros", panic = "unwind"))]
     use crate::exceptions::PyValueError;

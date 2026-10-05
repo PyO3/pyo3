@@ -900,6 +900,8 @@ impl<'py> IntoIterator for &Bound<'py, PyList> {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use crate::platform::prelude::*;
     use crate::types::any::PyAnyMethods;
     use crate::types::list::PyListMethods;

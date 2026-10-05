@@ -796,6 +796,8 @@ impl<'unbound> Python<'unbound> {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::*;
     use crate::platform::prelude::*;
     use crate::{
