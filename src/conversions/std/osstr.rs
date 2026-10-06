@@ -134,7 +134,7 @@ impl FromPyObject<'_, '_> for OsString {
             // SAFETY: passing valid pointer to python API
             let size =
                 unsafe { ffi::PyUnicode_AsWideChar(pystring.as_ptr(), core::ptr::null_mut(), 0) };
-            crate::err::error_on_minusone(ob.py(), size)?;
+            crate::err::error_on_negative(ob.py(), size)?;
 
             debug_assert!(
                 size > 0,

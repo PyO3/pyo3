@@ -170,7 +170,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     #[inline]
     fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
-        err::error_on_minusone(self.py(), v)?;
+        err::error_on_negative(self.py(), v)?;
         Ok(v as usize)
     }
 
@@ -239,21 +239,21 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     {
         let py = self.py();
         let item = item.into_pyobject_or_pyerr(py)?;
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PySequence_SetItem(self.as_ptr(), get_ssize_index(i), item.as_ptr())
         })
     }
 
     #[inline]
     fn del_item(&self, i: usize) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
+        err::error_on_negative(self.py(), unsafe {
             ffi::PySequence_DelItem(self.as_ptr(), get_ssize_index(i))
         })
     }
 
     #[inline]
     fn set_slice(&self, i1: usize, i2: usize, v: &Bound<'_, PyAny>) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
+        err::error_on_negative(self.py(), unsafe {
             ffi::PySequence_SetSlice(
                 self.as_ptr(),
                 get_ssize_index(i1),
@@ -265,7 +265,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
 
     #[inline]
     fn del_slice(&self, i1: usize, i2: usize) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
+        err::error_on_negative(self.py(), unsafe {
             ffi::PySequence_DelSlice(self.as_ptr(), get_ssize_index(i1), get_ssize_index(i2))
         })
     }
@@ -279,7 +279,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
         let py = self.py();
         let value = value.into_pyobject_or_pyerr(py)?;
         let r = unsafe { ffi::PySequence_Count(self.as_ptr(), value.as_ptr()) };
-        err::error_on_minusone(py, r)?;
+        err::error_on_negative(py, r)?;
         Ok(r as usize)
     }
 
@@ -306,7 +306,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
         let py = self.py();
         let value = value.into_pyobject_or_pyerr(py)?;
         let r = unsafe { ffi::PySequence_Index(self.as_ptr(), value.as_ptr()) };
-        err::error_on_minusone(py, r)?;
+        err::error_on_negative(py, r)?;
         Ok(r as usize)
     }
 

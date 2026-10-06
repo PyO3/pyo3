@@ -390,7 +390,7 @@ impl<T: Element> PyBuffer<T> {
             )));
         }
 
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyBuffer_ToContiguous(
                 target.as_mut_ptr().cast(),
                 #[cfg(Py_3_11)]
@@ -425,7 +425,7 @@ impl<T: Element> PyBuffer<T> {
 
         // Copy the buffer into the uninitialized space in the vector.
         // Due to T:Copy, we don't need to be concerned with Drop impls.
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyBuffer_ToContiguous(
                 vec.as_mut_ptr().cast(),
                 #[cfg(Py_3_11)]
@@ -480,7 +480,7 @@ impl<T: Element> PyBuffer<T> {
             )));
         }
 
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyBuffer_FromContiguous(
                 #[cfg(Py_3_11)]
                 self.raw(),
@@ -515,7 +515,7 @@ impl PyUntypedBuffer {
         let buf = {
             let mut buf = Box::<RawBuffer>::new_uninit();
             // SAFETY: RawBuffer is `#[repr(transparent)]` around FFI struct
-            err::error_on_minusone(obj.py(), unsafe {
+            err::error_on_negative(obj.py(), unsafe {
                 ffi::PyObject_GetBuffer(
                     obj.as_ptr(),
                     buf.as_mut_ptr().cast::<ffi::Py_buffer>(),

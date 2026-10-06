@@ -1,4 +1,4 @@
-use crate::err::{PyResult, error_on_minusone};
+use crate::err::{self, PyResult};
 use crate::platform::prelude::*;
 use crate::types::{PyString, any::PyAnyMethods, string::PyStringMethods};
 use crate::{Bound, PyAny, ffi};
@@ -112,7 +112,7 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
             .getattr(intern!(py, "StringIO"))?
             .call0()?;
         let result = unsafe { ffi::PyTraceBack_Print(self.as_ptr(), string_io.as_ptr()) };
-        error_on_minusone(py, result)?;
+        err::error_on_negative(py, result)?;
         let formatted = string_io
             .getattr(intern!(py, "getvalue"))?
             .call0()?

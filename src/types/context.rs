@@ -10,10 +10,7 @@
 use crate::{PyAny, ffi};
 
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
-use crate::{
-    Borrowed, PyResult, Python,
-    err::{error_on_minusone, error_on_minusone_with_result},
-};
+use crate::{Borrowed, PyResult, Python, err};
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
 use core::ffi::c_int;
 
@@ -56,8 +53,9 @@ impl PyContext {
         // SAFETY:
         // - `py` proves that the thread is attached
         // - `callback` contains a static C-compatible function
-        let watcher_id =
-            error_on_minusone_with_result(py, unsafe { ffi::PyContext_AddWatcher(callback.0) })?;
+        let watcher_id = err::error_on_negative_with_result(py, unsafe {
+            ffi::PyContext_AddWatcher(callback.0)
+        })?;
 
         Ok(BoundContextWatcherGuard {
             watcher_id,
@@ -234,7 +232,7 @@ fn clear_watcher(py: Python<'_>, watcher_id: c_int) -> PyResult<()> {
     //   attaching to more than one interpreter, so this is the interpreter for which the watcher
     //   was registered
     // - `watcher_id` was returned by `PyContext_AddWatcher`
-    error_on_minusone(py, unsafe { ffi::PyContext_ClearWatcher(watcher_id) })
+    err::error_on_negative(py, unsafe { ffi::PyContext_ClearWatcher(watcher_id) })
 }
 
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]

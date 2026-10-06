@@ -193,7 +193,7 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
     {
         let py = self.py();
         let key = key.into_pyobject_or_pyerr(py)?;
-        err::error_on_minusone(py, unsafe { ffi::PySet_Add(self.as_ptr(), key.as_ptr()) })
+        err::error_on_negative(py, unsafe { ffi::PySet_Add(self.as_ptr(), key.as_ptr()) })
     }
 
     fn pop(&self) -> Option<Bound<'py, PyAny>> {

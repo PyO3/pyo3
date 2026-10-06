@@ -891,7 +891,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         let attr_name = attr_name.into_pyobject_or_pyerr(py)?;
         let value = value.into_pyobject_or_pyerr(py)?;
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyObject_SetAttr(self.as_ptr(), attr_name.as_ptr(), value.as_ptr())
         })
     }
@@ -902,7 +902,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     {
         let py = self.py();
         let attr_name = attr_name.into_pyobject_or_pyerr(py)?;
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyObject_DelAttr(self.as_ptr(), attr_name.as_ptr())
         })
     }
@@ -1145,7 +1145,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
 
     fn is_truthy(&self) -> PyResult<bool> {
         let v = unsafe { ffi::PyObject_IsTrue(self.as_ptr()) };
-        err::error_on_minusone(self.py(), v)?;
+        err::error_on_negative(self.py(), v)?;
         Ok(v != 0)
     }
 
@@ -1175,7 +1175,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         let py = self.py();
         let key = key.into_pyobject_or_pyerr(py)?;
         let value = value.into_pyobject_or_pyerr(py)?;
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyObject_SetItem(self.as_ptr(), key.as_ptr(), value.as_ptr())
         })
     }
@@ -1186,7 +1186,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     {
         let py = self.py();
         let key = key.into_pyobject_or_pyerr(py)?;
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyObject_DelItem(self.as_ptr(), key.as_ptr())
         })
     }
@@ -1232,14 +1232,16 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     fn hash(&self) -> PyResult<isize> {
-        let v = unsafe { ffi::PyObject_Hash(self.as_ptr()) };
-        crate::err::error_on_minusone(self.py(), v)?;
-        Ok(v)
+        // negative values other than -1 are valid hashes.
+        match unsafe { ffi::PyObject_Hash(self.as_ptr()) } {
+            -1 => Err(PyErr::fetch(self.py())),
+            v => Ok(v),
+        }
     }
 
     fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyObject_Size(self.as_ptr()) };
-        crate::err::error_on_minusone(self.py(), v)?;
+        err::error_on_negative(self.py(), v)?;
         Ok(v as usize)
     }
 
@@ -1254,7 +1256,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     #[inline]
     fn is_instance(&self, ty: &Bound<'py, PyAny>) -> PyResult<bool> {
         let result = unsafe { ffi::PyObject_IsInstance(self.as_ptr(), ty.as_ptr()) };
-        err::error_on_minusone(self.py(), result)?;
+        err::error_on_negative(self.py(), result)?;
         Ok(result == 1)
     }
 

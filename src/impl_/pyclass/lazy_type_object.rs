@@ -5,8 +5,7 @@ use crate::platform::prelude::*;
 use crate::platform::thread::{self, ThreadId};
 use core::{ffi::CStr, marker::PhantomData};
 
-#[cfg(Py_3_14)]
-use crate::err::error_on_minusone;
+use crate::err;
 use crate::platform::sync::non_poison::Mutex;
 #[allow(deprecated)]
 use crate::sync::GILOnceCell;
@@ -206,7 +205,7 @@ impl LazyTypeObjectInner {
             if is_immutable_type {
                 // freeze immutable types after __dict__ is initialized
                 let res = unsafe { ffi::PyType_Freeze(type_object.as_type_ptr()) };
-                error_on_minusone(py, res)?;
+                err::error_on_negative(py, res)?;
             }
             #[cfg(all(Py_3_10, not(Py_LIMITED_API), not(Py_3_14)))]
             if is_immutable_type {
@@ -255,7 +254,7 @@ fn initialize_tp_dict(
     // We hold the GIL: the dictionary update can be considered atomic from
     // the POV of other threads.
     for (key, val) in items {
-        crate::err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyObject_SetAttrString(type_object, key.as_ptr(), val.as_ptr())
         })?;
     }
