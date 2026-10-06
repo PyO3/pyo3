@@ -68,6 +68,9 @@ fn datetime_to_pydatetime<'py>(
     fold: bool,
     timezone: Option<&TimeZone>,
 ) -> PyResult<Bound<'py, PyDateTime>> {
+    let micros = datetime.subsec_nanosecond() / 1000;
+    // SAFETY: `subsec_nanosecond()` [0, 999_999_999], after / 1000 always non-negative
+    unsafe { core::hint::assert_unchecked(micros >= 0) };
     PyDateTime::new_with_fold(
         py,
         datetime.year().into(),
@@ -76,7 +79,7 @@ fn datetime_to_pydatetime<'py>(
         datetime.hour().try_into()?,
         datetime.minute().try_into()?,
         datetime.second().try_into()?,
-        (datetime.subsec_nanosecond() / 1000).try_into()?,
+        micros as u32,
         timezone
             .map(|tz| tz.into_pyobject(py))
             .transpose()?
@@ -86,10 +89,17 @@ fn datetime_to_pydatetime<'py>(
 }
 
 fn pytime_to_time(time: &impl PyTimeAccess) -> PyResult<Time> {
+    // SAFETY: Python guarantees hour belongs to [0,23],
+    // minute / second belong to [0,59], all < 128
+    unsafe {
+        core::hint::assert_unchecked(time.get_hour() < 128);
+        core::hint::assert_unchecked(time.get_minute() < 128);
+        core::hint::assert_unchecked(time.get_second() < 128);
+    }
     Ok(Time::new(
-        time.get_hour().try_into()?,
-        time.get_minute().try_into()?,
-        time.get_second().try_into()?,
+        time.get_hour() as i8,
+        time.get_minute() as i8,
+        time.get_second() as i8,
         (time.get_microsecond() * 1000).try_into()?,
     )?)
 }
