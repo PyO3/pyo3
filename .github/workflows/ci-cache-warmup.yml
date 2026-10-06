@@ -75,6 +75,7 @@ jobs:
       python-architecture: ${{ matrix.platform.python-architecture }}
       rust: ${{ matrix.rust }}
       rust-target: ${{ matrix.platform.rust-target }}
+      MSRV: ${{ needs.resolve.outputs.MSRV }}
     strategy:
       matrix:
         rust: [stable]
