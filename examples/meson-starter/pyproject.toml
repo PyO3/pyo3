@@ -23,3 +23,6 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = ["pytest"]
+
+[tool.meson-python.args]
+setup = ["--vsenv"]
