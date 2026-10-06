@@ -18,8 +18,9 @@ def python(session):
     # meson doesn't support dependency features in the way that cargo does.
     features = [
         feature[len("pyo3/") :]
-        for feature in features
         if feature in ("pyo3/hashbrown", "pyo3/parking_lot")
+        else feature
+        for feature in features
     ]
     features = ",".join(features)
 

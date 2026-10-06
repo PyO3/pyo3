@@ -1,7 +1,0 @@
-option(
-  'pyo3_build_extension_module',
-  type : 'boolean',
-  value : true, # Opposite default as the PyO3 native build system.
-  yield : true,
-  description : 'Build for a Python extension module. Set to false for embedding. Analogue to PYO3_BUILD_EXTENSION_MODULE. ',
-)

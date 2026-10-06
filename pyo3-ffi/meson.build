@@ -12,7 +12,6 @@ MINIMUM_SUPPORTED_VERSION_PYPY_MINOR = 11
 MAXIMUM_SUPPORTED_VERSION_PYPY_MINOR = 11
 
 extra_args = []
-extra_deps = []
 
 # Registers PyO3's config names as reachable cfg expressions.
 extra_args += [
@@ -70,7 +69,7 @@ message('Enabled features:', features)
 
 # Deprecated cargo features.
 if features.contains('extension-module')
-  warning('The extension-module cargo feature is deprecated. Use the "pyo3_build_extension_module" Meson option instead.')
+  warning('The extension-module cargo feature is deprecated. ')
 endif
 if features.contains('generate-import-lib')
   warning('The generate-import-lib cargo feature is deprecated')
@@ -169,11 +168,6 @@ if is_windows
     py_lib_name = 'python' + abi + (py_debug ? '_d' : '')
   endif
   extra_args += ['--cfg', 'pyo3_use_raw_dylib', '--cfg', f'pyo3_dll="@py_lib_name@"']
-else
-  # Unix: extension modules never link libpython, only embedding links it.
-  if not get_option('pyo3_build_extension_module')
-    extra_deps += py.dependency(embed : true)
-  endif
 endif
 
 
@@ -193,13 +187,12 @@ foreach cfg, minor_version_required : rustc_features
 endforeach
 
 
-lib = pkg_obj.library('pyo3_ffi', dependencies : extra_deps, rust_args : extra_args)
+lib = pkg_obj.library('pyo3_ffi', rust_args : extra_args)
 dep = declare_dependency(
   link_with : lib,
   variables : {
     'features' : ','.join(features),
     'args' : '\0'.join(extra_args),
-    'extension_module' : get_option('pyo3_build_extension_module').to_string(),
   },
   version : pkg_obj.version()
 )
