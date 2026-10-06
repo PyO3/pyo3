@@ -14,5 +14,7 @@ pyo3 = "*"
 
 [features]
 abi3 = ["pyo3/abi3-py39"]
+hashbrown = ["pyo3/hashbrown"]
+parking_lot = ["pyo3/parking_lot"]
 
 [workspace]
