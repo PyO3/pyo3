@@ -13,7 +13,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CARGO_INCREMENTAL: 0
   CARGO_TERM_COLOR: always
   NOX_DEFAULT_VENV_BACKEND: uv
   UV_PYTHON: 3.14
@@ -695,7 +694,7 @@ jobs:
         run: sudo apt-get install -y ${{ matrix.apt-packages }}
       - uses: ./.github/actions/prepare-coverage
         with:
-         host_only: true
+          host_only: true
       - name: Compile version-specific library
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
