@@ -15,10 +15,10 @@ runs:
       with:
         save-cache: ${{ inputs.save-cache }}
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: wasm32-unknown-emscripten
-        components: rust-src
+      shell: bash
+      run: |
+        rustup toolchain install stable --profile minimal --no-self-update --component rust-src --target wasm32-unknown-emscripten
+        rustup default stable
     - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: 24

@@ -120,6 +120,12 @@ jobs:
           pattern: wheels-*
           path: pyo3-introspection/dist
           merge-multiple: true
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          packages-dir: pyo3-introspection/dist
+          enable-cache: false
+      - name: Generate attestations
+        uses: astral-sh/attest-action@f589a42a7efb6fe400b4f400de60b4bc90390027 # v0.0.6
+        with:
+          paths: pyo3-introspection/dist/*
+      - name: Publish to PyPI
+        run: uv publish --trusted-publishing always 'pyo3-introspection/dist/*'

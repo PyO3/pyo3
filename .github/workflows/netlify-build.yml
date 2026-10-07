@@ -27,7 +27,10 @@ jobs:
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
-      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install nightly --profile minimal --no-self-update
+          rustup default nightly
 
       - name: Setup mdBook
         uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21

@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   resolve:
     runs-on: ubuntu-latest
@@ -28,10 +31,10 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
-          components: rust-src
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update --component rust-src --target x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
+          rustup default stable
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           # https://github.com/PyO3/maturin/discussions/1953
