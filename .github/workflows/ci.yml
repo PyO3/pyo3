@@ -15,7 +15,6 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   NOX_DEFAULT_VENV_BACKEND: uv
-  UV_CONSTRAINT: ${{ github.workspace }}/.github/uv-constraints.txt
   UV_PYTHON: 3.14
 
 jobs:

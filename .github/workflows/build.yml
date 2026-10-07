@@ -28,7 +28,6 @@ on:
 
 env:
   NOX_DEFAULT_VENV_BACKEND: uv
-  UV_CONSTRAINT: ${{ github.workspace }}/.github/uv-constraints.txt
 
 jobs:
   build:
