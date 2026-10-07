@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  UV_LOCKED: 1
   CARGO_TERM_COLOR: always
   UV_CONSTRAINT: ${{ github.workspace }}/.github/uv-constraints.txt
   UV_PYTHON: "3.14t"
@@ -56,6 +57,6 @@ jobs:
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@373d6868929f444bc08d901fd0eb0ad52a8875ea # v5.2.1
         with:
-          run: uvx nox -s codspeed
+          run: uv run --isolated --only-group nox nox -s codspeed
           token: ${{ secrets.CODSPEED_TOKEN }}
           mode: simulation

@@ -13,6 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  UV_LOCKED: 1
   CARGO_INCREMENTAL: 0
   CARGO_TERM_COLOR: always
 
@@ -62,7 +63,7 @@ jobs:
 
       # This builds the book in target/guide/.
       - name: Build the guide
-        run: uvx nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
+        run: uv run --isolated --only-group nox nox -s ${{ github.event_name == 'release' && 'build-guide' || 'check-guide' }}
         env:
           PYO3_VERSION_TAG: ${{ github.event_name == 'release' && steps.prepare_tag.outputs.tag_name || 'main' }}
           # allows lychee to get better rate limits from github
@@ -92,7 +93,7 @@ jobs:
           echo "PYO3_VERSION=${PYO3_VERSION}" >> $GITHUB_ENV
 
       - name: Build the site
-        run: uvx --with requests nox -s build-netlify-site -- ${{ (github.ref != 'refs/heads/main' && '--preview') || '' }}
+        run: uv run --isolated --only-group nox nox -s build-netlify-site -- ${{ (github.ref != 'refs/heads/main' && '--preview') || '' }}
 
       # Upload the built site as an artifact for deploy workflow to consume
       - name: Upload Build Artifact

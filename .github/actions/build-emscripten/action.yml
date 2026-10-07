@@ -48,4 +48,4 @@ runs:
     - name: Build
       if: steps.cache.outputs.cache-hit != 'true' && steps.cache-restore.outputs.cache-hit != 'true'
       shell: bash
-      run: uvx nox -s build-emscripten
+      run: uv run --isolated --only-group nox nox -s build-emscripten

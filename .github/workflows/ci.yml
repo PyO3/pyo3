@@ -13,6 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  UV_LOCKED: 1
   CARGO_INCREMENTAL: 0
   CARGO_TERM_COLOR: always
   NOX_DEFAULT_VENV_BACKEND: uv
@@ -33,7 +34,7 @@ jobs:
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - name: Run zizmor
-        run: uvx nox -s zizmor -- --format=github
+        run: uv run --isolated --only-group nox nox -s zizmor -- --format=github
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -54,7 +55,7 @@ jobs:
           rustup toolchain install stable --profile minimal --no-self-update --component rustfmt
           rustup default stable
       - name: Check formatting and lints
-        run: uvx nox -s fmt
+        run: uv run --isolated --only-group nox nox -s fmt
 
   resolve:
     runs-on: ubuntu-latest
@@ -127,8 +128,8 @@ jobs:
       # This is a smoke test to confirm that CI will run on MSRV (including dev dependencies)
       - name: Check with MSRV package versions
         run: |
-          uvx nox -s set-msrv-package-versions
-          uvx nox -s check-all
+          uv run --isolated --only-group nox nox -s set-msrv-package-versions
+          uv run --isolated --only-group nox nox -s check-all
 
     env:
       CARGO_BUILD_TARGET: x86_64-unknown-linux-gnu
@@ -173,7 +174,7 @@ jobs:
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - run: uvx nox -s clippy-all
+      - run: uv run --isolated --only-group nox nox -s clippy-all
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
 
@@ -200,7 +201,7 @@ jobs:
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - run: uvx nox -s check-all
+      - run: uv run --isolated --only-group nox nox -s check-all
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
 
@@ -485,7 +486,7 @@ jobs:
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - run: uvx nox -s test-rust -- release skip-full
+      - run: uv run --isolated --only-group nox nox -s test-rust -- release skip-full
     env:
       CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind --leak-check=no --error-exitcode=1
       RUST_BACKTRACE: 1
@@ -517,7 +518,7 @@ jobs:
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - run: uvx nox -s test-rust -- careful skip-full
+      - run: uv run --isolated --only-group nox nox -s test-rust -- careful skip-full
     env:
       RUST_BACKTRACE: 1
       UI_TEST: skip
@@ -555,7 +556,7 @@ jobs:
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
       - name: Test
-        run: uvx nox -s test-emscripten
+        run: uv run --isolated --only-group nox nox -s test-emscripten
 
   wasm32-wasip1:
     name: wasm32-wasip1
@@ -570,7 +571,7 @@ jobs:
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
       - name: Test
-        run: uvx nox -s test-wasm
+        run: uv run --isolated --only-group nox nox -s test-wasm
 
   no_std:
     needs: [fmt]
@@ -596,7 +597,7 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - name: Test
-        run: uvx nox -s ${{ matrix.session }}
+        run: uv run --isolated --only-group nox nox -s ${{ matrix.session }}
 
   test-debug:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
@@ -618,7 +619,7 @@ jobs:
           python-version: "3.13+debug"
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx python -m sysconfig
-      - run: uvx nox -s test
+      - run: uv run --isolated --only-group nox nox -s test
 
   test-debug-min-version:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
@@ -640,7 +641,7 @@ jobs:
           python-version: "3.11+debug"
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx python -m sysconfig
-      - run: uvx nox -s test
+      - run: uv run --isolated --only-group nox nox -s test
 
   test-version-limits:
     needs: [fmt, resolve]
@@ -662,7 +663,7 @@ jobs:
         with:
           save-if: ${{ needs.resolve.outputs.save-cache }}
       - uses: $/.github/actions/prepare-coverage
-      - run: uvx nox -s test-version-limits
+      - run: uv run --isolated --only-group nox nox -s test-version-limits
       - uses: $/.github/actions/report-coverage
         with:
           name: ${{ github.job }}
@@ -700,7 +701,7 @@ jobs:
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
-      - run: uvx nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
+      - run: uv run --isolated --only-group nox nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
 
   test-cross-compilation:
     needs: [fmt, resolve]
@@ -813,7 +814,7 @@ jobs:
         with:
           host_only: true
       - name: Test cross compile to Windows
-        run: uvx nox -s test-cross-compilation-windows
+        run: uv run --isolated --only-group nox nox -s test-cross-compilation-windows
       - uses: $/.github/actions/report-coverage
         with:
           name: ${{ github.job }}
@@ -869,7 +870,7 @@ jobs:
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - run: uvx nox -s test-introspection
+      - run: uv run --isolated --only-group nox nox -s test-introspection
     env:
       CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
 
@@ -891,7 +892,7 @@ jobs:
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - run: uvx nox -s test-introspection
+      - run: uv run --isolated --only-group nox nox -s test-introspection
 
   pytests-type-checking:
     needs: [fmt]
@@ -915,7 +916,7 @@ jobs:
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - run: uvx nox -s ${{matrix.checker}}
+      - run: uv run --project .. --isolated --only-group nox nox -s ${{matrix.checker}}
         working-directory: pytests
 
   conclusion:
