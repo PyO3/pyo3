@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import functools
-import io
 import json
 import os
 import re
@@ -19,6 +18,8 @@ from glob import glob
 from pathlib import Path
 from shlex import quote
 from typing import Any, Literal, Protocol
+from urllib.error import HTTPError
+from urllib.request import urlopen
 
 import nox.command
 
@@ -29,11 +30,6 @@ except ImportError:
         import toml
     except ImportError:
         toml = None
-
-try:
-    import requests
-except ImportError:
-    requests = None
 
 nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "rumdl", "docs", "typos"]
 
@@ -416,8 +412,6 @@ def check_all(session: nox.Session) -> None:
 
 @nox.session(venv_backend="none")
 def contributors(session: nox.Session) -> None:
-    import requests
-
     if len(session.posargs) < 1:
         raise Exception("base commit positional argument missing")
 
@@ -434,17 +428,20 @@ def contributors(session: nox.Session) -> None:
     authors = set()
 
     while True:
-        resp = requests.get(
-            f"https://api.github.com/repos/PyO3/pyo3/compare/{base}...{head}",
-            params={"page": page, "per_page": 100},
+        url = (
+            f"https://api.github.com/repos/PyO3/pyo3/compare/{base}...{head}"
+            f"?page={page}&per_page=100"
         )
-
-        body = resp.json()
-
-        if resp.status_code != 200:
+        try:
+            with urlopen(url) as resp:
+                body = json.load(resp)
+                has_next = 'rel="next"' in resp.headers.get("Link", "")
+        except HTTPError as e:
+            with e:
+                body = json.load(e)
             raise Exception(
-                f"failed to retrieve commits: {resp.status_code} {body['message']}"
-            )
+                f"failed to retrieve commits: {e.code} {body['message']}"
+            ) from e
 
         for commit in body["commits"]:
             try:
@@ -452,7 +449,7 @@ def contributors(session: nox.Session) -> None:
             except KeyError:
                 continue
 
-        if "next" in resp.links:
+        if has_next:
             page += 1
         else:
             break
@@ -775,9 +772,7 @@ def build_netlify_site(session: nox.Session):
         shutil.rmtree(netlify_build)
 
     url = "https://github.com/PyO3/pyo3/archive/gh-pages.tar.gz"
-    response = requests.get(url, stream=True)
-    response.raise_for_status()
-    with tarfile.open(fileobj=io.BytesIO(response.content), mode="r:gz") as tar:
+    with urlopen(url) as response, tarfile.open(fileobj=response, mode="r|gz") as tar:
         tar.extractall()
     shutil.move("pyo3-gh-pages", "netlify_build")
 
