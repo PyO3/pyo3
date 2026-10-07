@@ -1,6 +1,5 @@
 target
 Cargo.lock
-!/Cargo.lock
 /doc
 /gh-pages
 build/
