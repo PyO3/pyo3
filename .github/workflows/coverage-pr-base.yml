@@ -8,6 +8,9 @@ on:
   # See safety note / doc at the top of this file.
   pull_request_target: # zizmor: ignore[dangerous-triggers] Runs trusted base-branch code; see safety note above.
 
+env:
+  UV_LOCKED: 1
+
 permissions:
   contents: read
 
@@ -37,7 +40,7 @@ jobs:
           CODECOV_PR: ${{ github.event.number }}
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
-          uv run --locked --no-build --only-group codecov \
+          uv run --no-build --only-group codecov \
             codecovcli pr-base-picking \
               --base-sha "$CODECOV_BASE_SHA" \
               --pr "$CODECOV_PR" \
