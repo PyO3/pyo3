@@ -1,6 +1,9 @@
 name: CI Cache Cleanup
 on:
-  pull_request_target: # zizmor: ignore[dangerous-triggers] Only deletes caches; never checks out or runs PR code.
+  # Only deletes caches; never checks out or runs PR code.
+  #
+  # zizmor: ignore[dangerous-triggers]
+  pull_request_target:
     types:
       - closed
 
