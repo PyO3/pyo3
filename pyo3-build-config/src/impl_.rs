@@ -1289,8 +1289,8 @@ impl InterpreterConfigBuilder {
         }
     }
 
-    /// Sets the target ABI. A non-debug ABI is incompatible with `Py_DEBUG` in
-    /// the build flags.
+    /// Sets the target ABI. `Py_DEBUG` in the build flags promotes a non-debug
+    /// ABI to a debug ABI when the configuration is finalized.
     pub fn target_abi(self, target_abi: PythonAbi) -> InterpreterConfigBuilder {
         InterpreterConfigBuilder {
             target_abi: Some(target_abi),
