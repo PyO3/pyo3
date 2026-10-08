@@ -3,7 +3,7 @@ name = "pyo3-benches"
 version = "0.1.0"
 description = "In-tree benchmarks for the PyO3 project"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
-edition = "2021"
+edition = "2024"
 publish = false
 
 [dependencies]

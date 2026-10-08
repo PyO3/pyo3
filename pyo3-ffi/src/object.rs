@@ -2,14 +2,14 @@ use crate::pyport::{Py_hash_t, Py_ssize_t};
 // these re-exports are pub because it would be awkward to
 // thread the different origins for these types on this build
 // everywhere else
+#[cfg(Py_3_15)]
+use crate::PySlot;
 #[cfg(Py_LIMITED_API)]
 pub use crate::pytypedefs::PyTypeObject;
 #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
 pub use crate::pytypedefs::{PyObject, PyVarObject};
-#[cfg(Py_3_15)]
-use crate::PySlot;
 #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
-use crate::{refcount, PyMutex};
+use crate::{PyMutex, refcount};
 use core::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use core::mem;
 #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
@@ -169,7 +169,7 @@ pub struct PyVarObject {
     pub ob_size: Py_ssize_t,
     // On GraalPy the field is physically there, but not always populated. We hide it to prevent accidental misuse
     #[cfg(GraalPy)]
-    pub _ob_size_graalpy: Py_ssize_t,
+    _ob_size_graalpy: Py_ssize_t,
 }
 
 #[inline]
@@ -462,7 +462,7 @@ extern_libpython! {
     ) -> *mut PyObject;
     #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_RichCompareBool")]
     pub fn PyObject_RichCompareBool(arg1: *mut PyObject, arg2: *mut PyObject, arg3: c_int)
-        -> c_int;
+    -> c_int;
     #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_GetAttrString")]
     pub fn PyObject_GetAttrString(arg1: *mut PyObject, arg2: *const c_char) -> *mut PyObject;
     #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_SetAttrString")]
@@ -494,7 +494,7 @@ extern_libpython! {
     ) -> c_int;
     #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_SetAttr")]
     pub fn PyObject_SetAttr(arg1: *mut PyObject, arg2: *mut PyObject, arg3: *mut PyObject)
-        -> c_int;
+    -> c_int;
     #[cfg(any(Py_3_13, all(PyPy, not(Py_3_11))))] // CPython defined in 3.12 as an inline function in abstract.h
     #[cfg_attr(PyPy, link_name = "PyPyObject_DelAttr")]
     pub fn PyObject_DelAttr(arg1: *mut PyObject, arg2: *mut PyObject) -> c_int;
@@ -775,7 +775,7 @@ extern_libpython! {
 
     #[cfg(Py_3_15)]
     pub fn PyType_GetModuleByToken(_type: *mut PyTypeObject, token: *const c_void)
-        -> *mut PyObject;
+    -> *mut PyObject;
 
     #[cfg(Py_3_15)]
     pub fn PyObject_GetTypeData_DuringGC(o: *mut PyObject, cls: *mut PyTypeObject) -> *mut c_void;

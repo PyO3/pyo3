@@ -2,17 +2,17 @@ use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::conversions::std::num::INT_INPUT_TYPE;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, type_hint_union, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier, type_hint_union};
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, Python,
+    Borrowed, FromPyObject, PyAny, PyErr, Python, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
 };
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
 use core::convert::Infallible;
 use core::ffi::c_double;
@@ -273,9 +273,9 @@ impl_partial_eq_for_float!(f32);
 #[cfg(test)]
 mod tests {
     use crate::{
+        Python,
         conversion::IntoPyObject,
         types::{PyAnyMethods, PyFloat, PyFloatMethods},
-        Python,
     };
 
     macro_rules! num_to_py_object_and_back (

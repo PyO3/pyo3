@@ -41,6 +41,7 @@ For example:
 ```rust,no_run
 /// This module relies on the GIL for thread safety
 #[pyo3::pymodule(gil_used = true)]
+# #[pyo3(name = "example_thread_unsafe_module")]
 mod my_extension {
     use pyo3::prelude::*;
 

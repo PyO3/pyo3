@@ -223,14 +223,18 @@ fn test_renaming_all_struct_fields() {
     Python::attach(|py| {
         let struct_class = py.get_type::<StructWithRenamedFields>();
         let struct_obj = struct_class.call0().unwrap();
-        assert!(struct_obj
-            .setattr("firstField", PyBool::new(py, false))
-            .is_ok());
+        assert!(
+            struct_obj
+                .setattr("firstField", PyBool::new(py, false))
+                .is_ok()
+        );
         py_assert!(py, struct_obj, "struct_obj.firstField == False");
         py_assert!(py, struct_obj, "struct_obj.secondField == 5");
-        assert!(struct_obj
-            .setattr("third_field", PyBool::new(py, true))
-            .is_ok());
+        assert!(
+            struct_obj
+                .setattr("third_field", PyBool::new(py, true))
+                .is_ok()
+        );
         py_assert!(py, struct_obj, "struct_obj.third_field == True");
     });
 }

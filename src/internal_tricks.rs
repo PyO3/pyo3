@@ -1,6 +1,6 @@
 use core::ptr::NonNull;
 
-use crate::ffi::{self, Py_ssize_t, PY_SSIZE_T_MAX};
+use crate::ffi::{PY_SSIZE_T_MAX, Py_ssize_t};
 use crate::platform::prelude::*;
 
 #[cfg(wip_feature_std)]
@@ -20,36 +20,6 @@ macro_rules! pyo3_exception {
 /// PY_SSIZE_T_MAX.
 pub(crate) fn get_ssize_index(index: usize) -> Py_ssize_t {
     index.min(PY_SSIZE_T_MAX as usize) as Py_ssize_t
-}
-
-// TODO: use ptr::fn_addr_eq on MSRV 1.85
-pub(crate) fn clear_eq(f: Option<ffi::inquiry>, g: ffi::inquiry) -> bool {
-    #[cfg(fn_ptr_eq)]
-    #[expect(clippy::incompatible_msrv, reason = "guarded by cfg(fn_ptr_eq)")]
-    {
-        let Some(f) = f else { return false };
-        core::ptr::fn_addr_eq(f, g)
-    }
-
-    #[cfg(not(fn_ptr_eq))]
-    {
-        f == Some(g)
-    }
-}
-
-// TODO: use ptr::fn_addr_eq on MSRV 1.85
-pub(crate) fn traverse_eq(f: Option<ffi::traverseproc>, g: ffi::traverseproc) -> bool {
-    #[cfg(fn_ptr_eq)]
-    #[expect(clippy::incompatible_msrv, reason = "guarded by cfg(fn_ptr_eq)")]
-    {
-        let Some(f) = f else { return false };
-        core::ptr::fn_addr_eq(f, g)
-    }
-
-    #[cfg(not(fn_ptr_eq))]
-    {
-        f == Some(g)
-    }
 }
 
 // TODO: use Box::into_non_null when stabilized

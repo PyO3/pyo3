@@ -1,4 +1,4 @@
-use crate::{PyObject, Py_IS_TYPE};
+use crate::{Py_IS_TYPE, PyObject};
 use core::ffi::c_int;
 
 #[cfg(all(not(any(PyPy, GraalPy)), not(Py_3_10)))]

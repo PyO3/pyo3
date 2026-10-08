@@ -1,6 +1,6 @@
 use crate::platform::prelude::*;
-use crate::{err::PyErrArguments, exceptions, types, PyErr, Python};
 use crate::{IntoPyObject, Py, PyAny};
+use crate::{PyErr, Python, err::PyErrArguments, exceptions, types};
 #[cfg(wip_feature_std)]
 use std::io;
 
@@ -228,9 +228,11 @@ mod tests {
                 assert_eq!(rust_err_from_py_err.kind(), kind);
 
                 let py_err_recovered_from_rust_err: PyErr = rust_err_from_py_err.into();
-                assert!(py_err_recovered_from_rust_err
-                    .value(py)
-                    .is(py_error_clone.value(py))); // It should be the same exception
+                assert!(
+                    py_err_recovered_from_rust_err
+                        .value(py)
+                        .is(py_error_clone.value(py))
+                ); // It should be the same exception
             })
         };
 

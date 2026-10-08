@@ -1,7 +1,7 @@
 //! Defines conversions between Rust and Python types.
 use crate::err::PyResult;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, type_hint_subscript, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier, type_hint_subscript};
 use crate::platform::prelude::*;
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
@@ -440,8 +440,8 @@ pub trait FromPyObject<'a, 'py>: Sized {
 }
 
 mod from_py_object_sequence {
-    use crate::platform::prelude::*;
     use crate::PyResult;
+    use crate::platform::prelude::*;
 
     /// Private trait for implementing specialized sequence extraction for `Vec<u8>` and `[u8; N]`
     #[doc(hidden)]
@@ -581,7 +581,7 @@ mod tests {
     #[cfg(feature = "macros")]
     #[expect(deprecated)]
     fn test_pyclass_skip_from_py_object() {
-        use crate::{types::PyAnyMethods, FromPyObject, IntoPyObject, PyErr, Python};
+        use crate::{FromPyObject, IntoPyObject, PyErr, Python, types::PyAnyMethods};
 
         #[crate::pyclass(crate = "crate", skip_from_py_object)]
         #[derive(Clone)]
@@ -613,7 +613,7 @@ mod tests {
     #[test]
     #[cfg(feature = "macros")]
     fn test_pyclass_from_py_object() {
-        use crate::{types::PyAnyMethods, IntoPyObject, PyErr, Python};
+        use crate::{IntoPyObject, PyErr, Python, types::PyAnyMethods};
 
         #[crate::pyclass(crate = "crate", from_py_object)]
         #[derive(Clone)]

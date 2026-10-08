@@ -15,31 +15,25 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   NOX_DEFAULT_VENV_BACKEND: uv
-  UV_CONSTRAINT: ${{ github.workspace }}/.github/uv-constraints.txt
   UV_PYTHON: 3.14
 
 jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
-      - uses: astral-sh/setup-uv@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          components: rustfmt
-      - name: Check python formatting and lints (ruff)
-        run: uvx nox -s ruff
-      - name: Check rust formatting (rustfmt)
-        run: uvx nox -s rustfmt
-      - name: Check markdown formatting (rumdl)
-        run: uvx nox -s rumdl
-      - name: Check `required-features` in Cargo.toml
-        run: uvx nox -s check-test-features
-      - name: Spell check
-        run: uvx nox -s typos
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update --component rustfmt
+          rustup default stable
+      - name: Check formatting and lints
+        run: uvx nox -s fmt
 
   resolve:
     runs-on: ubuntu-latest
@@ -56,8 +50,8 @@ jobs:
       # with the commit diff, because the merge may affect line numbers.
       coverage-sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
       - name: resolve MSRV
@@ -69,8 +63,8 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
       - name: Fetch merge base
@@ -79,7 +73,7 @@ jobs:
         with:
           base_ref: "refs/heads/${{ github.event.pull_request.base.ref }}"
           head_ref: "refs/pull/${{ github.event.pull_request.number }}/merge"
-      - uses: obi1kenobi/cargo-semver-checks-action@v2
+      - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2.9
         with:
           baseline-rev: ${{ steps.fetch_merge_base.outputs.merge_base }}
 
@@ -87,18 +81,22 @@ jobs:
     needs: [fmt, resolve]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ needs.resolve.outputs.MSRV }}
-          components: rust-src
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust toolchain
+        env:
+          RUST_TOOLCHAIN: ${{ needs.resolve.outputs.MSRV }}
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --no-self-update --component rust-src
+          rustup default "$RUST_TOOLCHAIN"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
       # This is a smoke test to confirm that CI will run on MSRV (including dev dependencies)
       - name: Check with MSRV package versions
         run: |
@@ -135,13 +133,15 @@ jobs:
     name: clippy/${{ matrix.target }}/${{ matrix.rust }}
     continue-on-error: ${{ matrix.rust != 'stable' }}
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
-          targets: ${{ matrix.target }}
-          components: clippy,rust-src
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust toolchain
+        env:
+          RUST_TOOLCHAIN: ${{ matrix.rust }}
+          RUST_TARGET: ${{ matrix.target }}
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --no-self-update --component clippy,rust-src --target "$RUST_TARGET"
+          rustup default "$RUST_TOOLCHAIN"
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s clippy-all
@@ -159,12 +159,14 @@ jobs:
     name: check-nightly/${{ matrix.target }}/${{ matrix.rust }}
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          targets: ${{ matrix.target }}
-          components: clippy,rust-src
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust toolchain
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+        run: |
+          rustup toolchain install nightly --profile minimal --no-self-update --component clippy,rust-src --target "$RUST_TARGET" --allow-downgrade
+          rustup default nightly
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s check-all
@@ -298,7 +300,8 @@ jobs:
             "3.15t-dev",
             "pypy3.11",
             "pypy3.12",
-            "graalpy25.0",
+            "graalpy25.2", # 3.12
+            "graalpy25.3", # 3.13
           ]
         platform:
           [
@@ -425,16 +428,23 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: taiki-e/install-action@valgrind
-      - uses: astral-sh/setup-uv@v7
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
+        with:
+          tool: valgrind
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s test-rust -- release skip-full
     env:
       CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: valgrind --leak-check=no --error-exitcode=1
@@ -446,21 +456,25 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      # TODO: unpin to rust-toolchain@nightly once the below is fixed
+      # TODO: unpin to nightly once the below is fixed
       # https://github.com/RalfJung/cargo-careful/issues/55
-      - uses: dtolnay/rust-toolchain@master
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install nightly-2026-08-06 --profile minimal --no-self-update --component rust-src
+          rustup default nightly-2026-08-06
+      - uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
         with:
-          toolchain: nightly-2026-08-06
-          components: rust-src
-      - uses: taiki-e/install-action@cargo-careful
-      - uses: astral-sh/setup-uv@v7
+          tool: cargo-careful
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s test-rust -- careful skip-full
     env:
       RUST_BACKTRACE: 1
@@ -471,16 +485,17 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rust-src
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install nightly --profile minimal --no-self-update --component rust-src --allow-downgrade
+          rustup default nightly
       - run: cargo rustdoc --lib --no-default-features --features full,jiff-02 -Zunstable-options --config "build.rustdocflags=[\"--cfg\", \"docsrs\"]"
 
   emscripten:
@@ -489,7 +504,7 @@ jobs:
     needs: [fmt, resolve]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/build-emscripten
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
@@ -502,7 +517,7 @@ jobs:
     needs: [fmt, resolve]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/build-wasi
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
@@ -519,15 +534,15 @@ jobs:
     env:
       PYO3_WIP_NO_STD: "1"
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rust-src
-      - uses: Swatinem/rust-cache@v2
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update --component rust-src
+          rustup default stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - name: Test
@@ -538,16 +553,18 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rust-src
-      - uses: astral-sh/setup-uv@v7
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update --component rust-src
+          rustup default stable
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: "3.13+debug"
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx python -m sysconfig
       - run: uvx nox -s test
 
@@ -556,16 +573,18 @@ jobs:
     needs: [fmt]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rust-src
-      - uses: astral-sh/setup-uv@v7
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update --component rust-src
+          rustup default stable
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: "3.11+debug"
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx python -m sysconfig
       - run: uvx nox -s test
 
@@ -574,14 +593,17 @@ jobs:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve.outputs.coverage-sha }}
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ needs.resolve.outputs.save-cache }}
       - uses: ./.github/actions/prepare-coverage
@@ -604,20 +626,23 @@ jobs:
         include:
           - rust: ${{ needs.resolve.outputs.MSRV }}
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.15-dev"
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-      - uses: taiki-e/install-action@v2
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
         with:
           tool: cargo-hack,cargo-minimal-versions
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          save-cache: ${{ needs.resolve.outputs.save-cache }}
       - run: uvx nox -s check-feature-powerset -- ${{ matrix.rust != 'stable' && 'minimal-versions' || '' }}
 
   test-cross-compilation:
@@ -650,28 +675,29 @@ jobs:
             target: "aarch64-pc-windows-msvc"
             flags: "-i python3.13"
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve.outputs.coverage-sha }}
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.UV_PYTHON }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: examples/maturin-starter
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
           key: ${{ matrix.target }}
+      - uses: dtolnay/rust-toolchain@stable
       - name: Setup cross-compiler packages
         if: ${{ matrix.apt-packages }}
         run: sudo apt-get install -y ${{ matrix.apt-packages }}
       - uses: ./.github/actions/prepare-coverage
         with:
-         host_only: true
+          host_only: true
       - name: Compile version-specific library
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           target: ${{ matrix.target }}
           args: --profile=dev -m examples/maturin-starter/Cargo.toml ${{ matrix.flags }}
@@ -683,7 +709,7 @@ jobs:
             -e __CARGO_LLVM_COV_RUSTC_WRAPPER_CRATE_NAMES
             -v /home/runner/.cargo/bin/cargo-llvm-cov:/home/runner/.cargo/bin/cargo-llvm-cov
       - name: Compile abi3 library
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           target: ${{ matrix.target }}
           args: --profile=dev -m examples/maturin-starter/Cargo.toml --features abi3 ${{ matrix.flags }}
@@ -704,18 +730,18 @@ jobs:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve.outputs.coverage-sha }}
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
-          components: rust-src
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update --component rust-src --target x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
+          rustup default stable
       # load cache (prepared in ci-cache-warmup.yml)
-      - uses: actions/cache/restore@v6
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
@@ -761,18 +787,24 @@ jobs:
           ]
     runs-on: ${{ matrix.platform.os }}
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform.rust-target }}
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust toolchain
+        shell: bash
+        env:
+          RUST_TARGET: ${{ matrix.platform.rust-target }}
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update --target "$RUST_TARGET"
+          rustup default stable
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
           architecture: ${{ matrix.platform.python-architecture }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s test-introspection
     env:
       CARGO_BUILD_TARGET: ${{ matrix.platform.rust-target }}
@@ -782,12 +814,17 @@ jobs:
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'CI-build-full') && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s test-introspection
 
   pytests-type-checking:
@@ -799,14 +836,17 @@ jobs:
       matrix:
         checker: [mypy, pyrefly]
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rust-src
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update --component rust-src
+          rustup default stable
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx nox -s ${{matrix.checker}}
         working-directory: pytests
 

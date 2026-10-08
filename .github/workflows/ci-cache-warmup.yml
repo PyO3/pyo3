@@ -4,20 +4,38 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
-  cross-compilation-windows:
+  resolve:
     runs-on: ubuntu-latest
+    outputs:
+      MSRV: ${{ steps.resolve-msrv.outputs.MSRV }}
+      verbose: ${{ runner.debug == '1' }}
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-      - uses: dtolnay/rust-toolchain@stable
+      - name: resolve MSRV
+        id: resolve-msrv
+        run: echo MSRV=`python -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])'` >> $GITHUB_OUTPUT
+
+  cross-compilation-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          targets: x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
-          components: rust-src
-      - uses: actions/cache/restore@v6
+          python-version: "3.14"
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update --component rust-src --target x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
+          rustup default stable
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           # https://github.com/PyO3/maturin/discussions/1953
           path: ~/.cache/cargo-xwin
@@ -28,7 +46,7 @@ jobs:
           sudo apt-get install -y mingw-w64 llvm
           pip install nox
           nox -s test-cross-compilation-windows
-      - uses: actions/cache/save@v6
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/cargo-xwin
           key: cargo-xwin-cache
@@ -36,7 +54,7 @@ jobs:
   emscripten:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/build-emscripten
         with:
           save-cache: true
@@ -44,7 +62,91 @@ jobs:
   wasm32-wasip1:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/build-wasi
         with:
           save-cache: true
+
+  build-full:
+    needs:
+      - resolve
+    uses: ./.github/workflows/build.yml
+    with:
+      sha: ${{ github.sha }}
+      os: ${{ matrix.platform.os }}
+      python-version: 3.14
+      python-architecture: ${{ matrix.platform.python-architecture }}
+      rust: ${{ matrix.rust }}
+      rust-target: ${{ matrix.platform.rust-target }}
+      MSRV: ${{ needs.resolve.outputs.MSRV }}
+    strategy:
+      matrix:
+        rust: [stable]
+        platform:
+          [
+            {
+              os: "macos-latest",
+              python-architecture: "arm64",
+              rust-target: "aarch64-apple-darwin",
+            },
+            {
+              os: "ubuntu-latest",
+              python-architecture: "x64",
+              rust-target: "x86_64-unknown-linux-gnu",
+            },
+            {
+              os: "windows-latest",
+              python-architecture: "x64",
+              rust-target: "x86_64-pc-windows-msvc",
+            },
+          ]
+        include:
+          - rust: ${{ needs.resolve.outputs.MSRV }}
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
+          - rust: beta
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
+          - rust: stable
+            platform:
+              {
+                os: "windows-latest",
+                python-architecture: "x86",
+                rust-target: "i686-pc-windows-msvc",
+              }
+          - rust: stable
+            platform:
+              {
+                os: "macos-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+          - rust: stable
+            platform:
+              {
+                os: "macos-15-intel",
+                python-architecture: "x64",
+                rust-target: "x86_64-apple-darwin",
+              }
+          - rust: stable
+            platform:
+              {
+                os: "ubuntu-24.04-arm",
+                python-architecture: "arm64",
+                rust-target: "aarch64-unknown-linux-gnu",
+              }
+          - rust: stable
+            platform:
+              {
+                os: "windows-11-arm",
+                python-architecture: "arm64",
+                rust-target: "aarch64-pc-windows-msvc",
+              }

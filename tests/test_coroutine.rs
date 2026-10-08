@@ -2,7 +2,7 @@
 #![cfg(not(target_arch = "wasm32"))]
 use std::{ffi::CString, task::Poll, thread, time::Duration};
 
-use futures::{channel::oneshot, future::poll_fn, FutureExt};
+use futures::{FutureExt, channel::oneshot, future::poll_fn};
 #[cfg(not(target_has_atomic = "64"))]
 use portable_atomic::{AtomicBool, Ordering};
 use pyo3::{

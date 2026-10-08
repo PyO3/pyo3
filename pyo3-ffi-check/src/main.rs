@@ -1,5 +1,5 @@
 use std::{
-    ffi::{c_void, CStr},
+    ffi::{CStr, c_void},
     process::exit,
 };
 

@@ -9,7 +9,9 @@ runs:
   using: "composite"
   steps:
   - name: Install cargo-llvm-cov
-    uses: taiki-e/install-action@cargo-llvm-cov
+    uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
+    with:
+      tool: cargo-llvm-cov
 
   - name: Prepare coverage environment
     shell: bash

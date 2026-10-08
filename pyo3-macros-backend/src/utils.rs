@@ -1,6 +1,6 @@
 use crate::attributes::{CrateAttribute, RenamingRule};
 use proc_macro2::{Span, TokenStream, TokenTree};
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, quote};
 use std::ffi::CString;
 use std::mem::take;
 use syn::spanned::Spanned;

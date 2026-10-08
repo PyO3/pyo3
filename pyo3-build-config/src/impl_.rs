@@ -787,7 +787,9 @@ print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
                 .free_threaded()
                 .finalize()?
         } else if abi3 == Some(true) {
-            warn!("abi3 configuration file option is deprecated since pyo3 0.29, set target_abi instead");
+            warn!(
+                "abi3 configuration file option is deprecated since pyo3 0.29, set target_abi instead"
+            );
             PythonAbiBuilder::new(implementation, version)
                 .stable_abi(StableAbi::Abi3)
                 .finalize()?
@@ -940,7 +942,9 @@ impl PythonAbiBuilder {
     pub fn stable_abi(self, kind: StableAbi) -> PythonAbiBuilder {
         let mut build_version = self.version;
         if self.version.minor > STABLE_ABI_MAX_MINOR {
-            warn!("Automatically falling back to {kind}-py3{STABLE_ABI_MAX_MINOR} because current Python is higher than the maximum supported");
+            warn!(
+                "Automatically falling back to {kind}-py3{STABLE_ABI_MAX_MINOR} because current Python is higher than the maximum supported"
+            );
             build_version.minor = STABLE_ABI_MAX_MINOR;
         }
 
@@ -965,8 +969,10 @@ impl PythonAbiBuilder {
             _ => PythonAbiKind::VersionSpecific(GilUsed::GilEnabled),
         });
         if matches!(self.implementation, PythonImplementation::RustPython) {
-            ensure!(matches!(kind, PythonAbiKind::Stable(StableAbi::Abi3t)),
-                    "RustPython only supports targeting abi3t, it does not allow targeting other Python ABIs. Currently targeting '{kind}'")
+            ensure!(
+                matches!(kind, PythonAbiKind::Stable(StableAbi::Abi3t)),
+                "RustPython only supports targeting abi3t, it does not allow targeting other Python ABIs. Currently targeting '{kind}'"
+            )
         }
         if matches!(kind, PythonAbiKind::VersionSpecific(GilUsed::FreeThreaded))
             && self.version
@@ -976,7 +982,8 @@ impl PythonAbiBuilder {
                 })
         {
             bail!(
-                "Cannot target free-threaded builds for Python versions before 3.13, tried to build for {}", self.version
+                "Cannot target free-threaded builds for Python versions before 3.13, tried to build for {}",
+                self.version
             )
         }
         Ok(PythonAbi {
@@ -2396,15 +2403,6 @@ fn default_lib_name_for_target(abi: PythonAbi, target: &Triple) -> String {
 }
 
 fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<String> {
-    // mingw formats lib names like unix, and uses a "lib" prefix. We could let the linker
-    // handle "lib" prefix, but that means the `raw-dylib` name is incorrect (where the
-    // "lib" prefix is not automatically added).
-    if mingw {
-        let mut lib_name = default_lib_name_unix(abi, true, None)?;
-        lib_name.insert_str(0, "lib");
-        return Ok(lib_name);
-    }
-
     if abi.implementation.is_pypy() {
         // PyPy on Windows ships `libpypy3.X-c.dll` (e.g. `libpypy3.11-c.dll`),
         // not CPython's `pythonXY.dll`. With raw-dylib linking we need the real
@@ -2413,6 +2411,16 @@ fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<
             "libpypy{}.{}-c",
             abi.version.major, abi.version.minor
         ))
+    } else if abi.implementation == PythonImplementation::GraalPy {
+        // Similar for GraalPy on Windows, which ships `python-native.dll`
+        Ok("python-native".to_string())
+    } else if mingw {
+        // mingw formats lib names like unix, and uses a "lib" prefix. We could let the linker
+        // handle "lib" prefix, but that means the `raw-dylib` name is incorrect (where the
+        // "lib" prefix is not automatically added).
+        let mut lib_name = default_lib_name_unix(abi, true, None)?;
+        lib_name.insert_str(0, "lib");
+        Ok(lib_name)
     } else if debug && abi.version < PythonVersion::PY310 {
         // CPython bug: linking against python3_d.dll raises error
         // https://github.com/python/cpython/issues/101614
@@ -2435,7 +2443,12 @@ fn default_lib_name_windows(abi: PythonAbi, mingw: bool, debug: bool) -> Result<
     } else if abi.kind().is_free_threaded() {
         #[expect(deprecated, reason = "using constant internally")]
         {
-            ensure!(abi.version() >= PythonVersion::PY313, "Cannot compile extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", abi.version.major, abi.version.minor);
+            ensure!(
+                abi.version() >= PythonVersion::PY313,
+                "Cannot compile extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}",
+                abi.version.major,
+                abi.version.minor
+            );
         }
         if debug {
             Ok(format!(
@@ -2474,7 +2487,12 @@ fn default_lib_name_unix(
                     if abi.kind.is_free_threaded() {
                         #[expect(deprecated, reason = "using constant internally")]
                         {
-                            ensure!(abi.version >= PythonVersion::PY313, "Cannot compile extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}", abi.version.major, abi.version.minor);
+                            ensure!(
+                                abi.version >= PythonVersion::PY313,
+                                "Cannot compile extensions for the free-threaded build on Python versions earlier than 3.13, found {}.{}",
+                                abi.version.major,
+                                abi.version.minor
+                            );
                         }
                         Ok(format!(
                             "python{}.{}t",
@@ -2597,14 +2615,15 @@ pub fn find_interpreter() -> Result<PathBuf> {
         ["python", "python3"]
             .iter()
             .find(|bin| {
-                if let Ok(out) = Command::new(bin).arg("--version").output() {
-                    // begin with `Python 3.X.X :: additional info`
-                    out.stdout.starts_with(b"Python 3")
-                        || out.stderr.starts_with(b"Python 3")
-                        || out.stdout.starts_with(b"GraalPy 3")
-                } else {
-                    false
-                }
+                Command::new(bin)
+                    .arg("--version")
+                    .output()
+                    .is_ok_and(|out| {
+                        // begin with `Python 3.X.X :: additional info`
+                        out.stdout.starts_with(b"Python 3")
+                            || out.stderr.starts_with(b"Python 3")
+                            || out.stdout.starts_with(b"GraalPy 3")
+                    })
             })
             .map(PathBuf::from)
             .ok_or_else(|| "no Python 3.x interpreter found".into())
@@ -2807,14 +2826,14 @@ mod tests {
             InterpreterConfig::from_reader("version=3.14\ntarget_abi=foo-bar-baz".as_bytes())
                 .is_err()
         );
-        assert!(InterpreterConfig::from_reader(
-            "version=3.14\ntarget_abi=CPython-bar-baz".as_bytes()
-        )
-        .is_err());
-        assert!(InterpreterConfig::from_reader(
-            "version=3.14\ntarget_abi=CPython-abi3-baz".as_bytes()
-        )
-        .is_err());
+        assert!(
+            InterpreterConfig::from_reader("version=3.14\ntarget_abi=CPython-bar-baz".as_bytes())
+                .is_err()
+        );
+        assert!(
+            InterpreterConfig::from_reader("version=3.14\ntarget_abi=CPython-abi3-baz".as_bytes())
+                .is_err()
+        );
     }
 
     #[test]
@@ -2844,21 +2863,25 @@ mod tests {
                 .unwrap()
         );
         // target_abi=gil_enabled with build_flags=Py_GIL_DISABLED is inconsistent and rejected.
-        assert!(InterpreterConfig::from_reader(
-            "version=3.13\ntarget_abi=CPython-gil_enabled-3.13\nbuild_flags=Py_GIL_DISABLED"
-                .as_bytes()
-        )
-        .is_err());
+        assert!(
+            InterpreterConfig::from_reader(
+                "version=3.13\ntarget_abi=CPython-gil_enabled-3.13\nbuild_flags=Py_GIL_DISABLED"
+                    .as_bytes()
+            )
+            .is_err()
+        );
         // build_flags=Py_GIL_DISABLED on a builder without target_abi is ok
         let mut flags = BuildFlags::default();
         flags.0.insert(BuildFlag::Py_GIL_DISABLED);
-        assert!(InterpreterConfigBuilder::new(implementation, version)
-            .build_flags(flags)
-            .finalize()
-            .unwrap()
-            .target_abi
-            .kind
-            .is_free_threaded());
+        assert!(
+            InterpreterConfigBuilder::new(implementation, version)
+                .build_flags(flags)
+                .finalize()
+                .unwrap()
+                .target_abi
+                .kind
+                .is_free_threaded()
+        );
 
         let mut flags = BuildFlags::default();
         flags.0.insert(BuildFlag::Py_GIL_DISABLED);
@@ -2901,12 +2924,14 @@ mod tests {
 
     #[test]
     fn test_target_abi_and_abi3() {
-        assert!(InterpreterConfig::from_reader(
-            "version=3.13\nabi3=true\ntarget_abi=CPython-abi3-3.13".as_bytes()
-        )
-        .unwrap_err()
-        .to_string()
-        .contains("Invalid config"),);
+        assert!(
+            InterpreterConfig::from_reader(
+                "version=3.13\nabi3=true\ntarget_abi=CPython-abi3-3.13".as_bytes()
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid config"),
+        );
     }
 
     #[test]
@@ -3612,19 +3637,22 @@ mod tests {
 
         assert!("invalid".parse::<PythonAbi>().is_err());
         assert!("CPython-invalid".parse::<PythonAbi>().is_err());
-        assert!("CPython-free_threaded-invalid"
-            .parse::<PythonAbi>()
-            .is_err());
+        assert!(
+            "CPython-free_threaded-invalid"
+                .parse::<PythonAbi>()
+                .is_err()
+        );
 
         let builder = PythonAbiBuilder::new(PythonImplementation::RustPython, PythonVersion::PY315)
             .free_threaded();
         let res = builder.finalize();
 
         assert!(res.is_err());
-        assert!(res
-            .unwrap_err()
-            .to_string()
-            .contains("RustPython only supports targeting abi3t"));
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("RustPython only supports targeting abi3t")
+        );
     }
 
     #[test]
@@ -4049,64 +4077,80 @@ mod tests {
 
     #[test]
     fn test_not_cross_compiling_from_to() {
-        assert!(cross_compiling_from_to(
-            &triple!("x86_64-unknown-linux-gnu"),
-            &triple!("x86_64-unknown-linux-gnu"),
-        )
-        .unwrap()
-        .is_none());
+        assert!(
+            cross_compiling_from_to(
+                &triple!("x86_64-unknown-linux-gnu"),
+                &triple!("x86_64-unknown-linux-gnu"),
+            )
+            .unwrap()
+            .is_none()
+        );
 
-        assert!(cross_compiling_from_to(
-            &triple!("x86_64-apple-darwin"),
-            &triple!("x86_64-apple-darwin")
-        )
-        .unwrap()
-        .is_none());
+        assert!(
+            cross_compiling_from_to(
+                &triple!("x86_64-apple-darwin"),
+                &triple!("x86_64-apple-darwin")
+            )
+            .unwrap()
+            .is_none()
+        );
 
-        assert!(cross_compiling_from_to(
-            &triple!("aarch64-apple-darwin"),
-            &triple!("x86_64-apple-darwin")
-        )
-        .unwrap()
-        .is_none());
+        assert!(
+            cross_compiling_from_to(
+                &triple!("aarch64-apple-darwin"),
+                &triple!("x86_64-apple-darwin")
+            )
+            .unwrap()
+            .is_none()
+        );
 
-        assert!(cross_compiling_from_to(
-            &triple!("x86_64-apple-darwin"),
-            &triple!("aarch64-apple-darwin")
-        )
-        .unwrap()
-        .is_none());
+        assert!(
+            cross_compiling_from_to(
+                &triple!("x86_64-apple-darwin"),
+                &triple!("aarch64-apple-darwin")
+            )
+            .unwrap()
+            .is_none()
+        );
 
-        assert!(cross_compiling_from_to(
-            &triple!("x86_64-pc-windows-msvc"),
-            &triple!("i686-pc-windows-msvc")
-        )
-        .unwrap()
-        .is_none());
+        assert!(
+            cross_compiling_from_to(
+                &triple!("x86_64-pc-windows-msvc"),
+                &triple!("i686-pc-windows-msvc")
+            )
+            .unwrap()
+            .is_none()
+        );
 
-        assert!(cross_compiling_from_to(
-            &triple!("x86_64-unknown-linux-gnu"),
-            &triple!("x86_64-unknown-linux-musl")
-        )
-        .unwrap()
-        .is_none());
+        assert!(
+            cross_compiling_from_to(
+                &triple!("x86_64-unknown-linux-gnu"),
+                &triple!("x86_64-unknown-linux-musl")
+            )
+            .unwrap()
+            .is_none()
+        );
 
-        assert!(cross_compiling_from_to(
-            &triple!("x86_64-pc-windows-msvc"),
-            &triple!("x86_64-win7-windows-msvc"),
-        )
-        .unwrap()
-        .is_none());
+        assert!(
+            cross_compiling_from_to(
+                &triple!("x86_64-pc-windows-msvc"),
+                &triple!("x86_64-win7-windows-msvc"),
+            )
+            .unwrap()
+            .is_none()
+        );
     }
 
     #[test]
     fn test_is_cross_compiling_from_to() {
-        assert!(cross_compiling_from_to(
-            &triple!("x86_64-pc-windows-msvc"),
-            &triple!("aarch64-pc-windows-msvc")
-        )
-        .unwrap()
-        .is_some());
+        assert!(
+            cross_compiling_from_to(
+                &triple!("x86_64-pc-windows-msvc"),
+                &triple!("aarch64-pc-windows-msvc")
+            )
+            .unwrap()
+            .is_some()
+        );
     }
 
     #[test]
@@ -4308,11 +4352,13 @@ mod tests {
         .unwrap();
         let mut flags = BuildFlags::new();
         flags.0.insert(BuildFlag::Py_GIL_DISABLED);
-        assert!(builder
-            .target_abi(target_abi)
-            .build_flags(flags)
-            .finalize()
-            .is_err());
+        assert!(
+            builder
+                .target_abi(target_abi)
+                .build_flags(flags)
+                .finalize()
+                .is_err()
+        );
 
         let builder = InterpreterConfigBuilder::new(
             PythonImplementation::CPython,

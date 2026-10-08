@@ -1,6 +1,6 @@
 #[cfg(any(Py_3_11, not(PyPy)))]
 use crate::PyFrameObject;
-use crate::{PyObject, PyTypeObject, Py_IS_TYPE};
+use crate::{Py_IS_TYPE, PyObject, PyTypeObject};
 #[cfg(Py_3_12)]
 use core::ffi::c_char;
 use core::ffi::c_int;

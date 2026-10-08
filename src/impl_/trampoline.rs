@@ -18,8 +18,8 @@ use crate::panic::PanicException;
 )]
 use crate::platform::prelude::*;
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput, impl_::panic::PanicTrap,
-    types::PyModule, Bound, PyResult, Python,
+    Bound, PyResult, Python, ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput,
+    impl_::panic::PanicTrap, types::PyModule,
 };
 
 #[inline]

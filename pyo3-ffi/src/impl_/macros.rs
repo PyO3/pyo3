@@ -290,6 +290,8 @@ macro_rules! extern_libpython {
             "libpypy3.11-c",
             "libpypy3.12-c",
             "libpypy3.13-c",
+            // GraalPy DLL
+            "python-native",
         );
     };
     // Internal: generate cfg_attr for each DLL name. One of these will be selected
@@ -308,7 +310,7 @@ macro_rules! extern_libpython {
                 link(name = $dll, kind = "raw-dylib"))]
         )*
         #[cfg_attr(all(windows, not(pyo3_use_raw_dylib)), link(name = "pythonXY"))]
-        extern $abi {
+        unsafe extern $abi {
             extern_libpython_items! { $($body)* }
         }
     };
