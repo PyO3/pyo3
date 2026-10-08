@@ -29,21 +29,36 @@ mod test_utils;
 struct ClassWithFreelist {}
 
 #[test]
+#[cfg(not(all(windows, Py_LIMITED_API, not(Py_3_10))))]
 fn class_with_freelist() {
-    let ptr = Python::attach(|py| {
+    let (ptr1, ptr2) = Python::attach(|py| {
         let inst = Py::new(py, ClassWithFreelist {}).unwrap();
-        let _inst2 = Py::new(py, ClassWithFreelist {}).unwrap();
-        let ptr = inst.as_ptr();
+        let inst2 = Py::new(py, ClassWithFreelist {}).unwrap();
+        let ptr1 = inst.as_ptr();
+        let ptr2 = inst2.as_ptr();
+        drop(inst2);
         drop(inst);
-        ptr
+        assert_ne!(ptr1, ptr2);
+        (ptr1, ptr2)
     });
 
     Python::attach(|py| {
         let inst3 = Py::new(py, ClassWithFreelist {}).unwrap();
-        assert_eq!(ptr, inst3.as_ptr());
+        assert_eq!(ptr1, inst3.as_ptr());
 
         let inst4 = Py::new(py, ClassWithFreelist {}).unwrap();
-        assert_ne!(ptr, inst4.as_ptr())
+        assert_eq!(ptr2, inst4.as_ptr())
+    });
+}
+
+#[test]
+#[cfg(all(windows, Py_LIMITED_API, not(Py_3_10)))]
+fn freelist_does_not_cache_on_windows_abi3_py39() {
+    use pyo3::impl_::pyclass::PyClassWithFreeList;
+
+    Python::attach(|py| {
+        drop(Py::new(py, ClassWithFreelist {}).unwrap());
+        assert!(ClassWithFreelist::get_free_list(py).pop().is_none());
     });
 }
 
@@ -74,6 +89,151 @@ fn multithreaded_class_with_freelist() {
             Python::attach(|py| spin_freelist(py, 0x4d3d3d3));
         });
     });
+}
+
+#[cfg(all(wip_feature_std, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+fn assert_cached<T: pyo3::impl_::pyclass::PyClassWithFreeList>(
+    py: Python<'_>,
+    ptr: *mut ffi::PyObject,
+) {
+    let mut cache = T::get_free_list(py);
+    let cached = cache.pop().expect("allocation was not cached");
+    assert_eq!(cached.as_ptr(), ptr);
+    assert!(cache.insert(cached).is_none());
+}
+
+#[test]
+#[cfg(all(wip_feature_std, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+fn freelist_reuse_is_tracked_and_collectible() {
+    #[pyclass(freelist = 2)]
+    struct CachedCycle {
+        cycle: Option<Py<Self>>,
+        _guard: DropGuard,
+    }
+
+    #[pymethods]
+    impl CachedCycle {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            visit.call(&self.cycle)
+        }
+
+        fn __clear__(&mut self) {
+            self.cycle = None;
+        }
+    }
+
+    for _ in 0..3 {
+        let (check, ptr) = Python::attach(|py| {
+            let (guard, check) = drop_check();
+            let fresh = Bound::new(
+                py,
+                CachedCycle {
+                    cycle: None,
+                    _guard: guard,
+                },
+            )
+            .unwrap();
+            assert_ne!(unsafe { ffi::PyObject_GC_IsTracked(fresh.as_ptr()) }, 0);
+            let ptr = fresh.as_ptr();
+            drop(fresh);
+            check.assert_dropped();
+            assert_cached::<CachedCycle>(py, ptr);
+
+            let (guard, check) = drop_check();
+            let reused = Bound::new(
+                py,
+                CachedCycle {
+                    cycle: None,
+                    _guard: guard,
+                },
+            )
+            .unwrap();
+            assert_eq!(reused.as_ptr(), ptr);
+            assert_ne!(unsafe { ffi::PyObject_GC_IsTracked(reused.as_ptr()) }, 0);
+            reused.borrow_mut().cycle = Some(reused.clone().unbind());
+            drop(reused);
+            (check, ptr)
+        });
+        check.assert_drops_with_gc(ptr);
+    }
+}
+
+#[test]
+#[cfg(all(wip_feature_std, not(all(windows, Py_LIMITED_API, not(Py_3_10)))))]
+fn freelist_reuse_initializes_all_rust_bases() {
+    #[pyclass(subclass, freelist = 2)]
+    struct Base {
+        marker: usize,
+        _guard: DropGuard,
+    }
+
+    #[pyclass(extends = Base, freelist = 2)]
+    struct Derived {
+        cycle: Option<Py<Self>>,
+        marker: String,
+        _guard: DropGuard,
+    }
+
+    #[pymethods]
+    impl Derived {
+        fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+            assert_eq!(self.marker, "initialized");
+            visit.call(&self.cycle)
+        }
+
+        fn __clear__(&mut self) {
+            self.cycle = None;
+        }
+    }
+
+    for marker in [37, 91, 123] {
+        let (check, base_check, ptr) = Python::attach(|py| {
+            let (base_guard, base_check) = drop_check();
+            let (guard, check) = drop_check();
+            let priming = Bound::new(
+                py,
+                PyClassInitializer::from(Base {
+                    marker: 0,
+                    _guard: base_guard,
+                })
+                .add_subclass(Derived {
+                    cycle: None,
+                    marker: "initialized".to_owned(),
+                    _guard: guard,
+                }),
+            )
+            .unwrap();
+            let ptr = priming.as_ptr();
+            drop(priming);
+            check.assert_dropped();
+            base_check.assert_dropped();
+            assert_cached::<Derived>(py, ptr);
+
+            let (base_guard, base_check) = drop_check();
+            let (guard, check) = drop_check();
+            let obj = Bound::new(
+                py,
+                PyClassInitializer::from(Base {
+                    marker,
+                    _guard: base_guard,
+                })
+                .add_subclass(Derived {
+                    cycle: None,
+                    marker: "initialized".to_owned(),
+                    _guard: guard,
+                }),
+            )
+            .unwrap();
+            assert_eq!(obj.as_ptr(), ptr);
+            assert_eq!(obj.borrow().as_super().marker, marker);
+            assert_ne!(unsafe { ffi::PyObject_GC_IsTracked(obj.as_ptr()) }, 0);
+            obj.borrow_mut().cycle = Some(obj.clone().unbind());
+            drop(obj);
+            (check, base_check, ptr)
+        });
+        check.assert_drops_with_gc(ptr);
+        base_check.assert_drops_with_gc(ptr);
+    }
 }
 
 /// Helper function to create a pair of objects that can be used to test drops;
