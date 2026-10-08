@@ -478,7 +478,11 @@ print("calcsize_pointer", struct.calcsize("P"))
 print("mingw", get_platform().startswith("mingw"))
 print("cygwin", get_platform().startswith("cygwin"))
 print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
-print("debug", hasattr(sys, "gettotalrefcount"))
+debug = get_config_var("Py_DEBUG")
+if debug is None:
+    # Windows before 3.13 does not expose Py_DEBUG in sysconfig.
+    debug = (get_config_var("EXT_SUFFIX") or "").startswith("_d.")
+print("debug", bool(debug))
 "#;
         let output = run_python_script(interpreter.as_ref(), SCRIPT)?;
         let map: HashMap<String, String> = parse_script_output(&output);
