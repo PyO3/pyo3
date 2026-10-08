@@ -1054,7 +1054,6 @@ impl PythonAbi {
     /// does not consult the `abi3`/`abi3t` cargo features. The minimum version
     /// must not exceed the interpreter version. Without a stable ABI the
     /// result is version-specific, free-threaded when `gil_disabled` is set.
-    /// `debug` selects the debug ABI for either kind.
     pub fn from_stable_abi(
         implementation: PythonImplementation,
         version: PythonVersion,
@@ -1431,10 +1430,18 @@ impl InterpreterConfigBuilder {
             target_abi
         } else {
             // No target ABI set, implementation, version and flags
-            PythonAbiBuilder::new(self.implementation, self.version)
+            let abi = PythonAbiBuilder::new(self.implementation, self.version)
                 .maybe_free_threaded(py_gil_disabled)
                 .maybe_debug(py_debug)
-                .finalize()?
+                .finalize()?;
+
+            if abi.kind().is_free_threaded() && !py_gil_disabled {
+                // e.g. RustPython only ever supports a free-threaded API, `.finalize()`
+                // above will force it
+                build_flags.0.insert(BuildFlag::Py_GIL_DISABLED);
+            }
+
+            abi
         };
 
         #[expect(
@@ -4662,5 +4669,28 @@ mod tests {
             assert_eq!(default_lib_name_for_target(abi, &unix), unix_name);
             assert_eq!(default_lib_name_for_target(abi, &windows), windows_name);
         }
+    }
+
+    #[test]
+    fn rustpython_default_abi_sets_free_threaded_flag() {
+        let config =
+            InterpreterConfigBuilder::new(PythonImplementation::RustPython, PythonVersion::PY315)
+                .finalize()
+                .unwrap();
+
+        assert!(config.is_free_threaded());
+        assert!(config.build_flags().0.contains(&BuildFlag::Py_GIL_DISABLED));
+    }
+
+    #[test]
+    fn rustpython_default_config_roundtrip() {
+        let config =
+            InterpreterConfigBuilder::new(PythonImplementation::RustPython, PythonVersion::PY315)
+                .finalize()
+                .unwrap();
+
+        let mut buf = Vec::new();
+        config.to_writer(&mut buf).unwrap();
+        assert_eq!(config, InterpreterConfig::from_reader(&*buf).unwrap());
     }
 }
