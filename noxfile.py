@@ -124,7 +124,18 @@ def test_rust(session: nox.Session):
 
     _run_cargo_test(session, package="pyo3-ffi", extra_flags=extra_flags)
 
+    env = os.environ.copy()
     extra_flags.append("--no-default-features")
+
+    if is_rust_nightly():
+        # Forcing doctest merge helps smoke test that merged doctests are running
+        # correctly. Requires a nightly flag; Rust 2024 edition will attempt to
+        # merge doctests but silently fall back if the merge fails due to e.g.
+        # symbol conflicts. Using `standalone_crate` can isolate problematic tests
+        # as a short-term workaround.
+        env["RUSTDOCFLAGS"] = (
+            env.get("RUSTDOCFLAGS", "") + " -Z unstable-options --merge-doctests=yes"
+        )
 
     for feature_set in _get_feature_sets():
         flags = extra_flags.copy()
@@ -139,7 +150,7 @@ def test_rust(session: nox.Session):
         # We need to pass the feature set to the test command
         # so that it can be used in the test code
         # (e.g. for `#[cfg(feature = "abi3-py39")]`)
-        _run_cargo_test(session, features=feature_set, extra_flags=flags)
+        _run_cargo_test(session, features=feature_set, extra_flags=flags, env=env)
 
         if feature_set is not None and "full" in feature_set:
             # UI tests can have different output depending on features enabled, but
@@ -149,6 +160,7 @@ def test_rust(session: nox.Session):
                 session,
                 features=feature_set.replace("full", "macros"),
                 extra_flags=[*extra_flags, "--test", "test_compile_error"],
+                env=env,
             )
 
         if (
@@ -164,6 +176,7 @@ def test_rust(session: nox.Session):
                 session,
                 features=feature_set.replace("abi3", "abi3-py39"),
                 extra_flags=flags,
+                env=env,
             )
 
         if (
@@ -232,6 +245,19 @@ def generate_coverage_report(session: nox.Session) -> None:
         "report",
         *posargs,
     )
+
+
+@nox.session(venv_backend="none")
+def fmt(session: nox.Session):
+    """Check formatting and lints."""
+    for name in (
+        "ruff",
+        "rustfmt",
+        "rumdl",
+        "check-test-features",
+        "typos",
+    ):
+        session.notify(name)
 
 
 @nox.session(venv_backend="none")
@@ -498,7 +524,9 @@ def test_emscripten(session: nox.Session):
             "-C link-arg=-sMAIN_MODULE=2",
         ]
     )
-    session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
+    session.env["RUSTDOCFLAGS"] = " ".join(
+        [session.env["RUSTFLAGS"], session.env.get("RUSTDOCFLAGS", "")]
+    )
     session.env["CARGO_BUILD_TARGET"] = target
     session.env["PYO3_CROSS_LIB_DIR"] = pythonlibdir
     _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
@@ -604,7 +632,9 @@ def test_wasm(session: nox.Session):
             "-C link-arg=-lexpat",
         ]
     )
-    session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
+    session.env["RUSTDOCFLAGS"] = " ".join(
+        [session.env["RUSTFLAGS"], session.env.get("RUSTDOCFLAGS", "")]
+    )
     _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
 
     _run(session, "cargo", "test", *session.posargs, external=True)
@@ -900,11 +930,18 @@ def check_guide(session: nox.Session):
     }
 
     excludes = [
+        # The current release tag may not exist yet (e.g. on the release PR itself).
+        rf"^https://github\.com/pyo3/pyo3/compare/[^/]+\.{{3}}v{re.escape(pyo3_version)}$",
         # exclude some old http links from copyright notices, known to fail
         "http://www.adobe.com/",
         "http://www.nhncorp.com/",
         # PR seems to be gone, possibly user deleted account?
         "https://github.com/PyO3/pyo3/pull/938",
+        # This article returns HTTP 202 on GitHub Actions runners.
+        (
+            r"^https://towardsdatascience\.com/"
+            r"nine-rules-for-writing-python-extensions-in-rust-d35ea3a4ec29/$"
+        ),
     ]
 
     common_args = (
@@ -1067,9 +1104,7 @@ def _format_ffi_extern(session: nox.Session, *, check: bool = False):
 
     # Run rustfmt on the modified files
     try:
-        _run(
-            session, "rustfmt", "--edition", "2021", *[str(f) for f in files_to_format]
-        )
+        _run(session, "rustfmt", *[str(f) for f in files_to_format])
     except Exception:
         # Restore originals on failure
         for path, content in originals.items():
@@ -1275,51 +1310,21 @@ def check_changelog(session: nox.Session):
 
 @nox.session(name="set-msrv-package-versions", venv_backend="none")
 def set_msrv_package_versions(session: nox.Session):
-    from collections import defaultdict
-
     projects = (
         PYO3_DIR,
         *(Path(p).parent for p in glob("examples/*/Cargo.toml")),
         *(Path(p).parent for p in glob("pyo3-ffi/examples/*/Cargo.toml")),
     )
-    min_pkg_versions = {}
 
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
     for project in projects:
         _run_cargo(
             session,
-            "+stable",
             "update",
             f"--manifest-path={project}/Cargo.toml",
             env=os.environ | {"CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS": "fallback"},
         )
-
-        lock_file = project / "Cargo.lock"
-
-        def load_pkg_versions():
-            cargo_lock = toml.loads(lock_file.read_text())  # noqa: B023
-            # Cargo allows to depends on multiple versions of the same package
-            pkg_versions = defaultdict(list)
-            for pkg in cargo_lock["package"]:
-                name = pkg["name"]
-                if name not in min_pkg_versions:
-                    continue
-                pkg_versions[name].append(pkg["version"])
-            return pkg_versions
-
-        pkg_versions = load_pkg_versions()
-        for pkg_name, min_version in min_pkg_versions.items():
-            versions = pkg_versions.get(pkg_name, [])
-            for version in versions:
-                if version != min_version:
-                    pkg_id = pkg_name + ":" + version
-                    _run_cargo_set_package_version(
-                        session, pkg_id, min_version, project=project
-                    )
-                    # assume `_run_cargo_set_package_version` has changed something
-                    # and re-read `Cargo.lock`
-                    pkg_versions = load_pkg_versions()
 
         # As a smoke test, cargo metadata solves all dependencies, so
         # will break if any crates rely on cargo features not
@@ -1493,6 +1498,9 @@ def _check_raw_dylib_macro(session: nox.Session):
         pypy_max_minor + 2,  # allow prerelease of next version
     ):
         expected_dlls.add(f"libpypy3.{minor}-c")
+
+    # GraalPy DLL (python-native.dll)
+    expected_dlls.add("python-native")
 
     # Parse the DLL name list in the extern_libpython!(@impl ...) invocation
     lib_rs = (PYO3_DIR / "pyo3-ffi" / "src" / "impl_" / "macros.rs").read_text()
@@ -2008,19 +2016,6 @@ def _run_cargo_test(
             test_env["PATH"] = os.pathsep.join((str(abi3t_compat), path))
 
     _run(session, *command, external=True, env=test_env)
-
-
-def _run_cargo_set_package_version(
-    session: nox.Session,
-    pkg_id: str,
-    version: str,
-    *,
-    project: str | None = None,
-) -> None:
-    command = ["cargo", "update", "-p", pkg_id, "--precise", version, "--workspace"]
-    if project:
-        command.append(f"--manifest-path={project}/Cargo.toml")
-    _run(session, *command, external=True)
 
 
 class Job(Protocol):

@@ -1,11 +1,11 @@
 use crate::sealed::Sealed;
 use crate::types::PyAnyMethods;
-use crate::{ffi, Bound, PyAny, PyResult, PyTypeInfo, Python};
+use crate::{Bound, PyAny, PyResult, PyTypeInfo, Python, ffi};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
 
 /// Represents a Python `range`.

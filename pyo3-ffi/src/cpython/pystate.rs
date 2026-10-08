@@ -1,6 +1,6 @@
+use crate::PyThreadState;
 #[cfg(all(Py_3_11, not(PyPy)))]
 use crate::cpython::pyframe::_PyInterpreterFrame;
-use crate::PyThreadState;
 use crate::{PyFrameObject, PyInterpreterState, PyObject};
 use core::ffi::c_int;
 

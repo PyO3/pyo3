@@ -1,16 +1,16 @@
 use super::any::PyAnyMethods;
+use crate::PyErr;
 use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
-use crate::PyErr;
 use crate::{
-    exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
-    types::typeobject::PyTypeMethods, Borrowed, FromPyObject, PyAny, Python,
+    Borrowed, FromPyObject, PyAny, Python, exceptions::PyTypeError, ffi, ffi_ptr_ext::FfiPtrExt,
+    instance::Bound, types::typeobject::PyTypeMethods,
 };
 #[cfg(RustPython)]
-use crate::{sync::PyOnceLock, types::PyType, Py};
+use crate::{Py, sync::PyOnceLock, types::PyType};
 use core::convert::Infallible;
 use core::ptr;
 
@@ -248,9 +248,9 @@ impl FromPyObject<'_, '_> for bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{PyAnyMethods, PyBool, PyBoolMethods};
     use crate::IntoPyObject;
     use crate::Python;
+    use crate::types::{PyAnyMethods, PyBool, PyBoolMethods};
 
     #[test]
     fn test_true() {
@@ -268,10 +268,12 @@ mod tests {
             assert!(!PyBool::new(py, false).is_true());
             let t = PyBool::new(py, false);
             assert!(!t.extract::<bool>().unwrap());
-            assert!(false
-                .into_pyobject(py)
-                .unwrap()
-                .is(&*PyBool::new(py, false)));
+            assert!(
+                false
+                    .into_pyobject(py)
+                    .unwrap()
+                    .is(&*PyBool::new(py, false))
+            );
         });
     }
 

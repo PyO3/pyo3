@@ -2,12 +2,12 @@
 use crate::py_result_ext::PyResultExt;
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
 use crate::types::any::PyAnyMethods;
-use crate::{ffi, Bound, PyAny, Python};
+use crate::{Bound, PyAny, Python, ffi};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
 use core::ffi::c_double;
 
@@ -146,7 +146,7 @@ mod not_limited_impls {
     #[cfg(test)]
     mod tests {
         use super::PyComplex;
-        use crate::{types::complex::PyComplexMethods, Python};
+        use crate::{Python, types::complex::PyComplexMethods};
         use assert_approx_eq::assert_approx_eq;
 
         #[test]
@@ -274,7 +274,7 @@ impl<'py> PyComplexMethods<'py> for Bound<'py, PyComplex> {
 #[cfg(test)]
 mod tests {
     use super::PyComplex;
-    use crate::{types::complex::PyComplexMethods, Python};
+    use crate::{Python, types::complex::PyComplexMethods};
     use assert_approx_eq::assert_approx_eq;
 
     #[test]

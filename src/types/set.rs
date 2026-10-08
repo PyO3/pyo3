@@ -1,18 +1,18 @@
 //! Python sets and related types.
 
 use crate::types::PyIterator;
+use crate::{BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python, ffi};
+#[cfg(RustPython)]
+use crate::{
+    Py,
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+};
 use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
     instance::Bound,
     py_result_ext::PyResultExt,
-};
-use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python};
-#[cfg(RustPython)]
-use crate::{
-    sync::PyOnceLock,
-    types::{PyType, PyTypeMethods},
-    Py,
 };
 use core::ptr;
 
@@ -165,55 +165,35 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
     where
         K: IntoPyObject<'py>,
     {
-        fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
-            match unsafe { ffi::PySet_Contains(set.as_ptr(), key.as_ptr()) } {
-                1 => Ok(true),
-                0 => Ok(false),
-                _ => Err(PyErr::fetch(set.py())),
-            }
-        }
-
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        match unsafe { ffi::PySet_Contains(self.as_ptr(), key.as_ptr()) } {
+            1 => Ok(true),
+            0 => Ok(false),
+            _ => Err(PyErr::fetch(py)),
+        }
     }
 
     fn discard<K>(&self, key: K) -> PyResult<bool>
     where
         K: IntoPyObject<'py>,
     {
-        fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
-            match unsafe { ffi::PySet_Discard(set.as_ptr(), key.as_ptr()) } {
-                1 => Ok(true),
-                0 => Ok(false),
-                _ => Err(PyErr::fetch(set.py())),
-            }
-        }
-
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        match unsafe { ffi::PySet_Discard(self.as_ptr(), key.as_ptr()) } {
+            1 => Ok(true),
+            0 => Ok(false),
+            _ => Err(PyErr::fetch(py)),
+        }
     }
 
     fn add<K>(&self, key: K) -> PyResult<()>
     where
         K: IntoPyObject<'py>,
     {
-        fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
-            err::error_on_minusone(set.py(), unsafe {
-                ffi::PySet_Add(set.as_ptr(), key.as_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        err::error_on_minusone(py, unsafe { ffi::PySet_Add(self.as_ptr(), key.as_ptr()) })
     }
 
     fn pop(&self) -> Option<Bound<'py, PyAny>> {
@@ -298,9 +278,9 @@ mod tests {
     use super::PySet;
     use crate::platform::collections::HashSet;
     use crate::{
+        Python,
         conversion::IntoPyObject,
         types::{PyAnyMethods, PySetMethods},
-        Python,
     };
 
     #[test]
@@ -387,9 +367,10 @@ mod tests {
             assert!(val.is_some());
             let val2 = set.pop();
             assert!(val2.is_none());
-            assert!(py
-                .eval(c"print('Exception state should not be set.')", None, None)
-                .is_ok());
+            assert!(
+                py.eval(c"print('Exception state should not be set.')", None, None)
+                    .is_ok()
+            );
         });
     }
 

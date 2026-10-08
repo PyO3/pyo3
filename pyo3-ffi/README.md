@@ -12,7 +12,7 @@ Manual][capi] for up-to-date documentation.
 
 # Minimum supported Rust and Python versions
 
-Requires Rust 1.83 or greater.
+Requires Rust 1.85 or greater.
 
 `pyo3-ffi` supports the following Python distributions:
   - CPython 3.9 or greater
@@ -41,12 +41,12 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3-ffi = "0.29.2"
+pyo3-ffi = "0.29.3"
 
 [build-dependencies]
 # This is only necessary if you need to configure your build based on
 # the Python version or the compile-time configuration for the interpreter.
-pyo3_build_config = "0.29.2"
+pyo3_build_config = "0.29.3"
 ```
 
 If you need to use conditional compilation based on Python version or how
@@ -145,14 +145,14 @@ static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
 // The module initialization function
 #[cfg(not(Py_3_15))]
 #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
     PyModuleDef_Init(&raw mut MODULE_DEF)
 }
 
 #[cfg(Py_3_15)]
 #[allow(non_snake_case, reason = "must be named `PyModExport_<your_module>`")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn PyModExport_string_sum() -> *mut PyModuleDef_Slot {
     (&raw mut SLOTS).cast()
 }

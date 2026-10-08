@@ -11,10 +11,10 @@
 //! This module provides synchronization primitives which are able to synchronize under these conditions.
 use crate::platform::sync::Once;
 use crate::{
+    Bound, Py, Python,
     internal::state::SuspendAttach,
     sealed::Sealed,
     types::{PyAny, PyString},
-    Bound, Py, Python,
 };
 use core::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit};
 
@@ -114,6 +114,16 @@ impl<T> GILOnceCell<T> {
     /// Get a reference to the contained value, or `None` if the cell has not yet been written.
     #[inline]
     pub fn get(&self, _py: Python<'_>) -> Option<&T> {
+        if self.once.is_completed() {
+            // SAFETY: the cell has been written.
+            Some(unsafe { (*self.data.get()).assume_init_ref() })
+        } else {
+            None
+        }
+    }
+
+    #[cfg(Py_3_12)]
+    pub(crate) fn get_during_gc(&self) -> Option<&T> {
         if self.once.is_completed() {
             // SAFETY: the cell has been written.
             Some(unsafe { (*self.data.get()).assume_init_ref() })
@@ -273,7 +283,7 @@ pub trait OnceExt: Sealed {
 
 /// Extension trait for [`std::sync::OnceLock`] which helps avoid deadlocks between the Python
 /// interpreter and initialization with the `OnceLock`.
-pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
+pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed<T> {
     /// Initializes this `OnceLock` with the given closure if it has not been initialized yet.
     ///
     /// If this function would block, this function detaches from the Python interpreter and
@@ -290,7 +300,7 @@ pub trait OnceLockExt<T>: once_lock_ext_sealed::Sealed {
 
 /// Extension trait for [`std::sync::Mutex`] which helps avoid deadlocks between
 /// the Python interpreter and acquiring the `Mutex`.
-pub trait MutexExt<T>: Sealed {
+pub trait MutexExt<T>: mutex_ext_sealed::Sealed<T> {
     /// The result type returned by the `lock_py_attached` method.
     type LockResult<'a>
     where
@@ -308,7 +318,7 @@ pub trait MutexExt<T>: Sealed {
 
 /// Extension trait for [`std::sync::RwLock`] which helps avoid deadlocks between
 /// the Python interpreter and acquiring the `RwLock`.
-pub trait RwLockExt<T>: rwlock_ext_sealed::Sealed {
+pub trait RwLockExt<T>: rwlock_ext_sealed::Sealed<T> {
     /// The result type returned by the `read_py_attached` method.
     type ReadLockResult<'a>
     where
@@ -403,6 +413,7 @@ impl OnceExt for parking_lot::Once {
     }
 }
 
+#[cfg(wip_feature_std)]
 impl<T> OnceLockExt<T> for std::sync::OnceLock<T> {
     fn get_or_init_py_attached<F>(&self, py: Python<'_>, f: F) -> &T
     where
@@ -433,7 +444,7 @@ impl<T> MutexExt<T> for std::sync::Mutex<T> {
         match self.try_lock() {
             Ok(inner) => return Ok(inner),
             Err(std::sync::TryLockError::Poisoned(inner)) => {
-                return std::sync::LockResult::Err(inner)
+                return std::sync::LockResult::Err(inner);
             }
             Err(std::sync::TryLockError::WouldBlock) => {}
         }
@@ -546,6 +557,7 @@ where
     }
 }
 
+#[cfg(wip_feature_std)]
 impl<T> RwLockExt<T> for std::sync::RwLock<T> {
     type ReadLockResult<'a>
         = std::sync::LockResult<std::sync::RwLockReadGuard<'a, T>>
@@ -565,7 +577,7 @@ impl<T> RwLockExt<T> for std::sync::RwLock<T> {
         match self.try_read() {
             Ok(inner) => return Ok(inner),
             Err(std::sync::TryLockError::Poisoned(inner)) => {
-                return std::sync::LockResult::Err(inner)
+                return std::sync::LockResult::Err(inner);
             }
             Err(std::sync::TryLockError::WouldBlock) => {}
         }
@@ -588,7 +600,7 @@ impl<T> RwLockExt<T> for std::sync::RwLock<T> {
         match self.try_write() {
             Ok(inner) => return Ok(inner),
             Err(std::sync::TryLockError::Poisoned(inner)) => {
-                return std::sync::LockResult::Err(inner)
+                return std::sync::LockResult::Err(inner);
             }
             Err(std::sync::TryLockError::WouldBlock) => {}
         }
@@ -725,6 +737,7 @@ where
     });
 }
 
+#[cfg(wip_feature_std)]
 #[cold]
 fn init_once_lock_py_attached<'a, F, T>(
     lock: &'a std::sync::OnceLock<T>,
@@ -741,31 +754,54 @@ where
 
     // By having detached here, we guarantee that `.get_or_init` cannot deadlock with
     // the Python interpreter
-    let value = lock.get_or_init(move || {
+    lock.get_or_init(move || {
         drop(ts_guard);
         f()
-    });
-
-    value
+    })
 }
 
+// The following seals are introduced because their traits have a type parameter `T`,
+// which means that to avoid downstream implementing bizarre types such as
+// `OnceLockExt<Local>` for `OnceLock<()>`, we need the seals to have the type parameter.
+//
+// Having separate traits also avoids weirder cases like `OnceLockExt<Local> for Mutex<Local>`.
+
 mod once_lock_ext_sealed {
-    pub trait Sealed {}
-    impl<T> Sealed for std::sync::OnceLock<T> {}
+    pub trait Sealed<T> {}
+    #[cfg(wip_feature_std)]
+    impl<T> Sealed<T> for std::sync::OnceLock<T> {}
+}
+
+pub(crate) mod mutex_ext_sealed {
+    pub trait Sealed<T> {}
+    #[allow(clippy::disallowed_types)]
+    #[cfg(wip_feature_std)]
+    impl<T> Sealed<T> for std::sync::Mutex<T> {}
+    #[cfg(feature = "lock_api")]
+    impl<R, T> Sealed<T> for lock_api::Mutex<R, T> {}
+    #[cfg(feature = "arc_lock")]
+    impl<R, T> Sealed<T> for alloc::sync::Arc<lock_api::Mutex<R, T>> {}
+    #[cfg(feature = "lock_api")]
+    impl<R, G, T> Sealed<T> for lock_api::ReentrantMutex<R, G, T> {}
+    #[cfg(feature = "arc_lock")]
+    impl<R, G, T> Sealed<T> for alloc::sync::Arc<lock_api::ReentrantMutex<R, G, T>> {}
 }
 
 mod rwlock_ext_sealed {
-    pub trait Sealed {}
-    impl<T> Sealed for std::sync::RwLock<T> {}
+    pub trait Sealed<T> {}
+    #[cfg(wip_feature_std)]
+    impl<T> Sealed<T> for std::sync::RwLock<T> {}
     #[cfg(feature = "lock_api")]
-    impl<R, T> Sealed for lock_api::RwLock<R, T> {}
+    impl<R, T> Sealed<T> for lock_api::RwLock<R, T> {}
     #[cfg(feature = "arc_lock")]
-    impl<R, T> Sealed for alloc::sync::Arc<lock_api::RwLock<R, T>> {}
+    impl<R, T> Sealed<T> for alloc::sync::Arc<lock_api::RwLock<R, T>> {}
 }
 
 #[allow(clippy::disallowed_types, reason = "tests")]
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::*;
 
     use crate::types::{PyAnyMethods, PyDict, PyDictMethods};
@@ -1034,6 +1070,7 @@ mod tests {
         assert_eq!(*guard, 42);
     }
 
+    #[cfg(wip_feature_std)]
     #[cfg(feature = "macros")]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
@@ -1068,6 +1105,7 @@ mod tests {
         });
     }
 
+    #[cfg(wip_feature_std)]
     #[cfg(feature = "macros")]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
@@ -1239,6 +1277,7 @@ mod tests {
         );
     }
 
+    #[cfg(wip_feature_std)]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     #[test]
     fn test_rwlock_ext_poison() {

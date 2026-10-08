@@ -5,6 +5,8 @@
 use crate::platform::prelude::*;
 use crate::platform::thread;
 use crate::{
+    Borrowed, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr,
+    PyResult, PyTypeCheck, PyTypeInfo, Python,
     exceptions::{PyAttributeError, PyNotImplementedError, PyRuntimeError},
     ffi,
     ffi_ptr_ext::FfiPtrExt,
@@ -15,11 +17,9 @@ use crate::{
         pymethods::{PyGetterDef, PyMethodDefType},
     },
     internal::pyclass_init::PyObjectInit,
-    pycell::{impl_::PyClassObjectLayout, PyBorrowError},
+    pycell::{PyBorrowError, impl_::PyClassObjectLayout},
     pyclass::PyClassGuardError,
-    types::{any::PyAnyMethods, PyBool},
-    Borrowed, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyClass, PyClassGuard, PyErr,
-    PyResult, PyTypeCheck, PyTypeInfo, Python,
+    types::{PyBool, any::PyAnyMethods},
 };
 
 use core::ops::DerefMut;
@@ -38,7 +38,7 @@ mod probes;
 mod traverse;
 
 pub use assertions::*;
-pub use lazy_type_object::{pyclass_type_object_raw, type_object_init_failed, LazyTypeObject};
+pub use lazy_type_object::{LazyTypeObject, pyclass_type_object_raw, type_object_init_failed};
 pub use probes::*;
 pub use traverse::PyClassTraverse;
 
@@ -1269,12 +1269,12 @@ pub struct PyClassGetterGenerator<
 >(PhantomData<(ClassT, FieldT)>);
 
 impl<
-        ClassT: PyClass,
-        FieldT,
-        const OFFSET: usize,
-        const IS_PY_T: bool,
-        const IMPLEMENTS_INTOPYOBJECT_REF: bool,
-    > PyClassGetterGenerator<ClassT, FieldT, OFFSET, IS_PY_T, IMPLEMENTS_INTOPYOBJECT_REF>
+    ClassT: PyClass,
+    FieldT,
+    const OFFSET: usize,
+    const IS_PY_T: bool,
+    const IMPLEMENTS_INTOPYOBJECT_REF: bool,
+> PyClassGetterGenerator<ClassT, FieldT, OFFSET, IS_PY_T, IMPLEMENTS_INTOPYOBJECT_REF>
 {
     /// Safety: constructing this type requires that there exists a value of type FieldT
     /// at the calculated offset within the type ClassT.
@@ -1283,12 +1283,8 @@ impl<
     }
 }
 
-impl<
-        ClassT: PyClass,
-        U: PyTypeCheck,
-        const OFFSET: usize,
-        const IMPLEMENTS_INTOPYOBJECT_REF: bool,
-    > PyClassGetterGenerator<ClassT, Py<U>, OFFSET, true, IMPLEMENTS_INTOPYOBJECT_REF>
+impl<ClassT: PyClass, U: PyTypeCheck, const OFFSET: usize, const IMPLEMENTS_INTOPYOBJECT_REF: bool>
+    PyClassGetterGenerator<ClassT, Py<U>, OFFSET, true, IMPLEMENTS_INTOPYOBJECT_REF>
 {
     /// `Py<T>` fields have a potential optimization to use Python's "struct members" to read
     /// the field directly from the struct, rather than using a getter function.
@@ -1501,6 +1497,7 @@ impl ConvertField<false> {
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
+    use crate::impl_::pymethods::Getter;
     #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     use crate::pycell::impl_::PyClassObjectContents;
 
@@ -1602,15 +1599,10 @@ mod tests {
         assert_eq!(def.name, c"my_field");
         assert_eq!(def.doc, Some(c"My field doc"));
 
-        #[cfg(fn_ptr_eq)]
-        {
-            use crate::impl_::pymethods::Getter;
-
-            assert!(core::ptr::fn_addr_eq(
-                def.meth,
-                pyo3_get_value_into_pyobject_ref::<MyClass, i32, FIELD_OFFSET> as Getter
-            ));
-        }
+        assert!(core::ptr::fn_addr_eq(
+            def.meth,
+            pyo3_get_value_into_pyobject_ref::<MyClass, i32, FIELD_OFFSET> as Getter
+        ));
 
         // generate for a field via `IntoPyObject` + `Clone`
         // SAFETY: offset is correct
@@ -1623,15 +1615,10 @@ mod tests {
         assert_eq!(def.name, c"my_field");
         assert_eq!(def.doc, Some(c"My field doc"));
 
-        #[cfg(fn_ptr_eq)]
-        {
-            use crate::impl_::pymethods::Getter;
-
-            assert!(core::ptr::fn_addr_eq(
-                def.meth,
-                pyo3_get_value_into_pyobject::<MyClass, String, FIELD_OFFSET> as Getter
-            ));
-        }
+        assert!(core::ptr::fn_addr_eq(
+            def.meth,
+            pyo3_get_value_into_pyobject::<MyClass, String, FIELD_OFFSET> as Getter
+        ));
     }
 
     #[test]
@@ -1688,14 +1675,9 @@ mod tests {
         assert_eq!(def.name, c"my_field");
         assert_eq!(def.doc, Some(c"My field doc"));
 
-        #[cfg(fn_ptr_eq)]
-        {
-            use crate::impl_::pymethods::Getter;
-
-            assert!(core::ptr::fn_addr_eq(
-                def.meth,
-                pyo3_get_value_into_pyobject_ref::<MyClass, Py<PyAny>, FIELD_OFFSET> as Getter
-            ));
-        }
+        assert!(core::ptr::fn_addr_eq(
+            def.meth,
+            pyo3_get_value_into_pyobject_ref::<MyClass, Py<PyAny>, FIELD_OFFSET> as Getter
+        ));
     }
 }

@@ -1,19 +1,19 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::py_expr::PyExpr;
 use crate::{
-    attributes::{kw, KeywordAttribute},
+    attributes::{KeywordAttribute, kw},
     method::FnArg,
     utils::expr_to_python,
 };
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::{
+    Expr, Token,
     ext::IdentExt,
     parse::{Parse, ParseStream},
     parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
-    Expr, Token,
 };
 
 #[derive(Clone)]
@@ -519,10 +519,10 @@ impl<'a> FunctionSignature<'a> {
                     if let Some((_, annotation)) = &varargs.colon_and_annotation {
                         let FnArg::VarArgs(fn_arg) = fn_arg else {
                             unreachable!(
-                                    "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                                "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
                                 parsed and transformed below. Because the have to come last and are only allowed \
                                 once, this has to be a regular argument."
-                                );
+                            );
                         };
                         fn_arg.annotation = Some(annotation.as_type_hint());
                     }
@@ -535,10 +535,10 @@ impl<'a> FunctionSignature<'a> {
                     if let Some((_, annotation)) = &kwargs.colon_and_annotation {
                         let FnArg::KwArgs(fn_arg) = fn_arg else {
                             unreachable!(
-                                    "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                                "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
                                 parsed and transformed below. Because the have to come last and are only allowed \
                                 once, this has to be a regular argument."
-                                );
+                            );
                         };
                         fn_arg.annotation = Some(annotation.as_type_hint());
                     }

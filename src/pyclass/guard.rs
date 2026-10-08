@@ -5,11 +5,11 @@ use crate::impl_::pycell::PyClassObjectBaseLayout as _;
 use crate::impl_::pyclass::PyClassImpl;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
-use crate::pycell::impl_::PyClassObjectLayout as _;
 use crate::pycell::PyBorrowMutError;
-use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
+use crate::pycell::impl_::PyClassObjectLayout as _;
+use crate::pycell::{PyBorrowError, impl_::PyClassBorrowChecker};
 use crate::pyclass::boolean_struct::False;
-use crate::{ffi, Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyClass, PyErr};
+use crate::{Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyClass, PyErr, ffi};
 use core::convert::Infallible;
 use core::fmt;
 use core::marker::PhantomData;
@@ -938,7 +938,7 @@ impl<U: ?Sized> Drop for PyClassGuardMapMut<'_, U> {
 #[cfg(feature = "macros")]
 mod tests {
     use super::{PyClassGuard, PyClassGuardMut};
-    use crate::{types::PyAnyMethods as _, Bound, IntoPyObject as _, Py, PyErr, Python};
+    use crate::{Bound, IntoPyObject as _, Py, PyErr, Python, types::PyAnyMethods as _};
 
     #[test]
     fn test_into_frozen_super_released_borrow() {

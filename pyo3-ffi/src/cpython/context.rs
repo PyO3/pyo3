@@ -1,6 +1,6 @@
+use crate::Py_IS_TYPE;
 use crate::object::PyObject;
 use crate::object::PyTypeObject;
-use crate::Py_IS_TYPE;
 #[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
 use core::ffi::c_uint;
 use core::ffi::{c_char, c_int};

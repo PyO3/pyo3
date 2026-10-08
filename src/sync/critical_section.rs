@@ -45,7 +45,7 @@ use crate::sync::PyMutex;
 
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use crate::Python;
-use crate::{types::PyAny, Bound};
+use crate::{Bound, types::PyAny};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use core::cell::UnsafeCell;
 
@@ -269,6 +269,8 @@ where
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     #[cfg(feature = "macros")]
     use super::{with_critical_section, with_critical_section2};
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]

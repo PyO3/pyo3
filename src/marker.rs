@@ -129,7 +129,7 @@ use crate::types::{
     PyType,
 };
 use crate::version::PythonVersionInfo;
-use crate::{ffi, Bound, Py, PyTypeInfo};
+use crate::{Bound, Py, PyTypeInfo, ffi};
 use core::ffi::CStr;
 use core::marker::PhantomData;
 
@@ -796,6 +796,8 @@ impl<'unbound> Python<'unbound> {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::*;
     use crate::platform::prelude::*;
     use crate::{

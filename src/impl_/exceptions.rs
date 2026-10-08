@@ -1,4 +1,4 @@
-use crate::{sync::PyOnceLock, types::PyType, Bound, Py, Python};
+use crate::{Bound, Py, Python, sync::PyOnceLock, types::PyType};
 
 pub struct ImportedExceptionTypeObject {
     imported_value: PyOnceLock<Py<PyType>>,
