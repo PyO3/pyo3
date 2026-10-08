@@ -39,7 +39,7 @@ impl<'py> PyFrozenSetBuilder<'py> {
     {
         let py = self.py_frozen_set.py();
         let key = key.into_pyobject_or_pyerr(py)?;
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PySet_Add(self.py_frozen_set.as_ptr(), key.as_ptr())
         })
     }

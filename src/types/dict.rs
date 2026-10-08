@@ -70,7 +70,7 @@ impl PyDict {
     pub fn from_sequence<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
         let py = seq.py();
         let dict = Self::new(py);
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyDict_MergeFromSeq2(dict.as_ptr(), seq.as_ptr(), 1)
         })?;
         Ok(dict)
@@ -275,7 +275,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         let py = self.py();
         let key = key.into_pyobject_or_pyerr(py)?;
         let value = value.into_pyobject_or_pyerr(py)?;
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyDict_SetItem(self.as_ptr(), key.as_ptr(), value.as_ptr())
         })
     }
@@ -286,7 +286,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     {
         let py = self.py();
         let key = key.into_pyobject_or_pyerr(py)?;
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyDict_DelItem(self.as_ptr(), key.as_ptr())
         })
     }
@@ -347,13 +347,13 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     }
 
     fn update(&self, other: &Bound<'_, PyMapping>) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
+        err::error_on_negative(self.py(), unsafe {
             ffi::PyDict_Update(self.as_ptr(), other.as_ptr())
         })
     }
 
     fn update_if_missing(&self, other: &Bound<'_, PyMapping>) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
+        err::error_on_negative(self.py(), unsafe {
             ffi::PyDict_Merge(self.as_ptr(), other.as_ptr(), 0)
         })
     }
@@ -366,7 +366,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         let py = self.py();
         let key = key.into_pyobject_or_pyerr(py)?;
         let value = default_value.into_pyobject_or_pyerr(py)?;
-        setdefault_result_from_nonerror_return_code(err::error_on_minusone_with_result(
+        setdefault_result_from_nonerror_return_code(err::error_on_negative_with_result(
             py,
             unsafe {
                 ffi::compat::PyDict_SetDefaultRef(
@@ -393,7 +393,7 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         let value = default_value.into_pyobject_or_pyerr(py)?;
         let mut result = core::ptr::dangling_mut();
         let code = setdefault_result_from_nonerror_return_code(
-            err::error_on_minusone_with_result(py, unsafe {
+            err::error_on_negative_with_result(py, unsafe {
                 ffi::compat::PyDict_SetDefaultRef(
                     self.as_ptr(),
                     key.as_ptr(),

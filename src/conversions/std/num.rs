@@ -460,7 +460,7 @@ pub(crate) fn pylong_visit_digits<R>(
 ) -> PyResult<R> {
     let mut long_export = MaybeUninit::<ffi::PyLongExport>::uninit();
     unsafe {
-        crate::err::error_on_minusone(
+        crate::err::error_on_negative(
             obj.py(),
             ffi::PyLong_Export(obj.as_ptr(), long_export.as_mut_ptr()),
         )?;
@@ -643,7 +643,7 @@ mod fast_128bit_int_conversion {
                     let mut buffer = [0u8; core::mem::size_of::<$rust_type>()];
                     #[cfg(not(Py_3_13))]
                     {
-                        crate::err::error_on_minusone(ob.py(), unsafe {
+                        crate::err::error_on_negative(ob.py(), unsafe {
                             ffi::_PyLong_AsByteArray(
                                 num.as_ptr() as *mut ffi::PyLongObject,
                                 buffer.as_mut_ptr(),

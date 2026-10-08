@@ -46,7 +46,7 @@ use crate::{
     sync::PyOnceLock,
     types::{PyDict, any::PyAnyMethods, dict::PyDictMethods},
 };
-use crate::{err::error_on_minusone, py_result_ext::PyResultExt};
+use crate::{err, py_result_ext::PyResultExt};
 
 /// `Sync` wrapper of `ffi::PyModuleDef`.
 pub struct ModuleDef {
@@ -139,7 +139,7 @@ impl ModuleDef {
             {
                 let current_interpreter =
                     unsafe { ffi::PyInterpreterState_GetID(ffi::PyInterpreterState_Get()) };
-                crate::err::error_on_minusone(py, current_interpreter)?;
+                err::error_on_negative(py, current_interpreter)?;
                 if let Err(initialized_interpreter) = self.interpreter.compare_exchange(
                     -1,
                     current_interpreter,
@@ -189,7 +189,7 @@ impl ModuleDef {
                 }?;
 
                 // SAFETY: module is a known valid module object
-                error_on_minusone(py, unsafe {
+                err::error_on_negative(py, unsafe {
                     cfg_select! {
                         Py_3_15 => ffi::PyModule_Exec(module.as_ptr()),
                         not(Py_3_15) => ffi::PyModule_ExecDef(module.as_ptr(), self.ffi_def.get()),

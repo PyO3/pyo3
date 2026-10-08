@@ -199,7 +199,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     /// Equivalent to the Python expression `issubclass(self, other)`.
     fn is_subclass(&self, other: &Bound<'_, PyAny>) -> PyResult<bool> {
         let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), other.as_ptr()) };
-        err::error_on_minusone(self.py(), result)?;
+        err::error_on_negative(self.py(), result)?;
         Ok(result == 1)
     }
 
