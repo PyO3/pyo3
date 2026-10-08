@@ -102,10 +102,7 @@ def _stage_crates():
             dependency = f"{name}-{api}-rs"
             crate = f"{name}-{version}"
             shutil.unpack_archive(
-                target / "package" / f"{crate}.crate",
-                subprojects,
-                format="gztar",
-                filter="data",
+                target / "package" / f"{crate}.crate", subprojects, format="gztar"
             )
             (subprojects / f"{dependency}.wrap").write_text(
                 f"[wrap-file]\ndirectory = {crate}\nmethod = cargo\n"
