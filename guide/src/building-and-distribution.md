@@ -66,6 +66,10 @@ Caused by:
   version=3.14
   shared=true
   target_abi=CPython-free_threaded-3.14
+  interpreter_abi=CPython-free_threaded-3.14
+  soabi_filename=.cpython-314t-darwin.so
+  ext_suffix=.cpython-314t-darwin.so
+  extension_module_loader=so
   lib_name=python3.14t
   lib_dir=/Users/goldbaum/.pyenv/versions/3.14.5t/lib
   executable=/Users/goldbaum/.pyenv/versions/3.14.5t/bin/python
@@ -165,6 +169,26 @@ $ python -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"))'
 So, for example, a valid module library name on CPython 3.10 for macOS is `your_module.cpython-310-darwin.so`, and its equivalent when compiled for PyPy 7.3 on Linux would be `your_module.pypy38-pp73-x86_64-linux-gnu.so`.
 
 See [PEP 3149](https://peps.python.org/pep-3149/) for more background on platform tags.
+
+Build scripts can obtain the appropriate filename suffix from
+[`InterpreterConfig::soabi_filename()`](https://docs.rs/pyo3-build-config/{{#PYO3_DOCS_VERSION}}/pyo3_build_config/struct.InterpreterConfig.html#method.soabi_filename).
+Append this suffix to the module name; it already includes the shared library extension.
+For CPython stable ABI builds targeting Python 3.15 or newer, this may include a platform tag such as `.abi3-x86_64-linux-gnu.so` or `.abi3t-darwin.so`.
+An older minimum Python version or an unknown platform uses the legacy stable ABI suffix.
+PyPy, GraalPy, and RustPython use their own interpreter suffixes.
+Windows stable ABI builds use `.pyd` (or `_d.pyd` for debug builds).
+For Cygwin, the accessor uses the portable `.dll` suffix; some Cygwin interpreters also accept tagged DLL names.
+During cross-compilation the suffix is derived from the target's metadata.
+The accessor returns `None` when a version-specific target suffix is unknown.
+Configuration files preserve `interpreter_abi`, including its debug state, independently of the filename metadata, so ABI selection does not depend on whether `EXT_SUFFIX` is available.
+The original `ext_suffix`, `extension_module_loader`, and `soabi_platform` remain available even when the computed filename is unknown.
+Returning to a stable ABI can therefore recover its filename after saving an intermediate configuration.
+The loader values are `so`, `pyd`, and `dll`; the target ABI determines whether a Windows suffix uses `_d`.
+Older `pyd_debug` loader values are read as `pyd` with a debug ABI.
+An original suffix and ABI take precedence over a saved computed value.
+Without both, an explicitly saved suffix is preserved until the target ABI changes.
+When reading older configurations, the saved suffix may initialize the loader; the loader is then stored separately.
+The old `ext_suffix_abi` key is accepted as an alias for `interpreter_abi`; conflicting values are rejected.
 
 #### macOS
 
