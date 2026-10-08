@@ -101,15 +101,26 @@ impl PyList {
 
         let list = unsafe { ffi::PyList_New(len).assume_owned(py).cast_into_unchecked() };
 
-        let count = (&mut elements)
-            .take(len as usize)
-            .try_fold(0, |count, item| unsafe {
-                #[cfg(not(Py_LIMITED_API))]
-                ffi::PyList_SET_ITEM(list.as_ptr(), count, item?.into_ptr());
-                #[cfg(Py_LIMITED_API)]
-                ffi::PyList_SetItem(list.as_ptr(), count, item?.into_ptr());
-                Ok::<_, PyErr>(count + 1)
-            })?;
+        let mut fill = || {
+            (&mut elements)
+                .take(len as usize)
+                .try_fold(0, |count, item| unsafe {
+                    #[cfg(not(Py_LIMITED_API))]
+                    ffi::PyList_SET_ITEM(list.as_ptr(), count, item?.into_ptr());
+                    #[cfg(Py_LIMITED_API)]
+                    ffi::PyList_SetItem(list.as_ptr(), count, item?.into_ptr());
+                    Ok::<_, PyErr>(count + 1)
+                })
+        };
+
+        // Holding the critical section around the whole loop turns each acquisition
+        // inside PyList_SetItem into a recursive acquisition, which is cheaper.
+        // The outer acquisition only pays off from about four elements.
+        let count = if cfg!(all(Py_LIMITED_API, Py_GIL_DISABLED)) && len >= 4 {
+            crate::sync::critical_section::with_critical_section(list.as_any(), fill)?
+        } else {
+            fill()?
+        };
 
         assert_eq!(
             len, count,
@@ -1529,6 +1540,36 @@ mod tests {
             0,
             "Some destructors did not run"
         );
+    }
+
+    #[test]
+    fn failing_intopyobject_returns_error() {
+        use crate::IntoPyObjectExt;
+        use crate::exceptions::PyValueError;
+
+        struct MaybeBad(usize);
+
+        impl<'py> IntoPyObject<'py> for MaybeBad {
+            type Target = crate::PyAny;
+            type Output = crate::Bound<'py, Self::Target>;
+            type Error = crate::PyErr;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                if self.0 == 2 {
+                    return Err(PyValueError::new_err("bad element"));
+                }
+                self.0.into_bound_py_any(py)
+            }
+        }
+
+        Python::attach(|py| {
+            // Lists with and without the outer critical section on abi3t
+            for len in [5, 3] {
+                let err = PyList::new(py, (0..len).map(MaybeBad)).unwrap_err();
+                assert!(err.is_instance_of::<PyValueError>(py));
+            }
+            assert_eq!(PyList::new(py, (0..2).map(MaybeBad)).unwrap().len(), 2);
+        });
     }
 
     #[test]
