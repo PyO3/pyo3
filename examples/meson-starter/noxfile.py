@@ -9,6 +9,14 @@ def python(session):
     if sys.version_info < (3, 10):
         session.skip("Meson 1.12 requires Python 3.10 or newer")
 
+    # FIXME: this can be dropped if meson supports path dependencies properly
+    # (along with _build_backend.py)
+    rustc_version = session.run("rustc", "--version", silent=True).split()[1]
+    if rustc_version < "1.87.0":
+        session.skip(
+            "_build_backend.py requires Rust 1.87 or newer for `cargo package --exclude-lockfile`"
+        )
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--features")
     args = parser.parse_args(session.posargs)
