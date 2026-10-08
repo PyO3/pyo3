@@ -9,6 +9,10 @@ def python(session):
     if sys.version_info < (3, 10):
         session.skip("Meson 1.12 requires Python 3.10 or newer")
 
+    if sys.platform == "win32" and sys.maxsize < 2**32:
+        # TODO: could implement this with some effort
+        session.skip("Windows x86 requires Meson cross-compilation configuration")
+
     # FIXME: this can be dropped if meson supports path dependencies properly
     # (along with _build_backend.py)
     rustc_version = session.run("rustc", "--version", silent=True).split()[1]
