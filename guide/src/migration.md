@@ -3,7 +3,7 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
-## from 0.29.* to 0.30
+## from 0.30.* to 0.31
 
 ### Removed methods from `PyBuffer<T>`: `as_slice`, `as_mut_slice`, `as_fortran_slice`, and `as_fortran_mut_slice`
 
