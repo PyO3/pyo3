@@ -228,3 +228,13 @@ macro_rules! append_to_inittab {
         }
     };
 }
+
+/// Create a [`PyModuleInitInfo`](crate::init_config::PyModuleInitInfo) to be used with
+/// [`PyInitConfig::add_module`](crate::init_config::PyInitConfig::add_module).
+#[cfg(all(Py_3_14, not(any(PyPy, GraalPy))))]
+#[macro_export]
+macro_rules! pymodule_init_info {
+    ($module:ident) => {
+        $crate::init_config::PyModuleInitInfo::new($module::__PYO3_NAME, $module::__pyo3_init)
+    };
+}

@@ -288,7 +288,7 @@ extern_libpython! {
     pub fn PyInitConfig_AddModule(
         config: *mut PyInitConfig,
         name: *const c_char,
-        initfunc: extern "C" fn() -> *mut PyObject,
+        initfunc: unsafe extern "C" fn() -> *mut PyObject,
     ) -> c_int;
 
     pub fn Py_InitializeFromInitConfig(config: *mut PyInitConfig) -> c_int;
