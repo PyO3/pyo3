@@ -6,7 +6,7 @@ use crate::platform::thread::{self, ThreadId};
 use core::{ffi::CStr, marker::PhantomData};
 
 use crate::err;
-use crate::platform::sync::non_poison::Mutex;
+use crate::platform::sync::nonpoison::Mutex;
 #[allow(deprecated)]
 use crate::sync::GILOnceCell;
 #[cfg(Py_3_14)]
