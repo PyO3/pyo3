@@ -1,0 +1,1 @@
+option('features', type: 'array', value: [], description: 'Cargo features to enable')

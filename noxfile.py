@@ -204,12 +204,14 @@ def test_py(session: nox.Session) -> None:
     extra_args = ("--", f"--features={features}") if features else ()
 
     _run(session, "nox", "-f", "pytests/noxfile.py", *extra_args, external=True)
+
+    for example in glob("pyo3-ffi/examples/*/noxfile.py"):
+        _run(session, "nox", "-f", example, external=True)
+
     for example in glob("examples/*/noxfile.py"):
         if _is_no_std() and example.startswith("examples/setuptools-rust-starter"):
             continue
         _run(session, "nox", "-f", example, *extra_args, external=True)
-    for example in glob("pyo3-ffi/examples/*/noxfile.py"):
-        _run(session, "nox", "-f", example, external=True)
 
 
 @nox.session(venv_backend="none")

@@ -1,0 +1,20 @@
+[package]
+name = "meson-starter"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+
+[lib]
+name = "meson_starter"
+crate-type = ["cdylib"]
+
+[dependencies]
+# The build backend supplies the checkout's crates and lockfile.
+pyo3 = "*"
+
+[features]
+abi3 = ["pyo3/abi3-py39"]
+hashbrown = ["pyo3/hashbrown"]
+parking_lot = ["pyo3/parking_lot"]
+
+[workspace]
