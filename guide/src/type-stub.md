@@ -81,12 +81,10 @@ PyO3 also provides the smaller `pyo3-introspection` binary that allows to genera
 
 ## Protocols
 
-A `FromPyObject` implementation that accepts any object with some methods can describe them as a [`typing.Protocol`](https://typing.python.org/en/latest/spec/protocol.html) with `pyprotocol!`, which also works in library crates:
+`pyprotocol!` declares a [`typing.Protocol`](https://typing.python.org/en/latest/spec/protocol.html) for objects a `FromPyObject` implementation accepts by their methods.
+It also works in library crates:
 
 ```rust,ignore
-use pyo3::prelude::*;
-use pyo3::types::PyBytes;
-
 pyo3::pyprotocol! {
     /// A binary stream that can be read from and written to
     pub SupportsReadWrite {
@@ -96,17 +94,9 @@ pyo3::pyprotocol! {
     }
 }
 
-pub struct ReadWriteFile<'py>(Bound<'py, PyAny>);
-
 impl<'py> FromPyObject<'_, 'py> for ReadWriteFile<'py> {
-    type Error = PyErr;
-
-    #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: pyo3::inspect::PyStaticExpr = SupportsReadWrite::TYPE_HINT;
-
-    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
-        Ok(Self(obj.to_owned()))
-    }
+    const INPUT_TYPE: PyStaticExpr = SupportsReadWrite::TYPE_HINT;
+    // ...
 }
 ```
 
@@ -123,31 +113,13 @@ class SupportsReadWrite(Protocol):
     def write(self, data: bytes, /) -> SupportsIndex: ...
 ```
 
-The methods describe calls made from Rust, so argument types use `IntoPyObject::OUTPUT_TYPE` and return types `FromPyObject::INPUT_TYPE`.
-Parameters are positional-only unless a `#[pyo3(signature = (...))]` is given, so that implementations can name them freely.
-A protocol can extend other protocols, given as `PyStaticExpr` constants in parentheses after its name, for example typeshed's [`SupportsRead` and `SupportsWrite`](https://github.com/python/typeshed/tree/main/stdlib/_typeshed) or another `pyprotocol!`:
-
-```rust,ignore
-pyo3::pyprotocol! {
-    pub SupportsReadWriteClose(
-        pyo3::type_hint_subscript!(
-            pyo3::type_hint_identifier!("_typeshed", "SupportsRead"),
-            pyo3::type_hint_identifier!("builtins", "bytes")
-        ),
-        pyo3::type_hint_subscript!(
-            pyo3::type_hint_identifier!("_typeshed", "SupportsWrite"),
-            pyo3::type_hint_identifier!("builtins", "bytes")
-        ),
-        SupportsClose::TYPE_HINT,
-    ) {}
-}
-```
-
-which generates `class SupportsReadWriteClose(SupportsRead[bytes], SupportsWrite[bytes], SupportsClose, Protocol)`: `typing.Protocol` is always added as the last base.
-
-A protocol only appears in the stubs if a type hint refers to it, and its name must not clash with another member of the root module.
-The protocol only exists in the stubs, so it is marked with [`@typing.type_check_only`](https://docs.python.org/3/library/typing.html#typing.type_check_only): it can be imported in an `if TYPE_CHECKING:` block and used in annotations, but importing it at runtime fails.
-Use `#[pyo3(name = "...")]` to rename it, e.g. to a private `_SupportsReadWrite`.
+- The methods describe calls made from Rust, so argument types use `IntoPyObject::OUTPUT_TYPE` and return types `FromPyObject::INPUT_TYPE`.
+  Parameters are positional-only unless a `#[pyo3(signature = (...))]` is given, so that implementations can name them freely.
+- Protocols to extend are listed as `PyStaticExpr` constants after the name, e.g. `pub SupportsReadClose(SupportsRead::TYPE_HINT, SupportsClose::TYPE_HINT) {}`, or typeshed's protocols built with `type_hint_identifier!`.
+  `typing.Protocol` is added as the last base.
+- A protocol only appears in the stubs if a type hint refers to it, and its name must not clash with another member of the root module.
+  `#[pyo3(name = "...")]` renames it.
+- It only exists in the stubs, hence [`@type_check_only`](https://docs.python.org/3/library/typing.html#typing.type_check_only): it can be imported in an `if TYPE_CHECKING:` block, but not at runtime.
 
 ## Constraints and limitations
 

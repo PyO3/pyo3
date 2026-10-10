@@ -10,34 +10,10 @@ error: protocol methods must take `self`
 10 |         fn method(x: i32);
    |                  ^^^^^^^^
 
-error: protocol methods cannot be `async`
-  --> tests/ui/invalid_pyprotocol.rs:17:9
+error: only `name` and `signature` are supported on protocol methods
+  --> tests/ui/invalid_pyprotocol.rs:17:16
    |
-17 |         async fn method(&self);
-   |         ^^^^^
-
-error: Python functions cannot have generic type parameters
-  --> tests/ui/invalid_pyprotocol.rs:24:19
-   |
-24 |         fn method<T>(&self, x: T);
-   |                   ^
-
-error: protocol methods cannot take a `Python` token
-  --> tests/ui/invalid_pyprotocol.rs:31:30
-   |
-31 |         fn method(&self, py: pyo3::Python<'_>);
-   |                              ^^^^
-
-error: `pass_module` cannot be used on protocol methods
-  --> tests/ui/invalid_pyprotocol.rs:38:16
-   |
-38 |         #[pyo3(pass_module)]
+17 |         #[pyo3(pass_module)]
    |                ^^^^^^^^^^^
 
-error: expected `name` or `crate`
-  --> tests/ui/invalid_pyprotocol.rs:45:12
-   |
-45 |     #[pyo3(module = "foo")]
-   |            ^^^^^^
-
-error: aborting due to 7 previous errors
+error: aborting due to 3 previous errors

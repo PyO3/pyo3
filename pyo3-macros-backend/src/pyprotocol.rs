@@ -1,6 +1,5 @@
 //! `pyprotocol!`: declares a `typing.Protocol` that only exists in the generated type stubs.
 
-use crate::attributes::{self, CrateAttribute, NameAttribute, take_pyo3_options};
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
 use crate::introspection::{function_introspection_code, protocol_introspection_code};
@@ -12,7 +11,7 @@ use crate::pymethod::check_generic;
 use crate::utils::Ctx;
 #[cfg(feature = "experimental-inspect")]
 use crate::utils::get_doc;
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
@@ -62,47 +61,14 @@ impl Parse for PyProtocol {
     }
 }
 
-#[derive(Default)]
-struct PyProtocolOptions {
-    name: Option<NameAttribute>,
-    krate: Option<CrateAttribute>,
-}
-
-enum PyProtocolOption {
-    Name(NameAttribute),
-    Crate(CrateAttribute),
-}
-
-impl Parse for PyProtocolOption {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let lookahead = input.lookahead1();
-        if lookahead.peek(attributes::kw::name) {
-            input.parse().map(PyProtocolOption::Name)
-        } else if lookahead.peek(syn::Token![crate]) {
-            input.parse().map(PyProtocolOption::Crate)
-        } else {
-            Err(lookahead.error())
-        }
-    }
-}
-
-impl PyProtocolOptions {
-    fn from_attrs(attrs: &mut Vec<Attribute>) -> Result<Self> {
-        let mut options = Self::default();
-        for option in take_pyo3_options(attrs)? {
-            match option {
-                PyProtocolOption::Name(name) => {
-                    ensure_spanned!(options.name.is_none(), name.span() => "`name` may only be specified once");
-                    options.name = Some(name);
-                }
-                PyProtocolOption::Crate(krate) => {
-                    ensure_spanned!(options.krate.is_none(), krate.span() => "`crate` may only be specified once");
-                    options.krate = Some(krate);
-                }
-            }
-        }
-        Ok(options)
-    }
+/// The span of a `#[pyo3]` option that neither protocols nor their methods support
+fn unsupported_option(options: &PyFunctionOptions) -> Option<Span> {
+    options
+        .pass_module
+        .as_ref()
+        .map(Spanned::span)
+        .or_else(|| options.text_signature.as_ref().map(|a| a.kw.span()))
+        .or_else(|| options.warnings.first().map(|w| w.span))
 }
 
 pub fn build_py_protocol(protocol: PyProtocol) -> Result<TokenStream> {
@@ -113,7 +79,12 @@ pub fn build_py_protocol(protocol: PyProtocol) -> Result<TokenStream> {
         bases,
         mut methods,
     } = protocol;
-    let options = PyProtocolOptions::from_attrs(&mut attrs)?;
+    let options = PyFunctionOptions::from_attrs(&mut attrs)?;
+    if let Some(span) =
+        unsupported_option(&options).or_else(|| options.signature.as_ref().map(|a| a.kw.span()))
+    {
+        bail_spanned!(span => "only `name` and `crate` are supported on protocols");
+    }
     let ctx = &Ctx::new(&options.krate, None);
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = options
@@ -198,17 +169,10 @@ fn method_introspection_code(
     );
 
     let options = PyFunctionOptions::from_attrs(attrs)?;
-    if let Some(pass_module) = &options.pass_module {
-        bail_spanned!(pass_module.span() => "`pass_module` cannot be used on protocol methods");
-    }
-    if let Some(text_signature) = &options.text_signature {
-        bail_spanned!(text_signature.kw.span() => "`text_signature` cannot be used on protocol methods");
-    }
-    if let Some(krate) = &options.krate {
-        bail_spanned!(krate.span() => "`crate` must be set on the protocol, not on its methods");
-    }
-    if let Some(warning) = options.warnings.first() {
-        bail_spanned!(warning.span => "`warn` cannot be used on protocol methods");
+    if let Some(span) =
+        unsupported_option(&options).or_else(|| options.krate.as_ref().map(Spanned::span))
+    {
+        bail_spanned!(span => "only `name` and `signature` are supported on protocol methods");
     }
 
     let arguments = sig
@@ -217,20 +181,6 @@ fn method_introspection_code(
         .skip(1)
         .map(FnArg::parse)
         .try_combine_syn_errors()?;
-    for argument in &arguments {
-        match argument {
-            FnArg::Regular(arg) if arg.from_py_with.is_some() => {
-                bail_spanned!(arg.name.span() => "`from_py_with` cannot be used on protocol methods")
-            }
-            FnArg::Py(arg) => {
-                bail_spanned!(arg.ty.span() => "protocol methods cannot take a `Python` token")
-            }
-            FnArg::CancelHandle(arg) => {
-                bail_spanned!(arg.name.span() => "`cancel_handle` cannot be used on protocol methods")
-            }
-            _ => (),
-        }
-    }
     #[cfg_attr(
         not(feature = "experimental-inspect"),
         expect(unused_variables, reason = "only used by the introspection")

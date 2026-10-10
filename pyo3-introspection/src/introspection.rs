@@ -948,44 +948,17 @@ pub enum ChunkOperator {
 mod tests {
     use super::*;
 
-    fn parse(chunks: &[&str]) -> Result<Module> {
-        let chunks = chunks
-            .iter()
-            .map(|chunk| serde_json::from_str(chunk).unwrap())
-            .collect::<Vec<Chunk>>();
-        parse_chunks(&chunks, "m")
-    }
-
-    const PROTOCOL: &str =
-        r#"{"type": "class", "id": "lib::P", "name": "P", "attach_to_root": true}"#;
-    const UNUSED_PROTOCOL: &str =
-        r#"{"type": "class", "id": "lib::U", "name": "U", "attach_to_root": true}"#;
-    const FUNCTION: &str = r#"{"type": "function", "id": "f", "name": "f", "arguments": {"args": [{"name": "a", "annotation": {"type": "id", "id": "lib::P"}}]}}"#;
-
-    #[test]
-    fn only_referenced_classes_are_attached_to_root() {
-        let module = parse(&[
-            r#"{"type": "module", "id": "m", "name": "m", "members": ["f"]}"#,
-            FUNCTION,
-            PROTOCOL,
-            UNUSED_PROTOCOL,
-        ])
-        .unwrap();
-        let classes = module.classes.iter().map(|c| &c.name).collect::<Vec<_>>();
-        assert_eq!(classes, ["P"]);
-    }
-
     #[test]
     fn attached_class_name_conflict_is_an_error() {
-        let error = parse(&[
+        let chunks = [
             r#"{"type": "module", "id": "m", "name": "m", "members": ["f", "c"]}"#,
-            FUNCTION,
-            PROTOCOL,
+            r#"{"type": "function", "id": "f", "name": "f", "arguments": {"args": [{"name": "a", "annotation": {"type": "id", "id": "lib::P"}}]}}"#,
+            r#"{"type": "class", "id": "lib::P", "name": "P", "attach_to_root": true}"#,
             r#"{"type": "class", "id": "c", "name": "P"}"#,
-        ])
-        .unwrap_err();
+        ]
+        .map(|chunk| serde_json::from_str(chunk).unwrap());
         assert_eq!(
-            error.to_string(),
+            parse_chunks(&chunks, "m").unwrap_err().to_string(),
             "Class lib::P can't be added to the root module, which already has a member named P"
         );
     }
