@@ -23,10 +23,16 @@ from . import (
     sequence as sequence,
     subclassing as subclassing,
 )
-from _typeshed import Incomplete
+from _typeshed import Incomplete, SupportsRead, SupportsWrite
 from typing import Final, Protocol, SupportsIndex
 
 NO_STD: Final[bool]
+
+class SupportsClose(Protocol):
+    """
+    Only referenced as a base of `SupportsTypeshedReadWriteClose`
+    """
+    def close(self, /) -> None: ...
 
 class SupportsReadWrite(Protocol):
     """
@@ -34,5 +40,12 @@ class SupportsReadWrite(Protocol):
     """
     def read(self, n: int = ..., /) -> bytes: ...
     def write(self, data: bytes, /) -> SupportsIndex: ...
+
+class SupportsTypeshedReadWriteClose(
+    SupportsRead[bytes], SupportsWrite[bytes], SupportsClose, Protocol
+):
+    """
+    Built from the protocols of typeshed and `SupportsClose`
+    """
 
 def __getattr__(name: str) -> Incomplete: ...

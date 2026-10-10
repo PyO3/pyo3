@@ -175,12 +175,17 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// `SupportsReadWrite::TYPE_HINT` constant can be used as e.g. [`FromPyObject::INPUT_TYPE`][1],
 /// and the protocol is added to the root module of the stubs if a type hint refers to it.
 ///
+/// Protocols to extend can be listed as `const` [`PyStaticExpr`][2]s after the name, e.g.
+/// `pub SupportsReadWrite(SupportsRead::TYPE_HINT, SupportsWrite::TYPE_HINT) {}`. `typing.Protocol`
+/// is always added as the last base.
+///
 /// The methods describe calls made from Rust: argument types are converted with `IntoPyObject`
 /// and return types with `FromPyObject`. Their parameters are positional-only unless a
 /// `#[pyo3(signature = (...))]` is given. `#[pyo3(name = "...")]` renames the protocol or a method
 /// in Python, and `#[pyo3(crate = "...")]` on the protocol sets the path to PyO3.
 ///
 #[doc = concat!("[1]: https://docs.rs/pyo3/", env!("CARGO_PKG_VERSION"), "/pyo3/conversion/trait.FromPyObject.html#associatedconstant.INPUT_TYPE")]
+#[doc = concat!("[2]: https://docs.rs/pyo3/", env!("CARGO_PKG_VERSION"), "/pyo3/inspect/enum.PyStaticExpr.html")]
 #[proc_macro]
 pub fn pyprotocol(input: TokenStream) -> TokenStream {
     let protocol = parse_macro_input!(input as PyProtocol);

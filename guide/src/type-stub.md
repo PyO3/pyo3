@@ -123,6 +123,26 @@ class SupportsReadWrite(Protocol):
 
 The methods describe calls made from Rust, so argument types use `IntoPyObject::OUTPUT_TYPE` and return types `FromPyObject::INPUT_TYPE`.
 Parameters are positional-only unless a `#[pyo3(signature = (...))]` is given, so that implementations can name them freely.
+A protocol can extend other protocols, given as `PyStaticExpr` constants in parentheses after its name, for example typeshed's [`SupportsRead` and `SupportsWrite`](https://github.com/python/typeshed/blob/main/stdlib/_typeshed/README.md) or another `pyprotocol!`:
+
+```rust,ignore
+pyo3::pyprotocol! {
+    pub SupportsReadWriteClose(
+        pyo3::type_hint_subscript!(
+            pyo3::type_hint_identifier!("_typeshed", "SupportsRead"),
+            pyo3::type_hint_identifier!("builtins", "bytes")
+        ),
+        pyo3::type_hint_subscript!(
+            pyo3::type_hint_identifier!("_typeshed", "SupportsWrite"),
+            pyo3::type_hint_identifier!("builtins", "bytes")
+        ),
+        SupportsClose::TYPE_HINT,
+    ) {}
+}
+```
+
+which generates `class SupportsReadWriteClose(SupportsRead[bytes], SupportsWrite[bytes], SupportsClose, Protocol)`: `typing.Protocol` is always added as the last base.
+
 A protocol only appears in the stubs if a type hint refers to it, and its name must not clash with another member of the root module.
 Use `#[pyo3(name = "...")]` to rename it, e.g. to a private `_SupportsReadWrite`: the protocol only exists in the stubs, so importing it at runtime fails.
 
