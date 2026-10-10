@@ -16,14 +16,19 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{Attribute, Ident, Result, TraitItemFn, Visibility, braced};
+use syn::{
+    Attribute, Expr, Ident, Result, Token, TraitItemFn, Visibility, braced, parenthesized, token,
+};
 
-/// The input of `pyprotocol!`: `pub Name { fn method(&self, ...) -> ...; }`
+/// The input of `pyprotocol!`: `pub Name(base, ...) { fn method(&self, ...) -> ...; }`
 pub struct PyProtocol {
     attrs: Vec<Attribute>,
     vis: Visibility,
     ident: Ident,
+    /// `const` expressions of type `PyStaticExpr`
+    bases: Vec<Expr>,
     methods: Vec<TraitItemFn>,
 }
 
@@ -32,6 +37,15 @@ impl Parse for PyProtocol {
         let attrs = input.call(Attribute::parse_outer)?;
         let vis = input.parse()?;
         let ident = input.parse()?;
+        let bases = if input.peek(token::Paren) {
+            let content;
+            parenthesized!(content in input);
+            Punctuated::<Expr, Token![,]>::parse_terminated(&content)?
+                .into_iter()
+                .collect()
+        } else {
+            Vec::new()
+        };
         let content;
         braced!(content in input);
         let mut methods = Vec::new();
@@ -42,6 +56,7 @@ impl Parse for PyProtocol {
             attrs,
             vis,
             ident,
+            bases,
             methods,
         })
     }
@@ -95,6 +110,7 @@ pub fn build_py_protocol(protocol: PyProtocol) -> Result<TokenStream> {
         mut attrs,
         vis,
         ident,
+        bases,
         mut methods,
     } = protocol;
     let options = PyProtocolOptions::from_attrs(&mut attrs)?;
@@ -113,6 +129,7 @@ pub fn build_py_protocol(protocol: PyProtocol) -> Result<TokenStream> {
         pyo3_path,
         &ident,
         &python_name,
+        bases.into_iter().map(PyExpr::from_static_expr),
         get_doc(&attrs, None).as_ref(),
     ));
     let parent: syn::Type = syn::parse_quote!(#ident);
@@ -140,7 +157,7 @@ pub fn build_py_protocol(protocol: PyProtocol) -> Result<TokenStream> {
     };
     #[cfg(not(feature = "experimental-inspect"))]
     let type_hint = {
-        let _ = (pyo3_path, python_name);
+        let _ = (pyo3_path, python_name, bases);
         quote! {}
     };
 

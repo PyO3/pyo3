@@ -14,6 +14,28 @@ pyo3::pyprotocol! {
 }
 
 pyo3::pyprotocol! {
+    /// Only referenced as a base of `SupportsTypeshedReadWriteClose`
+    pub SupportsClose {
+        fn close(&self);
+    }
+}
+
+pyo3::pyprotocol! {
+    /// Built from the protocols of typeshed and `SupportsClose`
+    pub SupportsTypeshedReadWriteClose(
+        pyo3::type_hint_subscript!(
+            pyo3::type_hint_identifier!("_typeshed", "SupportsRead"),
+            pyo3::type_hint_identifier!("builtins", "bytes")
+        ),
+        pyo3::type_hint_subscript!(
+            pyo3::type_hint_identifier!("_typeshed", "SupportsWrite"),
+            pyo3::type_hint_identifier!("builtins", "bytes")
+        ),
+        SupportsClose::TYPE_HINT,
+    ) {}
+}
+
+pyo3::pyprotocol! {
     /// Not referenced by any annotation, so left out of the stubs
     pub SupportsUnused {
         fn unused(&self);
@@ -27,6 +49,19 @@ impl<'py> FromPyObject<'_, 'py> for ReadWriteFile<'py> {
     type Error = PyErr;
 
     const INPUT_TYPE: PyStaticExpr = SupportsReadWrite::TYPE_HINT;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(Self(obj.to_owned()))
+    }
+}
+
+/// Any object with `read()`, `write()` and `close()` methods
+pub struct ClosableFile<'py>(Bound<'py, PyAny>);
+
+impl<'py> FromPyObject<'_, 'py> for ClosableFile<'py> {
+    type Error = PyErr;
+
+    const INPUT_TYPE: PyStaticExpr = SupportsTypeshedReadWriteClose::TYPE_HINT;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         Ok(Self(obj.to_owned()))
@@ -55,5 +90,12 @@ pub mod annotations {
     #[pyfunction]
     fn write_to(f: super::ReadWriteFile<'_>, data: &[u8]) -> PyResult<usize> {
         f.0.call_method1("write", (data,))?.extract()
+    }
+
+    #[pyfunction]
+    fn write_and_close(f: super::ClosableFile<'_>, data: &[u8]) -> PyResult<()> {
+        f.0.call_method1("write", (data,))?;
+        f.0.call_method0("close")?;
+        Ok(())
     }
 }
