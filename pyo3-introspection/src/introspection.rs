@@ -13,7 +13,7 @@ use goblin::pe::PE;
 use serde::Deserialize;
 use std::borrow::Cow;
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::{fs, str};
 
@@ -55,7 +55,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
         } = chunk
         {
             if name == main_module_name {
-                attach_to_root(chunk, id, &chunks_by_id, &mut chunks_by_parent);
+                attach_to_root(chunk, id, &chunks_by_id, &mut chunks_by_parent)?;
                 let type_hint_for_annotation_id = introspection_id_to_type_hint_for_root_module(
                     chunk,
                     &chunks_by_id,
@@ -88,7 +88,7 @@ fn attach_to_root<'a>(
     root_id: &'a str,
     chunks_by_id: &HashMap<&str, &'a Chunk>,
     chunks_by_parent: &mut HashMap<&'a str, Vec<&'a Chunk>>,
-) {
+) -> Result<()> {
     let mut attached = Vec::new();
     let mut to_visit = vec![root];
     while let Some(chunk) = to_visit.pop() {
@@ -127,7 +127,35 @@ fn attach_to_root<'a>(
         }
     }
     let root_members = chunks_by_parent.entry(root_id).or_default();
-    root_members.extend(attached.into_iter().map(|id| chunks_by_id[id]));
+    // Classes from different crates may share a name, which the root module can only hold once
+    let Chunk::Module { members, .. } = root else {
+        unreachable!("the root is a module")
+    };
+    let mut names = members
+        .iter()
+        .filter_map(|id| chunks_by_id.get(id.as_str()).copied())
+        .chain(root_members.iter().copied())
+        .map(chunk_name)
+        .collect::<HashSet<_>>();
+    for id in attached {
+        let class = chunks_by_id[id];
+        let name = chunk_name(class);
+        ensure!(
+            names.insert(name),
+            "Class {id} can't be added to the root module, which already has a member named {name}"
+        );
+        root_members.push(class);
+    }
+    Ok(())
+}
+
+fn chunk_name(chunk: &Chunk) -> &str {
+    match chunk {
+        Chunk::Module { name, .. }
+        | Chunk::Class { name, .. }
+        | Chunk::Function { name, .. }
+        | Chunk::Attribute { name, .. } => name,
+    }
 }
 
 /// The introspection ids the expressions of a chunk refer to
@@ -914,4 +942,51 @@ pub enum ChunkConstant {
 #[serde(rename_all = "lowercase")]
 pub enum ChunkOperator {
     BitOr,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(chunks: &[&str]) -> Result<Module> {
+        let chunks = chunks
+            .iter()
+            .map(|chunk| serde_json::from_str(chunk).unwrap())
+            .collect::<Vec<Chunk>>();
+        parse_chunks(&chunks, "m")
+    }
+
+    const PROTOCOL: &str =
+        r#"{"type": "class", "id": "lib::P", "name": "P", "attach_to_root": true}"#;
+    const UNUSED_PROTOCOL: &str =
+        r#"{"type": "class", "id": "lib::U", "name": "U", "attach_to_root": true}"#;
+    const FUNCTION: &str = r#"{"type": "function", "id": "f", "name": "f", "arguments": {"args": [{"name": "a", "annotation": {"type": "id", "id": "lib::P"}}]}}"#;
+
+    #[test]
+    fn only_referenced_classes_are_attached_to_root() {
+        let module = parse(&[
+            r#"{"type": "module", "id": "m", "name": "m", "members": ["f"]}"#,
+            FUNCTION,
+            PROTOCOL,
+            UNUSED_PROTOCOL,
+        ])
+        .unwrap();
+        let classes = module.classes.iter().map(|c| &c.name).collect::<Vec<_>>();
+        assert_eq!(classes, ["P"]);
+    }
+
+    #[test]
+    fn attached_class_name_conflict_is_an_error() {
+        let error = parse(&[
+            r#"{"type": "module", "id": "m", "name": "m", "members": ["f", "c"]}"#,
+            FUNCTION,
+            PROTOCOL,
+            r#"{"type": "class", "id": "c", "name": "P"}"#,
+        ])
+        .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Class lib::P can't be added to the root module, which already has a member named P"
+        );
+    }
 }
