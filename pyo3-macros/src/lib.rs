@@ -5,9 +5,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
-    PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions,
+    PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions, PyProtocol,
     build_derive_from_pyobject, build_derive_into_pyobject, build_py_class, build_py_enum,
-    build_py_function, build_py_methods, pymodule_function_impl, pymodule_module_impl,
+    build_py_function, build_py_methods, build_py_protocol, pymodule_function_impl,
+    pymodule_module_impl,
 };
 use quote::quote;
 use syn::{Item, parse_macro_input};
@@ -155,6 +156,35 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
         #expanded
     )
     .into()
+}
+
+/// Declares a `typing.Protocol` for the generated type stubs.
+///
+/// ```ignore
+/// pyo3::pyprotocol! {
+///     /// A binary stream that can be read from and written to
+///     pub SupportsReadWrite {
+///         #[pyo3(signature = (n = -1, /))]
+///         fn read(&self, n: isize) -> Py<PyBytes>;
+///         fn write(&self, data: &[u8]) -> usize;
+///     }
+/// }
+/// ```
+///
+/// This defines a unit struct `SupportsReadWrite`. With the `experimental-inspect` feature, its
+/// `SupportsReadWrite::TYPE_HINT` constant can be used as e.g. [`FromPyObject::INPUT_TYPE`][1],
+/// and the protocol is added to the root module of the stubs if a type hint refers to it.
+///
+/// The methods describe calls made from Rust: argument types are converted with `IntoPyObject`
+/// and return types with `FromPyObject`. Their parameters are positional-only unless a
+/// `#[pyo3(signature = (...))]` is given. `#[pyo3(name = "...")]` renames the protocol or a method
+/// in Python, and `#[pyo3(crate = "...")]` on the protocol sets the path to PyO3.
+///
+#[doc = concat!("[1]: https://docs.rs/pyo3/", env!("CARGO_PKG_VERSION"), "/pyo3/conversion/trait.FromPyObject.html#associatedconstant.INPUT_TYPE")]
+#[proc_macro]
+pub fn pyprotocol(input: TokenStream) -> TokenStream {
+    let protocol = parse_macro_input!(input as PyProtocol);
+    build_py_protocol(protocol).unwrap_or_compile_error().into()
 }
 
 #[proc_macro_derive(IntoPyObject, attributes(pyo3))]

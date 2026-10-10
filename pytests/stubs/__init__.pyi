@@ -24,11 +24,15 @@ from . import (
     subclassing as subclassing,
 )
 from _typeshed import Incomplete
-from typing import Final, Protocol
+from typing import Final, Protocol, SupportsIndex
 
 NO_STD: Final[bool]
 
-class SupportsClose(Protocol):
-    def close(self, /) -> None: ...
+class SupportsReadWrite(Protocol):
+    """
+    A binary stream that can be read from and written to
+    """
+    def read(self, n: int = ..., /) -> bytes: ...
+    def write(self, data: bytes, /) -> SupportsIndex: ...
 
 def __getattr__(name: str) -> Incomplete: ...

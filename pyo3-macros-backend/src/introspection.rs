@@ -112,6 +112,33 @@ pub fn class_introspection_code(
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
 
+/// A `typing.Protocol` class declared with `pyprotocol!`
+pub fn protocol_introspection_code(
+    pyo3_crate_path: &PyO3CratePath,
+    ident: &Ident,
+    name: &str,
+    doc: Option<&PythonDoc>,
+) -> TokenStream {
+    let mut desc = BTreeMap::from([
+        ("type", IntrospectionNode::String("class".into())),
+        (
+            "id",
+            IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
+        ),
+        ("name", IntrospectionNode::String(name.into())),
+        (
+            "bases",
+            IntrospectionNode::List(vec![PyExpr::module_attr("typing", "Protocol").into()]),
+        ),
+        // The protocol may be declared in a library crate that can't know the root module id
+        ("attach_to_root", IntrospectionNode::Bool(true)),
+    ]);
+    if let Some(doc) = doc {
+        desc.insert("doc", IntrospectionNode::Doc(doc));
+    }
+    IntrospectionNode::Map(desc).emit(pyo3_crate_path)
+}
+
 #[expect(clippy::too_many_arguments)]
 pub fn function_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
