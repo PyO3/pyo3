@@ -113,6 +113,7 @@ impl<'py> FromPyObject<'_, 'py> for ReadWriteFile<'py> {
 A `#[pyfunction]` taking a `ReadWriteFile` is then annotated with `SupportsReadWrite`, which is added to the root module of the stubs:
 
 ```python
+@type_check_only
 class SupportsReadWrite(Protocol):
     """
     A binary stream that can be read from and written to
@@ -144,7 +145,8 @@ pyo3::pyprotocol! {
 which generates `class SupportsReadWriteClose(SupportsRead[bytes], SupportsWrite[bytes], SupportsClose, Protocol)`: `typing.Protocol` is always added as the last base.
 
 A protocol only appears in the stubs if a type hint refers to it, and its name must not clash with another member of the root module.
-Use `#[pyo3(name = "...")]` to rename it, e.g. to a private `_SupportsReadWrite`: the protocol only exists in the stubs, so importing it at runtime fails.
+The protocol only exists in the stubs, so it is marked with [`@typing.type_check_only`](https://docs.python.org/3/library/typing.html#typing.type_check_only): it can be imported in an `if TYPE_CHECKING:` block and used in annotations, but importing it at runtime fails.
+Use `#[pyo3(name = "...")]` to rename it, e.g. to a private `_SupportsReadWrite`.
 
 ## Constraints and limitations
 

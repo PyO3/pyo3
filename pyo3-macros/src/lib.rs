@@ -173,7 +173,8 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// This defines a unit struct `SupportsReadWrite`. With the `experimental-inspect` feature, its
 /// `SupportsReadWrite::TYPE_HINT` constant can be used as e.g. [`FromPyObject::INPUT_TYPE`][1],
-/// and the protocol is added to the root module of the stubs if a type hint refers to it.
+/// and the protocol is added to the root module of the stubs if a type hint refers to it. It only
+/// exists in the stubs, where it is decorated with `@typing.type_check_only`.
 ///
 /// Protocols to extend can be listed as `const` [`PyStaticExpr`][2]s after the name, e.g.
 /// `pub SupportsReadWrite(SupportsRead::TYPE_HINT, SupportsWrite::TYPE_HINT) {}`. `typing.Protocol`
