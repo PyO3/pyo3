@@ -118,13 +118,14 @@ class SupportsReadWrite(Protocol):
     """
     A binary stream that can be read from and written to
     """
+
     def read(self, n: int = ..., /) -> bytes: ...
     def write(self, data: bytes, /) -> SupportsIndex: ...
 ```
 
 The methods describe calls made from Rust, so argument types use `IntoPyObject::OUTPUT_TYPE` and return types `FromPyObject::INPUT_TYPE`.
 Parameters are positional-only unless a `#[pyo3(signature = (...))]` is given, so that implementations can name them freely.
-A protocol can extend other protocols, given as `PyStaticExpr` constants in parentheses after its name, for example typeshed's [`SupportsRead` and `SupportsWrite`](https://github.com/python/typeshed/blob/main/stdlib/_typeshed/README.md) or another `pyprotocol!`:
+A protocol can extend other protocols, given as `PyStaticExpr` constants in parentheses after its name, for example typeshed's [`SupportsRead` and `SupportsWrite`](https://github.com/python/typeshed/tree/main/stdlib/_typeshed) or another `pyprotocol!`:
 
 ```rust,ignore
 pyo3::pyprotocol! {
