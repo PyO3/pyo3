@@ -134,6 +134,13 @@ pub fn protocol_introspection_code(
         ),
         ("name", IntrospectionNode::String(name.into())),
         ("bases", IntrospectionNode::List(bases)),
+        // The protocol only exists in the stubs, not at runtime
+        (
+            "decorators",
+            IntrospectionNode::List(vec![
+                PyExpr::module_attr("typing", "type_check_only").into(),
+            ]),
+        ),
         // The protocol may be declared in a library crate that can't know the root module id
         ("attach_to_root", IntrospectionNode::Bool(true)),
     ]);
