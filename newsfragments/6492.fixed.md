@@ -1,0 +1,1 @@
+Preserve the original interpreter ABI when saving build configuration so changing Cargo ABI features uses the interpreter's GIL state and version, including when reselecting an ABI from a saved abi3t target.
