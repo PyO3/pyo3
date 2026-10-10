@@ -456,7 +456,7 @@ pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{
-    FromPyObject, IntoPyObject, IntoPyObjectRef, pyfunction, pymethods, pymodule,
+    FromPyObject, IntoPyObject, IntoPyObjectRef, pyfunction, pymethods, pymodule, pyprotocol,
 };
 
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.

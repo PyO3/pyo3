@@ -1,53 +1,32 @@
 //! Example of custom annotations.
 
-use pyo3::impl_::concat::combine_to_array;
-use pyo3::impl_::introspection::SerializedIntrospectionFragment;
-use pyo3::inspect::{PyClassNameStaticExpr, PyStaticExpr};
+use pyo3::inspect::PyStaticExpr;
 use pyo3::prelude::*;
+use pyo3::types::PyBytes;
 
-/// Emits an introspection chunk the way a library crate has to: without knowing the id of the
-/// module it ends up in.
-macro_rules! introspection_chunk {
-    ($symbol:ident, $json:literal) => {
-        const _: () = {
-            const JSON: &[u8] = $json.as_bytes();
-            #[used]
-            #[no_mangle]
-            static $symbol: SerializedIntrospectionFragment<{ JSON.len() }> =
-                SerializedIntrospectionFragment {
-                    length: JSON.len() as u32,
-                    fragment: combine_to_array(&[JSON]),
-                };
-        };
-    };
+pyo3::pyprotocol! {
+    /// A binary stream that can be read from and written to
+    pub SupportsReadWrite {
+        #[pyo3(signature = (n = -1, /))]
+        fn read(&self, n: isize) -> Py<PyBytes>;
+        fn write(&self, data: &[u8]) -> usize;
+    }
 }
 
-introspection_chunk!(
-    PYO3_INTROSPECTION_1_PYTESTS_SUPPORTS_CLOSE,
-    r#"{"type": "class", "id": "pytests:SupportsClose", "name": "SupportsClose", "attach_to_root": true, "bases": [{"type": "attribute", "value": {"type": "name", "id": "typing"}, "attr": "Protocol"}]}"#
-);
-introspection_chunk!(
-    PYO3_INTROSPECTION_1_PYTESTS_SUPPORTS_CLOSE_CLOSE,
-    r#"{"type": "function", "name": "close", "parent": "pytests:SupportsClose", "arguments": {"posonlyargs": [{"name": "self"}]}, "returns": {"type": "constant", "kind": "none"}}"#
-);
-// Not referenced by any annotation, so left out of the stubs
-introspection_chunk!(
-    PYO3_INTROSPECTION_1_PYTESTS_SUPPORTS_UNUSED,
-    r#"{"type": "class", "id": "pytests:SupportsUnused", "name": "SupportsUnused", "attach_to_root": true, "bases": [{"type": "attribute", "value": {"type": "name", "id": "typing"}, "attr": "Protocol"}]}"#
-);
+pyo3::pyprotocol! {
+    /// Not referenced by any annotation, so left out of the stubs
+    pub SupportsUnused {
+        fn unused(&self);
+    }
+}
 
-/// Any object with a `close()` method, typed as the `SupportsClose` protocol
-pub struct Closeable<'py>(Bound<'py, PyAny>);
+/// Any object with `read()` and `write()` methods, typed as the `SupportsReadWrite` protocol
+pub struct ReadWriteFile<'py>(Bound<'py, PyAny>);
 
-impl<'py> FromPyObject<'_, 'py> for Closeable<'py> {
+impl<'py> FromPyObject<'_, 'py> for ReadWriteFile<'py> {
     type Error = PyErr;
 
-    const INPUT_TYPE: PyStaticExpr = PyStaticExpr::PyClass(PyClassNameStaticExpr::new(
-        &PyStaticExpr::Name {
-            id: "SupportsClose",
-        },
-        "pytests:SupportsClose",
-    ));
+    const INPUT_TYPE: PyStaticExpr = SupportsReadWrite::TYPE_HINT;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         Ok(Self(obj.to_owned()))
@@ -74,8 +53,7 @@ pub mod annotations {
     fn cross_module_imports(_a: &EmptyClass) {}
 
     #[pyfunction]
-    fn close(obj: super::Closeable<'_>) -> PyResult<()> {
-        obj.0.call_method0("close")?;
-        Ok(())
+    fn write_to(f: super::ReadWriteFile<'_>, data: &[u8]) -> PyResult<usize> {
+        f.0.call_method1("write", (data,))?.extract()
     }
 }

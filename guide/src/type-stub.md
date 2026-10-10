@@ -79,6 +79,53 @@ You can also directly integrate the stubs in the built wheels by doing `maturin 
 
 PyO3 also provides the smaller `pyo3-introspection` binary that allows to generate stubs from an existing built extension using something like `pyo3-introspection my_module_binary.so my_module_name output` to introspect the `my_module_binary.so` dynamic library for the `my_module_name` Python module and generate its stubs in the `output` directory.
 
+## Protocols
+
+A `FromPyObject` implementation that accepts any object with some methods can describe them as a [`typing.Protocol`](https://typing.python.org/en/latest/spec/protocol.html) with `pyprotocol!`, which also works in library crates:
+
+```rust,ignore
+use pyo3::prelude::*;
+use pyo3::types::PyBytes;
+
+pyo3::pyprotocol! {
+    /// A binary stream that can be read from and written to
+    pub SupportsReadWrite {
+        #[pyo3(signature = (n = -1, /))]
+        fn read(&self, n: isize) -> Py<PyBytes>;
+        fn write(&self, data: &[u8]) -> usize;
+    }
+}
+
+pub struct ReadWriteFile<'py>(Bound<'py, PyAny>);
+
+impl<'py> FromPyObject<'_, 'py> for ReadWriteFile<'py> {
+    type Error = PyErr;
+
+    #[cfg(feature = "experimental-inspect")]
+    const INPUT_TYPE: pyo3::inspect::PyStaticExpr = SupportsReadWrite::TYPE_HINT;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(Self(obj.to_owned()))
+    }
+}
+```
+
+A `#[pyfunction]` taking a `ReadWriteFile` is then annotated with `SupportsReadWrite`, which is added to the root module of the stubs:
+
+```python
+class SupportsReadWrite(Protocol):
+    """
+    A binary stream that can be read from and written to
+    """
+    def read(self, n: int = ..., /) -> bytes: ...
+    def write(self, data: bytes, /) -> SupportsIndex: ...
+```
+
+The methods describe calls made from Rust, so argument types use `IntoPyObject::OUTPUT_TYPE` and return types `FromPyObject::INPUT_TYPE`.
+Parameters are positional-only unless a `#[pyo3(signature = (...))]` is given, so that implementations can name them freely.
+A protocol only appears in the stubs if a type hint refers to it, and its name must not clash with another member of the root module.
+Use `#[pyo3(name = "...")]` to rename it, e.g. to a private `_SupportsReadWrite`: the protocol only exists in the stubs, so importing it at runtime fails.
+
 ## Constraints and limitations
 
 - The `experimental-inspect` feature is required to generate the introspection fragments.
