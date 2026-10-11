@@ -1,12 +1,11 @@
+#[cfg(all(not(Py_3_13), Py_3_10, Py_LIMITED_API, not(PyPy)))]
+use crate::Py_NewRef;
+#[cfg(Py_GIL_DISABLED)]
+use crate::PyMutex;
 use crate::pyport::{Py_hash_t, Py_ssize_t};
 #[cfg(Py_GIL_DISABLED)]
 use crate::refcount;
-#[cfg(Py_GIL_DISABLED)]
-use crate::PyMutex;
-#[cfg(all(not(Py_3_13), Py_3_10, Py_LIMITED_API, not(PyPy)))]
-use crate::Py_NewRef;
-use std::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
-use std::mem;
+use libc::{c_char, c_int, c_uint, c_ulong, c_void};
 #[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::{AtomicIsize, AtomicU32};
 
@@ -21,7 +20,6 @@ pub use crate::pytypedefs::PyTypeObject;
 pub use crate::pytypedefs::{PyObject, PyVarObject};
 #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
 use crate::{PyMutex, refcount};
-use core::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 use core::mem;
 #[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
 use core::sync::atomic::{AtomicIsize, AtomicU32};
@@ -134,7 +132,7 @@ pub struct PyObject {
 }
 
 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
-const _: () = assert!(core::mem::align_of::<PyObject>() >= _PyObject_MIN_ALIGNMENT);
+const _: () = assert!(mem::align_of::<PyObject>() >= _PyObject_MIN_ALIGNMENT);
 
 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 #[allow(
@@ -271,12 +269,6 @@ pub unsafe fn Py_IS_TYPE(ob: *mut PyObject, tp: *mut PyTypeObject) -> c_int {
     (Py_TYPE(ob) == tp) as c_int
 }
 
-#[inline]
-#[cfg(not(all(Py_LIMITED_API, Py_3_15)))]
-pub unsafe fn Py_SET_SIZE(ob: *mut PyVarObject, size: Py_ssize_t) {
-    (*ob).ob_size = size
-}
-
 pub type unaryfunc = unsafe extern "C" fn(*mut PyObject) -> *mut PyObject;
 pub type binaryfunc = unsafe extern "C" fn(*mut PyObject, *mut PyObject) -> *mut PyObject;
 pub type ternaryfunc =
@@ -339,7 +331,7 @@ pub struct PyType_Slot {
 impl Default for PyType_Slot {
     fn default() -> PyType_Slot {
         // SAFETY: CPython treats a zeroed slot as a sentinel value to mean the end of the slots array.
-        unsafe { mem::zeroed() }
+        unsafe { core::mem::zeroed() }
     }
 }
 
