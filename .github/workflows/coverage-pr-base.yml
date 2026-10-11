@@ -40,7 +40,7 @@ jobs:
           CODECOV_PR: ${{ github.event.number }}
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
-          uv run --no-build --only-group codecov \
+          uv run --python 3.14 --no-build --only-group codecov \
             codecovcli pr-base-picking \
               --base-sha "$CODECOV_BASE_SHA" \
               --pr "$CODECOV_PR" \
