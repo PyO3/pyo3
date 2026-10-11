@@ -47,7 +47,7 @@ runs:
     - name: Prepare CPython source
       id: prepare
       shell: bash
-      run: uvx nox -s prepare-wasm
+      run: uv run --isolated --only-group nox nox -s prepare-wasm
     - name: Install WASI SDK
       uses: bytecodealliance/setup-wasi-sdk-action@77d09f3df1e8da344d8403cf8631af8977938b4c # v1.0.0
       with:
@@ -56,4 +56,4 @@ runs:
     - name: Build
       if: steps.cache.outputs.cache-hit != 'true' && steps.cache-restore.outputs.cache-hit != 'true'
       shell: bash
-      run: uvx nox -s build-wasm
+      run: uv run --isolated --only-group nox nox -s build-wasm
