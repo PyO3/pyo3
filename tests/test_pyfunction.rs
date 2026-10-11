@@ -114,6 +114,7 @@ fn test_required_optional_class() {
     });
 }
 
+#[expect(deprecated, reason = "testing deprecated method")]
 #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
 #[pyfunction]
 fn buffer_inplace_add(py: Python<'_>, x: PyBuffer<i32>, y: PyBuffer<i32>) {
