@@ -15,6 +15,15 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 3
+    allow:
+      - dependency-type: "all"
+    groups:
+      cargo-dependencies:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "CI-skip-changelog"
 
   - package-ecosystem: "cargo"
     directory: "/pyo3-benches/"
