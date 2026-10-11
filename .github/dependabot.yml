@@ -21,9 +21,6 @@ updates:
       cargo-dependencies:
         patterns:
           - "*"
-    labels:
-      - "dependencies"
-      - "CI-skip-changelog"
 
   - package-ecosystem: "cargo"
     directory: "/pyo3-benches/"
