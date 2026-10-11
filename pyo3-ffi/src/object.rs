@@ -1,10 +1,6 @@
 #[cfg(all(not(Py_3_13), Py_3_10, Py_LIMITED_API, not(PyPy)))]
 use crate::Py_NewRef;
-#[cfg(Py_GIL_DISABLED)]
-use crate::PyMutex;
 use crate::pyport::{Py_hash_t, Py_ssize_t};
-#[cfg(Py_GIL_DISABLED)]
-use crate::refcount;
 use libc::{c_char, c_int, c_uint, c_ulong, c_void};
 #[cfg(Py_GIL_DISABLED)]
 use std::sync::atomic::{AtomicIsize, AtomicU32};
