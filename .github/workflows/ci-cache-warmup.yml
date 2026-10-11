@@ -19,8 +19,10 @@ jobs:
       MSRV: ${{ steps.resolve-msrv.outputs.MSRV }}
       verbose: ${{ runner.debug == '1' }}
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
       - name: resolve MSRV
@@ -77,9 +79,12 @@ jobs:
           save-cache: true
 
   build-full:
+    permissions:
+      contents: read
+      pull-requests: read # dorny/paths-filter lists changed files in the reusable workflow.
     needs:
       - resolve
-    uses: ./.github/workflows/build.yml
+    uses: $/.github/workflows/build.yml
     with:
       sha: ${{ github.sha }}
       os: ${{ matrix.platform.os }}
