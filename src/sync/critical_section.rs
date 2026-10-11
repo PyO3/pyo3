@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 //! Wrappers for the Python critical section API
 //!
 //! [Critical Sections](https://docs.python.org/3/c-api/init.html#python-critical-section-api) allow
@@ -14,7 +17,7 @@
 //! until exiting the critical section unless the critical section is suspended. Any call into the
 //! CPython C API may cause the critical section to be suspended. Creating an inner critical
 //! section, for example by accessing an item in a Python list or dict, will cause the outer
-//! critical section to be relased while the inner critical section is active.
+//! critical section to be released while the inner critical section is active.
 //!
 //! As a consequence, it is only possible to lock one or two objects at a time. If you need two lock
 //! two objects, you should use the variants that accept two arguments. The outer critical section
@@ -38,18 +41,18 @@
 //! possibly surprising ways.
 
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
-use crate::types::PyMutex;
+use crate::sync::PyMutex;
 
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use crate::Python;
-use crate::{types::PyAny, Bound};
+use crate::{Bound, types::PyAny};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
-use std::cell::UnsafeCell;
+use core::cell::UnsafeCell;
 
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(all(Py_GIL_DISABLED, any(not(Py_LIMITED_API), not(Py_3_15), Py_3_15)))]
 struct CSGuard(crate::ffi::PyCriticalSection);
 
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(all(Py_GIL_DISABLED, any(not(Py_LIMITED_API), not(Py_3_15), Py_3_15)))]
 impl Drop for CSGuard {
     fn drop(&mut self) {
         unsafe {
@@ -58,10 +61,10 @@ impl Drop for CSGuard {
     }
 }
 
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(all(Py_GIL_DISABLED, any(not(Py_LIMITED_API), not(Py_3_15), Py_3_15)))]
 struct CS2Guard(crate::ffi::PyCriticalSection2);
 
-#[cfg(Py_GIL_DISABLED)]
+#[cfg(all(Py_GIL_DISABLED, any(not(Py_LIMITED_API), not(Py_3_15), Py_3_15)))]
 impl Drop for CS2Guard {
     fn drop(&mut self) {
         unsafe {
@@ -132,7 +135,7 @@ where
 {
     #[cfg(Py_GIL_DISABLED)]
     {
-        let mut guard = CSGuard(unsafe { std::mem::zeroed() });
+        let mut guard = CSGuard(unsafe { core::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection_Begin(&mut guard.0, object.as_ptr()) };
         f()
     }
@@ -159,7 +162,7 @@ where
 {
     #[cfg(Py_GIL_DISABLED)]
     {
-        let mut guard = CS2Guard(unsafe { std::mem::zeroed() });
+        let mut guard = CS2Guard(unsafe { core::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection2_Begin(&mut guard.0, a.as_ptr(), b.as_ptr()) };
         f()
     }
@@ -197,8 +200,8 @@ where
 {
     #[cfg(Py_GIL_DISABLED)]
     {
-        let mut guard = CSGuard(unsafe { std::mem::zeroed() });
-        unsafe { crate::ffi::PyCriticalSection_BeginMutex(&mut guard.0, &mut *mutex.mutex.get()) };
+        let mut guard = CSGuard(unsafe { core::mem::zeroed() });
+        unsafe { crate::ffi::PyCriticalSection_BeginMutex(&raw mut guard.0, mutex.mutex.get()) };
         f(EnteredCriticalSection(&mutex.data))
     }
     #[cfg(not(Py_GIL_DISABLED))]
@@ -215,6 +218,14 @@ where
 /// [`pyo3::sync::critical_section`][crate::sync::critical_section] module documentation for more
 /// details.
 ///
+/// Rather than receiving the wrapped data directly, access is gated via the
+/// [`pyo3::sync::critical_section::EnteredCriticalSection`](crate::sync::critical_section::EnteredCriticalSection)
+/// struct. Note that `f` receives an `EnteredCriticalSection<'s, T1>` for the
+/// data protected by `m1` but an `Option<EnteredCriticalSection<'s, T2>>` for
+/// the data protected by `m2`. If `m1` and `m2` are the same object, then the
+/// Option will contain `None`, otherwise it contains a wrapper for the data
+/// protected by `m2`.
+///
 /// This is structurally equivalent to the use of the paired
 /// Py_BEGIN_CRITICAL_SECTION2_MUTEX and Py_END_CRITICAL_SECTION2 C-API macros.
 ///
@@ -230,36 +241,27 @@ where
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 #[cfg_attr(not(Py_GIL_DISABLED), allow(unused_variables))]
 pub fn with_critical_section_mutex2<F, R, T1, T2>(
-    _py: Python<'_>,
+    py: Python<'_>,
     m1: &PyMutex<T1>,
     m2: &PyMutex<T2>,
     f: F,
 ) -> R
 where
-    F: for<'s> FnOnce(EnteredCriticalSection<'s, T1>, EnteredCriticalSection<'s, T2>) -> R,
+    F: for<'s> FnOnce(EnteredCriticalSection<'s, T1>, Option<EnteredCriticalSection<'s, T2>>) -> R,
 {
+    if core::ptr::addr_eq(m1, m2) {
+        return with_critical_section_mutex(py, m1, |cs| f(cs, None));
+    }
     #[cfg(Py_GIL_DISABLED)]
-    {
-        let mut guard = CS2Guard(unsafe { std::mem::zeroed() });
-        unsafe {
-            crate::ffi::PyCriticalSection2_BeginMutex(
-                &mut guard.0,
-                &mut *m1.mutex.get(),
-                &mut *m2.mutex.get(),
-            )
-        };
-        f(
-            EnteredCriticalSection(&m1.data),
-            EnteredCriticalSection(&m2.data),
-        )
-    }
-    #[cfg(not(Py_GIL_DISABLED))]
-    {
-        f(
-            EnteredCriticalSection(&m1.data),
-            EnteredCriticalSection(&m2.data),
-        )
-    }
+    let mut guard = CS2Guard(unsafe { core::mem::zeroed() });
+    #[cfg(Py_GIL_DISABLED)]
+    unsafe {
+        crate::ffi::PyCriticalSection2_BeginMutex(&raw mut guard.0, m1.mutex.get(), m2.mutex.get())
+    };
+    f(
+        EnteredCriticalSection(&m1.data),
+        Some(EnteredCriticalSection(&m2.data)),
+    )
 }
 
 // We are building wasm Python with pthreads disabled and all these
@@ -267,14 +269,18 @@ where
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     #[cfg(feature = "macros")]
     use super::{with_critical_section, with_critical_section2};
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
     use super::{with_critical_section_mutex, with_critical_section_mutex2};
+    #[allow(unused_imports, reason = "conditionally used")]
+    use crate::platform::prelude::*;
     #[cfg(all(not(Py_LIMITED_API), Py_3_14))]
-    use crate::types::PyMutex;
+    use crate::sync::PyMutex;
     #[cfg(feature = "macros")]
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use core::sync::atomic::{AtomicBool, Ordering};
     #[cfg(any(feature = "macros", all(not(Py_LIMITED_API), Py_3_14)))]
     use std::sync::Barrier;
 
@@ -306,7 +312,7 @@ mod tests {
                     let b = bool_wrapper.bind(py);
                     with_critical_section(b, || {
                         barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        std::thread::sleep(core::time::Duration::from_millis(10));
                         b.borrow().0.store(true, Ordering::Release);
                     })
                 });
@@ -336,7 +342,7 @@ mod tests {
                 Python::attach(|py| {
                     with_critical_section_mutex(py, &mutex, |mut b| {
                         barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        std::thread::sleep(core::time::Duration::from_millis(10));
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         *(unsafe { b.get_mut() }) = true;
                     });
@@ -374,7 +380,7 @@ mod tests {
                     let b2 = bool_wrapper2.bind(py);
                     with_critical_section2(b1, b2, || {
                         barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        std::thread::sleep(core::time::Duration::from_millis(10));
                         b1.borrow().0.store(true, Ordering::Release);
                         b2.borrow().0.store(true, Ordering::Release);
                     })
@@ -416,10 +422,10 @@ mod tests {
                 Python::attach(|py| {
                     with_critical_section_mutex2(py, &m1, &m2, |mut b1, mut b2| {
                         barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        std::thread::sleep(core::time::Duration::from_millis(10));
                         // SAFETY: we never call back into the python interpreter inside this critical section
-                        unsafe { (*b1.get_mut()) = true };
-                        unsafe { (*b2.get_mut()) = true };
+                        unsafe { *b1.get_mut() = true };
+                        unsafe { *b2.as_mut().unwrap().get_mut() = true };
                     });
                 });
             });
@@ -430,7 +436,7 @@ mod tests {
                     with_critical_section_mutex2(py, &m1, &m2, |b1, b2| {
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         assert!(unsafe { *b1.get() });
-                        assert!(unsafe { *b2.get() });
+                        assert!(unsafe { *b2.unwrap().get() });
                     });
                 });
             });
@@ -439,7 +445,7 @@ mod tests {
 
     #[cfg(feature = "macros")]
     #[test]
-    fn test_critical_section2_same_object_no_deadlock() {
+    fn test_critical_section2_same_object() {
         let barrier = Barrier::new(2);
 
         let bool_wrapper = Python::attach(|py| -> Py<BoolWrapper> {
@@ -452,7 +458,7 @@ mod tests {
                     let b = bool_wrapper.bind(py);
                     with_critical_section2(b, b, || {
                         barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        std::thread::sleep(core::time::Duration::from_millis(10));
                         b.borrow().0.store(true, Ordering::Release);
                     })
                 });
@@ -482,10 +488,10 @@ mod tests {
                 Python::attach(|py| {
                     with_critical_section_mutex2(py, &m, &m, |mut b1, b2| {
                         barrier.wait();
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        std::thread::sleep(core::time::Duration::from_millis(10));
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         unsafe { (*b1.get_mut()) = true };
-                        assert!(unsafe { *b2.get() });
+                        assert!(b2.is_none());
                     });
                 });
             });
@@ -570,18 +576,20 @@ mod tests {
                         // v1.extend(v1)
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         let vec1 = unsafe { v1.get_mut() };
-                        let vec2 = unsafe { v2.get() };
+                        let opt_vec2 = v2.unwrap();
+                        let vec2 = unsafe { opt_vec2.get() };
                         vec1.extend(vec2.iter());
                     })
                 });
             });
             s.spawn(|| {
                 Python::attach(|py| {
-                    with_critical_section_mutex2(py, &m1, &m2, |v1, mut v2| {
+                    with_critical_section_mutex2(py, &m1, &m2, |v1, v2| {
                         // v2.extend(v1)
                         // SAFETY: we never call back into the python interpreter inside this critical section
                         let vec1 = unsafe { v1.get() };
-                        let vec2 = unsafe { v2.get_mut() };
+                        let mut op_vec2 = v2.unwrap();
+                        let vec2 = unsafe { op_vec2.get_mut() };
                         vec2.extend(vec1.iter());
                     })
                 });

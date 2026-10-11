@@ -114,7 +114,6 @@ fn pytuple_pyclass_iter() {
 }
 
 #[test]
-#[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
 fn test_pickle() {
     use pyo3::types::PyDict;
 

@@ -1,16 +1,17 @@
 //! `PyClass` and related traits.
-use crate::{ffi, impl_::pyclass::PyClassImpl, PyTypeInfo};
-use std::{cmp::Ordering, os::raw::c_int};
+use crate::{PyTypeInfo, ffi, impl_::pyclass::PyClassImpl};
+use core::{cmp::Ordering, ffi::c_int};
 
 mod create_type_object;
-mod gc;
+pub(crate) mod gc;
 mod guard;
 
-pub(crate) use self::create_type_object::{create_type_object, PyClassTypeObject};
+pub(crate) use self::create_type_object::{PyClassTypeObject, create_type_object};
 
 pub use self::gc::{PyTraverseError, PyVisit};
 pub use self::guard::{
     PyClassGuard, PyClassGuardError, PyClassGuardMap, PyClassGuardMut, PyClassGuardMutError,
+    PyClassGuardMutSuper,
 };
 
 /// Types that can be used as Python classes.
@@ -60,7 +61,7 @@ impl CompareOp {
         }
     }
 
-    /// Returns if a Rust [`std::cmp::Ordering`] matches this ordering query.
+    /// Returns if a Rust [`core::cmp::Ordering`] matches this ordering query.
     ///
     /// Usage example:
     ///
@@ -128,7 +129,7 @@ mod tests {
     #[test]
     fn test_compare_op_matches() {
         use super::CompareOp;
-        use std::cmp::Ordering;
+        use core::cmp::Ordering;
 
         assert!(CompareOp::Eq.matches(Ordering::Equal));
         assert!(CompareOp::Ne.matches(Ordering::Less));

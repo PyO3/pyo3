@@ -2,37 +2,37 @@ use std::{
     collections::HashSet,
     env, fs,
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
-use pyo3_build_config::PythonVersion;
+use pyo3_build_config::{PythonImplementation, PythonVersion};
 use quote::quote;
+
+const PY_3_15: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 15,
+};
+
+const PY_3_12: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 12,
+};
+
+const PY_3_11: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 11,
+};
 
 /// Macro which expands to multiple macro calls, one per pyo3-ffi struct.
 #[proc_macro]
 pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input: TokenStream = input.into();
-    let mut input = input.into_iter();
-
-    let macro_name = match input.next() {
-        Some(TokenTree::Ident(i)) => i,
-        _ => {
-            return quote!(compile_error!(
-                "for_all_structs!() takes only a single ident as input"
-            ))
-            .into()
-        }
+    let macro_name = match get_macro_name_from_input("for_all_structs", input) {
+        Ok(name) => name,
+        Err(err) => return err.into(),
     };
 
-    if input.next().is_some() {
-        return quote!(compile_error!(
-            "for_all_structs!() takes only a single ident as input"
-        ))
-        .into();
-    }
-
-    let doc_dir = get_doc_dir();
-    let structs_glob = format!("{}/pyo3_ffi/struct.*.html", doc_dir.display());
+    let structs_glob = format!("{}/pyo3_ffi/struct.*.html", DOC_DIR.display());
 
     let mut output = TokenStream::new();
 
@@ -49,9 +49,17 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
             .strip_suffix(".html")
             .unwrap();
 
-        if pyo3_build_config::get().version < PythonVersion::PY315 && struct_name == "PyBytesWriter"
+        if pyo3_build_config::get().target_abi().version() < PY_3_15
+            && struct_name == "PyBytesWriter"
         {
             // PyBytesWriter was added in Python 3.15
+            continue;
+        }
+
+        if pyo3_build_config::get().target_abi().implementation() == PythonImplementation::GraalPy
+            && (struct_name == "PyFunctionObject" || struct_name == "PySliceObject")
+        {
+            // GraalPy wants these types to be opaque, we skip them
             continue;
         }
 
@@ -71,8 +79,109 @@ pub fn for_all_structs(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
     .into()
 }
 
-fn get_doc_dir() -> PathBuf {
-    PathBuf::from(env::var_os("PYO3_FFI_CHECK_DOC_DIR").unwrap())
+static DOC_DIR: LazyLock<PathBuf> =
+    LazyLock::new(|| PathBuf::from(env::var_os("PYO3_FFI_CHECK_DOC_DIR").unwrap()));
+
+static BINDGEN_FUNCTION_NAMES: LazyLock<HashSet<String>> =
+    LazyLock::new(|| get_bindgen_names("fn"));
+
+static BINDGEN_STATIC_NAMES: LazyLock<HashSet<String>> =
+    LazyLock::new(|| get_bindgen_names("static"));
+
+fn get_bindgen_names(kind: &str) -> HashSet<String> {
+    // Parse names from the bindgen index file.
+    let index_file = DOC_DIR.join("bindgen/index.html");
+
+    // The full path is in the `title` attribute of each item's link.
+    let html = fs::read_to_string(index_file).unwrap();
+    let html = scraper::Html::parse_document(&html);
+    let selector = scraper::Selector::parse(&format!("a.{kind}")).unwrap();
+
+    html.select(&selector)
+        .map(|el| {
+            el.value()
+                .attr("title")
+                .unwrap()
+                .rsplit_once("::")
+                .unwrap()
+                .1
+                .to_string()
+        })
+        .collect()
+}
+
+fn get_bindgen_name(name: &str, names: &HashSet<String>) -> String {
+    if pyo3_build_config::get().implementation() == PythonImplementation::PyPy
+        && (name.starts_with("Py") || name.starts_with("_Py"))
+    {
+        let prefixed_name = name.replacen("Py", "PyPy", 1);
+        if names.contains(&prefixed_name) {
+            return prefixed_name;
+        }
+    }
+    name.to_owned()
+}
+
+/// Macro which expands to multiple macro calls, one per pyo3-ffi static.
+#[proc_macro]
+pub fn for_all_statics(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let macro_name = match get_macro_name_from_input("for_all_statics", input) {
+        Ok(name) => name,
+        Err(err) => return err.into(),
+    };
+
+    let statics_glob = format!("{}/pyo3_ffi/static.*.html", DOC_DIR.display());
+    let mut output = TokenStream::new();
+
+    for entry in glob::glob(&statics_glob).expect("Failed to read glob pattern") {
+        let entry = entry.unwrap();
+        let file_name = entry.file_name().unwrap().to_string_lossy().into_owned();
+        let static_name = file_name
+            .strip_prefix("static.")
+            .unwrap()
+            .strip_suffix(".html")
+            .unwrap();
+
+        if static_name == "PyStructSequence_UnnamedField"
+            && pyo3_build_config::get().target_abi().version() < PY_3_11
+        {
+            // Not marked PyAPI_DATA (and thus not exported reliably) before Python 3.11.
+            // https://github.com/python/cpython/issues/88386
+            continue;
+        }
+
+        let is_pypy = pyo3_build_config::get().implementation() == PythonImplementation::PyPy;
+        if is_pypy && static_name == "PySuper_Type" {
+            // PyPy declares this in its headers but does not export it.
+            continue;
+        }
+
+        // PyPy uses a macro to define these aliases as the same static; CPython has three
+        // separate statics
+        let bindgen_name = get_bindgen_name(
+            if is_pypy
+                && matches!(
+                    static_name,
+                    "PyExc_EnvironmentError" | "PyExc_IOError" | "PyExc_WindowsError"
+                )
+            {
+                "PyExc_OSError"
+            } else {
+                static_name
+            },
+            &BINDGEN_STATIC_NAMES,
+        );
+        if is_pypy && !BINDGEN_STATIC_NAMES.contains(&bindgen_name) {
+            // As with functions, PyPy may not yet offer all of the declared symbols.
+            continue;
+        }
+
+        let static_ident = Ident::new(static_name, Span::call_site());
+        let bindgen_ident = Ident::new(&bindgen_name, Span::call_site());
+        output.extend(quote!(#macro_name!(#static_ident, #bindgen_ident);));
+    }
+
+    output.into()
 }
 
 /// Macro which expands to multiple macro calls, one per field in a pyo3-ffi
@@ -88,7 +197,7 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
             return quote!(compile_error!(
                 "for_all_fields!() takes exactly two idents as input"
             ))
-            .into()
+            .into();
         }
     };
 
@@ -98,7 +207,7 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
             return quote!(compile_error!(
                 "for_all_fields!() takes exactly two idents as input"
             ))
-            .into()
+            .into();
         }
     };
 
@@ -108,7 +217,7 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
             return quote!(compile_error!(
                 "for_all_fields!() takes exactly two idents as input"
             ))
-            .into()
+            .into();
         }
     };
 
@@ -119,13 +228,12 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
         .into();
     }
 
-    let doc_dir = get_doc_dir();
-    let pyo3_ffi_struct_file = doc_dir.join(format!("pyo3_ffi/struct.{}.html", struct_name));
-    let mut bindgen_struct_file = doc_dir.join(format!("bindgen/struct.{}.html", struct_name));
+    let pyo3_ffi_struct_file = DOC_DIR.join(format!("pyo3_ffi/struct.{}.html", struct_name));
+    let mut bindgen_struct_file = DOC_DIR.join(format!("bindgen/struct.{}.html", struct_name));
 
     // might be a type alias
     if !bindgen_struct_file.exists() {
-        let type_alias_file = doc_dir.join(format!("bindgen/type.{}.html", struct_name));
+        let type_alias_file = DOC_DIR.join(format!("bindgen/type.{}.html", struct_name));
         if type_alias_file.exists() {
             bindgen_struct_file = type_alias_file;
         } else {
@@ -140,23 +248,39 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
     }
 
     let pyo3_ffi_fields = get_fields_from_file(&pyo3_ffi_struct_file);
-    let bindgen_fields = get_fields_from_file(&bindgen_struct_file);
 
-    if pyo3_ffi_fields.is_empty() {
-        // probably an opaque type on PyO3 side, skip
+    if pyo3_ffi_fields.len() == 2
+        && pyo3_ffi_fields.contains(&"_data".to_string())
+        && pyo3_ffi_fields.contains(&"_marker".to_string())
+    {
+        // looks like an opaque type on the PyO3 side, skip
         return TokenStream::new().into();
     }
+
+    let bindgen_fields = get_fields_from_file(&bindgen_struct_file);
 
     let mut all_fields: HashSet<_> = pyo3_ffi_fields.into_iter().chain(bindgen_fields).collect();
 
     if struct_name == "PyMemberDef" {
         // bindgen picked `type_` as the field name to avoid the `type` keyword, but PyO3 uses `type_code`
         all_fields.remove("type_");
-    } else if struct_name == "PyObject" && pyo3_build_config::get().version >= PythonVersion::PY312
+    } else if struct_name == "PyObject"
+        && pyo3_build_config::get().target_abi().version() >= PY_3_12
     {
         // bindgen picked `__bindgen_anon_1` as the field name for the anonymous union containing ob_refcnt,
         // PyO3 uses ob_refcnt directly
         all_fields.remove("__bindgen_anon_1");
+    } else if struct_name == "PyVarObject"
+        && pyo3_build_config::get().target_abi().implementation() == PythonImplementation::GraalPy
+    {
+        // ob_size not present in GraalPy
+        all_fields.remove("ob_size");
+    } else if pyo3_build_config::get().target_abi().implementation()
+        == PythonImplementation::GraalPy
+        && (struct_name == "PyFunctionObject" || struct_name == "PySliceObject")
+    {
+        // GraalPy wants these types to be opaque, we skip them
+        return TokenStream::new().into();
     }
 
     let mut output = TokenStream::new();
@@ -170,9 +294,10 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
 
         let field_ident = Ident::new(&field_name, Span::call_site());
 
-        let bindgen_field_ident = if (pyo3_build_config::get().version >= PythonVersion::PY312)
+        let bindgen_field_ident = if (pyo3_build_config::get().target_abi().version() >= PY_3_12)
             && struct_name == "PyObject"
             && field_name == "ob_refcnt"
+            && pyo3_build_config::get().target_abi().implementation() != PythonImplementation::PyPy
         {
             // PyObject since 3.12 implements ob_refcnt as a union; bindgen creates
             // an anonymous name for the field
@@ -181,6 +306,13 @@ pub fn for_all_fields(input: proc_macro::TokenStream) -> proc_macro::TokenStream
             // the field name in the C API is `type`, but that's a keyword in Rust
             // so PyO3 picked type_code, bindgen picked type_
             Ident::new("type_", Span::call_site())
+        } else if struct_name == "PySlot" && field_name == "anon1" {
+            // PySlot has two anonymous unions (since they aren't allowed in Rust,
+            // PyO3 invented names for them); bindgen names the first one __bindgen_anon_1
+            Ident::new("__bindgen_anon_1", Span::call_site())
+        } else if struct_name == "PySlot" && field_name == "anon2" {
+            // ...and the second one __bindgen_anon_2
+            Ident::new("__bindgen_anon_2", Span::call_site())
         } else {
             field_ident.clone()
         };
@@ -206,4 +338,584 @@ fn get_fields_from_file(path: &Path) -> Vec<String> {
                 .to_string()
         })
         .collect()
+}
+
+// C Macros are re-exported in pyo3-ffi as functions with the same name to get roughly equivalent semantics,
+// bindgen doesn't generate symbols for C macros, we note their exclusions here.
+//
+// Each entry is `(name, cfg)` where `cfg` is a Rust `cfg` predicate (e.g. `"Py_3_9"`,
+// `"not(Py_3_11)"`, `"all(PyPy, not(Py_3_10))"`) describing the configurations in which the
+// symbol exists as a macro in C. An empty string means "all known configurations".
+const MACRO_EXCLUSIONS: &[(&str, &str)] = &[
+    // FIXME: for many of these `not(PyPy)` cases,
+    // it seems that PyPy might actually offer symbols which PyO3
+    // should be using rather than implementing inline functions
+    ("PyAnyDict_Check", ""),
+    ("PyAnyDict_CheckExact", ""),
+    ("PyAnySet_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyAnySet_CheckExact", "any(not(PyPy), Py_3_12)"),
+    ("PyAsyncGen_CheckExact", ""),
+    ("PyBool_Check", ""),
+    ("PyByteArray_AS_STRING", ""),
+    ("PyByteArray_GET_SIZE", ""),
+    ("PyByteArray_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyByteArray_CheckExact", "any(not(PyPy), Py_3_12)"),
+    ("PyBytes_AS_STRING", "not(PyPy)"),
+    ("PyBytes_Check", ""),
+    ("PyBytes_CheckExact", ""),
+    ("PyCFunction_Check", "not(PyPy)"),
+    ("PyCFunction_CheckExact", ""),
+    ("PyCFunction_GET_CLASS", ""),
+    ("PyCFunction_GET_FLAGS", ""),
+    ("PyCFunction_GET_FUNCTION", ""),
+    ("PyCFunction_GET_SELF", ""),
+    ("PyCMethod_Check", ""),
+    ("PyCMethod_CheckExact", ""),
+    ("PyCallIter_Check", ""),
+    ("PyCapsule_CheckExact", ""),
+    ("PyCell_Check", ""),
+    ("PyCode_Check", "not(PyPy)"),
+    ("PyComplex_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyComplex_CheckExact", "any(not(PyPy), Py_3_12)"),
+    ("PyContext_CheckExact", ""),
+    ("PyContextToken_CheckExact", ""),
+    ("PyContextVar_CheckExact", ""),
+    ("PyCoro_CheckExact", "not(PyPy)"),
+    ("PyDate_Check", "not(PyPy)"),
+    ("PyDate_CheckExact", "not(PyPy)"),
+    ("PyDate_FromDate", ""),
+    ("PyDateTimeAPI", ""),
+    ("PyDateTime_Check", "not(PyPy)"),
+    ("PyDateTime_CheckExact", "not(PyPy)"),
+    ("PyDateTime_DATE_GET_FOLD", ""),
+    ("PyDateTime_DATE_GET_HOUR", "not(PyPy)"),
+    ("PyDateTime_DATE_GET_MICROSECOND", "not(PyPy)"),
+    ("PyDateTime_DATE_GET_MINUTE", "not(PyPy)"),
+    ("PyDateTime_DATE_GET_SECOND", "not(PyPy)"),
+    ("PyDateTime_DATE_GET_TZINFO", "not(PyPy)"),
+    ("PyDateTime_DELTA_GET_DAYS", "not(PyPy)"),
+    ("PyDateTime_DELTA_GET_MICROSECONDS", "not(PyPy)"),
+    ("PyDateTime_DELTA_GET_SECONDS", "not(PyPy)"),
+    ("PyDateTime_FromTimestamp", "not(PyPy)"),
+    ("PyDateTime_FromDateAndTime", ""),
+    ("PyDateTime_FromDateAndTimeAndFold", ""),
+    ("PyDateTime_GET_DAY", "not(PyPy)"),
+    ("PyDateTime_GET_MONTH", "not(PyPy)"),
+    ("PyDateTime_GET_YEAR", "not(PyPy)"),
+    ("PyDateTime_IMPORT", ""),
+    ("PyDateTime_TIME_GET_FOLD", "not(PyPy)"),
+    ("PyDateTime_TIME_GET_HOUR", "not(PyPy)"),
+    ("PyDateTime_TIME_GET_MICROSECOND", "not(PyPy)"),
+    ("PyDateTime_TIME_GET_MINUTE", "not(PyPy)"),
+    ("PyDateTime_TIME_GET_SECOND", "not(PyPy)"),
+    ("PyDateTime_TIME_GET_TZINFO", "not(PyPy)"),
+    ("PyDateTime_TimeZone_UTC", ""),
+    ("PyDate_FromTimestamp", "not(PyPy)"),
+    ("PyDelta_Check", "not(PyPy)"),
+    ("PyDelta_CheckExact", "not(PyPy)"),
+    ("PyDelta_FromDSU", ""),
+    ("PyDict_Check", ""),
+    ("PyDict_CheckExact", ""),
+    ("PyDictItems_Check", ""),
+    ("PyDictKeys_Check", ""),
+    ("PyDictValues_Check", ""),
+    ("PyDictViewSet_Check", ""),
+    ("PyExceptionClass_Check", ""),
+    ("PyExceptionInstance_Check", ""),
+    ("PyExceptionInstance_Class", "not(PyPy)"),
+    ("PyEval_CallObject", "not(Py_3_13)"),
+    ("PyFloat_AS_DOUBLE", "not(PyPy)"),
+    ("PyFloat_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyFloat_CheckExact", "any(not(PyPy), Py_3_12)"),
+    ("PyFrame_Check", ""),
+    ("PyFrameLocalsProxy_Check", ""),
+    ("PyFrozenDict_Check", ""),
+    ("PyFrozenDict_CheckExact", ""),
+    ("PyFrozenSet_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyFrozenSet_CheckExact", "any(not(PyPy), Py_3_12)"),
+    ("PyFunction_Check", "not(PyPy)"),
+    ("PyFunction_GET_CODE", "all(not(PyPy), not(GraalPy))"),
+    ("PyFunction_GET_GLOBALS", "all(not(PyPy), not(GraalPy))"),
+    ("PyFunction_GET_MODULE", "all(not(PyPy), not(GraalPy))"),
+    ("PyFunction_GET_DEFAULTS", "all(not(PyPy), not(GraalPy))"),
+    ("PyFunction_GET_KW_DEFAULTS", "all(not(PyPy), not(GraalPy))"),
+    ("PyFunction_GET_CLOSURE", "all(not(PyPy), not(GraalPy))"),
+    ("PyFunction_GET_ANNOTATIONS", "all(not(PyPy), not(GraalPy))"),
+    ("PyGen_Check", "not(PyPy)"),
+    ("PyGen_CheckExact", "not(PyPy)"),
+    ("PyHeapType_GET_MEMBERS", "not(Py_3_11)"),
+    ("PyImport_ImportModuleEx", ""),
+    ("PyList_Check", ""),
+    ("PyList_CheckExact", ""),
+    ("PyList_GET_ITEM", "not(PyPy)"),
+    ("PyList_GET_SIZE", "not(PyPy)"),
+    ("PyList_SET_ITEM", "not(PyPy)"),
+    ("PyLong_Check", ""),
+    ("PyLong_CheckExact", ""),
+    ("PyMapping_DelItem", ""),
+    ("PyMapping_DelItemString", ""),
+    ("PyMemoryView_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyModule_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyModule_CheckExact", "any(not(PyPy), Py_3_12)"),
+    ("PyModule_Create", ""),
+    ("PyModule_FromDefAndSpec", "not(PyPy)"),
+    ("PyObject_CallMethodNoArgs", ""),
+    ("PyObject_CallMethodOneArg", ""),
+    (
+        "PyObject_DelAttr",
+        "any(all(not(PyPy), not(Py_3_13)), all(PyPy, Py_3_11))",
+    ),
+    (
+        "PyObject_DelAttrString",
+        "any(all(not(PyPy), not(Py_3_13)), all(PyPy, Py_3_11))",
+    ),
+    ("PyObject_GC_New", ""),
+    ("PyObject_GC_NewVar", ""),
+    ("PyObject_GC_Resize", ""),
+    ("PyObject_New", ""),
+    ("PyObject_NewVar", ""),
+    ("PyObject_TypeCheck", ""),
+    ("PyParser_SimpleParseFile", ""),
+    ("PyParser_SimpleParseString", ""),
+    ("PyRange_Check", ""),
+    ("PySeqIter_Check", ""),
+    ("PySequence_Fast_GET_ITEM", ""),
+    ("PySequence_Fast_GET_SIZE", ""),
+    ("PySequence_Fast_ITEMS", ""),
+    ("PySequence_ITEM", "not(PyPy)"),
+    ("PySet_Check", "any(not(PyPy), Py_3_12)"),
+    ("PySet_CheckExact", "any(not(PyPy), Py_3_12)"),
+    ("PySet_GET_SIZE", ""),
+    ("PySlice_Check", ""),
+    ("PySlot_DATA", ""),
+    ("PySlot_END", ""),
+    ("PySlot_FUNC", ""),
+    ("PySlot_INT64", ""),
+    ("PySlot_PTR", ""),
+    ("PySlot_PTR_STATIC", ""),
+    ("PySlot_SIZE", ""),
+    ("PySlot_STATIC_DATA", ""),
+    ("PySlot_UINT64", ""),
+    ("PyStructSequence_GET_ITEM", ""),
+    ("PyStructSequence_SET_ITEM", ""),
+    ("PyTZInfo_Check", "not(PyPy)"),
+    ("PyTZInfo_CheckExact", "not(PyPy)"),
+    ("PyThreadState_GET", ""),
+    ("PyTime_Check", "not(PyPy)"),
+    ("PyTime_CheckExact", "not(PyPy)"),
+    ("PyTime_FromTime", ""),
+    ("PyTime_FromTimeAndFold", ""),
+    ("PyTimeZone_FromOffset", ""),
+    ("PyTimeZone_FromOffsetAndName", ""),
+    ("PyTraceBack_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyTuple_Check", ""),
+    ("PyTuple_CheckExact", ""),
+    ("PyTuple_GET_ITEM", ""),
+    ("PyTuple_GET_SIZE", ""),
+    ("PyTuple_SET_ITEM", ""),
+    ("PyType_Check", ""),
+    ("PyType_CheckExact", ""),
+    ("PyType_FastSubclass", ""),
+    ("PyType_HasFeature", ""),
+    ("PyType_IS_GC", ""),
+    ("PyType_SUPPORTS_WEAKREFS", "any(PyPy, not(Py_3_11))"),
+    ("PyUnicode_1BYTE_DATA", ""),
+    ("PyUnicode_2BYTE_DATA", ""),
+    ("PyUnicode_4BYTE_DATA", ""),
+    ("PyUnicode_Check", "not(PyPy)"),
+    ("PyUnicode_CheckExact", "not(PyPy)"),
+    ("PyUnicode_DATA", "not(Py_3_14)"),
+    ("PyUnicode_GET_LENGTH", ""),
+    ("PyUnicode_IS_ASCII", ""),
+    ("PyUnicode_IS_COMPACT", ""),
+    ("PyUnicode_IS_COMPACT_ASCII", ""),
+    ("PyUnicode_IS_READY", ""),
+    ("PyUnicode_KIND", "not(Py_3_14)"),
+    ("PyUnicode_READY", ""),
+    ("PyWeakref_Check", "any(not(PyPy), Py_3_12)"),
+    ("PyWeakref_CheckProxy", "any(not(PyPy), Py_3_12)"),
+    ("PyWeakref_CheckRef", "any(not(PyPy), Py_3_12)"),
+    ("PyWeakref_CheckRefExact", "any(not(PyPy), Py_3_12)"),
+    ("PyVectorcall_NARGS", "not(Py_3_12)"),
+    ("Py_CLEAR", ""),
+    (
+        "Py_CompileString",
+        "any(not(Py_3_10), all(PyPy, not(Py_3_12)))",
+    ),
+    ("Py_CompileStringFlags", "all(not(PyPy), not(Py_3_13))"),
+    ("Py_DECREF", ""),
+    ("Py_Ellipsis", ""),
+    ("Py_False", ""),
+    ("Py_GETENV", "any(PyPy, not(Py_3_11))"),
+    ("Py_INCREF", ""),
+    ("Py_IS_TYPE", "not(Py_3_15)"), // symbol added for stable abi on 3.15
+    ("Py_None", ""),
+    ("Py_NotImplemented", ""),
+    ("Py_REFCNT", "all(not(Py_3_14), not(GraalPy))"),
+    ("Py_SIZE", "not(Py_3_15)"), // symbol added for stable abi on 3.15
+    ("Py_True", ""),
+    ("Py_TYPE", "not(Py_3_14)"),
+    ("Py_UNICODE_TODECIMAL", ""),
+    ("Py_XDECREF", ""),
+    ("Py_XINCREF", ""),
+    // These functions were only added in 3.10, but pyo3-ffi defines them for
+    // all versions. Technically not macros but the machinery happens to work
+    // the same way.
+    ("_PyFunction_CAST", "all(not(PyPy), not(GraalPy))"),
+    ("Py_Is", "not(Py_3_10)"),
+    ("Py_IsFalse", "any(not(Py_3_10), all(PyPy, not(Py_3_12)))"),
+    ("Py_IsTrue", "any(not(Py_3_10), all(PyPy, not(Py_3_12)))"),
+    ("Py_IsNone", "not(Py_3_10)"),
+];
+
+// TODO: probably need to clean these up
+const EXCLUDED_SYMBOLS: &[&str] = &[
+    // CPython moved these to the unstable API in 3.12, we exposed these for all versions just
+    // to keep it simpler to migrate
+    "PyUnstable_Code_GetExtra",
+    "PyUnstable_Code_SetExtra",
+    "PyUnstable_Eval_RequestCodeExtraIndex",
+    // FIXME: probably outdated definitions that fail to build, need investigation,
+    // temporarily here to make the build pass to get CI running
+    "PyCode_New",
+    "PyCode_NewWithPosOnlyArgs",
+    "PyCFunction_New",
+    "PyFrame_BlockSetup",
+    "PySys_AddWarnOption",
+    "PySys_AddWarnOptionUnicode",
+    "PySys_AddXOption",
+    "PySys_HasWarnOptions",
+    "PySys_SetPath",
+    // This symbol was not in headers but still public until Python 3.10,
+    // should be able to remove this exclusion once support for 3.9 dropped
+    "Py_GetArgcArgv",
+    // pyo3-ffi defines these as inline functions on some Python versions
+    "PyObject_CallOneArg",
+    "PyObject_Vectorcall",
+    "PyVectorcall_Function",
+    "PyObject_VectorcallDict",
+    // CPython gates these on a HAVE_FORK macro, pyo3-ffi needs to replicate this?
+    "PyOS_BeforeFork",
+    "PyOS_AfterFork_Parent",
+    "PyOS_AfterFork_Child",
+    // TODO: PyPy 3.12 declares these symbols in its headers but does not implement them?
+    "PyMapping_Length",
+    "PyObject_IS_GC",
+    "PyObject_Length",
+    "PySequence_In",
+    "PySequence_Length",
+    "PyType_ClearCache",
+    // TODO: deprecated backwards compatibility aliases to be removed in PyO3 0.31
+    "_PyCode_GetExtra",
+    "_PyCode_SetExtra",
+    "_PyEval_RequestCodeExtraIndex",
+];
+
+// Assert at compile time that `MACRO_EXCLUSIONS` and `EXCLUDED_SYMBOLS` are disjoint
+const _: () = {
+    let mut i = 0;
+    while i < MACRO_EXCLUSIONS.len() {
+        let (macro_exclusion, _) = MACRO_EXCLUSIONS[i];
+        let mut j = 0;
+        'symbols: while j < EXCLUDED_SYMBOLS.len() {
+            let symbol_exclusion = EXCLUDED_SYMBOLS[j];
+            let mut k = 0;
+            while k < macro_exclusion.len() && k < symbol_exclusion.len() {
+                if macro_exclusion.as_bytes()[k] != symbol_exclusion.as_bytes()[k] {
+                    j += 1;
+                    continue 'symbols;
+                }
+                k += 1;
+            }
+            // If this panic fires, the message will indicate the symbol which
+            // is in both lists; probably easiest to remove from `MACRO_EXCLUSIONS` until
+            // the root cause for the full exclusion is fixed.
+            panic!("{}", macro_exclusion);
+        }
+        i += 1;
+    }
+};
+
+#[proc_macro]
+pub fn for_all_functions(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let macro_name = match get_macro_name_from_input("for_all_functions", _input) {
+        Ok(name) => name,
+        Err(err) => return err.into(),
+    };
+
+    let functions_glob = format!("{}/pyo3_ffi/fn.*.html", DOC_DIR.display());
+
+    let mut output = TokenStream::new();
+
+    for entry in glob::glob(&functions_glob).expect("Failed to read glob pattern") {
+        let entry = entry.unwrap();
+
+        let file_name = entry.file_name().unwrap().to_string_lossy().into_owned();
+
+        let function_name = file_name
+            .strip_prefix("fn.")
+            .unwrap()
+            .strip_suffix(".html")
+            .unwrap();
+
+        if EXCLUDED_SYMBOLS.contains(&function_name) {
+            continue;
+        }
+
+        let bindgen_name = get_bindgen_name(function_name, &BINDGEN_FUNCTION_NAMES);
+
+        let FunctionInfo {
+            modifiers,
+            arg_count,
+            variadic,
+        } = match (function_name, get_function_info(function_name, &entry)) {
+            (_, Ok(info)) => info,
+            // In some cases symbols and macros differ only by case, which is a problem for case-insensitive filesystems.
+            //
+            // Hard-code workarounds for these cases here.
+            //
+            // Maybe one day the rustdoc json output can be used to avoid this problem
+            ("Py_INCREF", Err(FunctionNameMismatch(e))) if e == "Py_IncRef" => FunctionInfo {
+                modifiers: quote!(),
+                arg_count: 1,
+                variadic: false,
+            },
+            ("Py_IncRef", Err(FunctionNameMismatch(e))) if e == "Py_INCREF" => FunctionInfo {
+                modifiers: quote!(extern "C"),
+                arg_count: 1,
+                variadic: false,
+            },
+            ("Py_DECREF", Err(FunctionNameMismatch(e))) if e == "Py_DecRef" => FunctionInfo {
+                modifiers: quote!(),
+                arg_count: 1,
+                variadic: false,
+            },
+            ("Py_DecRef", Err(FunctionNameMismatch(e))) if e == "Py_DECREF" => FunctionInfo {
+                modifiers: quote!(extern "C"),
+                arg_count: 1,
+                variadic: false,
+            },
+            ("PyThreadState_GET", Err(FunctionNameMismatch(e))) if e == "PyThreadState_Get" => {
+                FunctionInfo {
+                    modifiers: quote!(),
+                    arg_count: 0,
+                    variadic: false,
+                }
+            }
+            ("PyThreadState_Get", Err(FunctionNameMismatch(e))) if e == "PyThreadState_GET" => {
+                FunctionInfo {
+                    modifiers: quote!(extern "C"),
+                    arg_count: 0,
+                    variadic: false,
+                }
+            }
+            ("PyDateTime_IMPORT", Err(FunctionNameMismatch(e))) if e == "PyDateTime_Import" => {
+                FunctionInfo {
+                    modifiers: quote!(unsafe),
+                    arg_count: 0,
+                    variadic: false,
+                }
+            }
+            ("PyDateTime_Import", Err(FunctionNameMismatch(e))) if e == "PyDateTime_IMPORT" => {
+                FunctionInfo {
+                    modifiers: quote!(unsafe extern "C"),
+                    arg_count: 0,
+                    variadic: false,
+                }
+            }
+            (function_name, Err(FunctionNameMismatch(unexpected))) => {
+                let error_message = format!(
+                    "parsed unexpected function declaration for `{function_name}`: {unexpected}",
+                );
+                output.extend(quote!(compile_error!(#error_message);));
+                continue;
+            }
+        };
+
+        let function_ident = Ident::new(function_name, Span::call_site());
+        let bindgen_ident = Ident::new(&bindgen_name, Span::call_site());
+
+        let arg_types = std::iter::repeat_n(quote!(_), arg_count);
+
+        let vararg = if variadic { Some(quote!(, ...)) } else { None };
+
+        // if the function is not extern "C":
+        // - could be a Rust reimplementation of a C macro, or
+        // - a static inline function in the C headers, pyo3-ffi uses the Rust abi, bindgen uses the C abi still
+        //
+        // The for_all_functions macro has two forms accordingly
+        let (inline, modifiers) = if !modifiers.to_string().contains(r#"extern "C""#) {
+            // inline form takes @inline at front, no modifiers
+            (quote!( @inline ), quote!())
+        } else {
+            // regular form takes the modifiers
+            (quote!(), quote!([#modifiers]))
+        };
+
+        // If a macro, then there will be no symbol from bindgen at all. To avoid
+        // exclusions overreaching we have use cfg to document the expected macro range.
+        let macro_exclusion_cfg: Option<TokenStream> = MACRO_EXCLUSIONS
+            .iter()
+            .find(|(n, _)| *n == function_name)
+            .map(|(_, cfg)| if cfg.is_empty() { "all()" } else { *cfg })
+            .map(|cfg| cfg.parse().expect("failed to parse macro exclusion cfg"));
+
+        let has_symbol = BINDGEN_FUNCTION_NAMES.contains(&bindgen_name);
+        match (macro_exclusion_cfg, has_symbol) {
+            (Some(cfg), true) => {
+                // emit an error if checking within the cfgs where a macro is expected
+                let error_message = format!(
+                    "`{function_name}` is in MACRO_EXCLUSIONS but a symbol was found in bindgen bindings, this likely means the exclusion cfg `{cfg}` is incorrect",
+                );
+                output.extend(quote!(#[cfg(#cfg)] compile_error!(#error_message);));
+                // if not within the macro range, we found a symbol, this should be good
+                output.extend(
+                    quote!(#[cfg(not(#cfg))] #macro_name!(#inline #function_ident, #bindgen_ident, #modifiers (#(#arg_types),* #vararg));),
+                );
+            }
+            (Some(cfg), false) => {
+                // emit an error if outside the cfgs where a macro is expected - should
+                // be a static inline function in both pyo3-ffi and bindgen
+                let error_message = format!(
+                    "`{function_name}` is only expected to be a macro for versions `{cfg}`, but no symbol was found in bindgen bindings (means the symbol is probably still a macro in the headers)",
+                );
+                output.extend(quote!(#[cfg(not(#cfg))] compile_error!(#error_message);));
+            }
+            (None, true) => {
+                // emit the comparison macro to check that the argument count matches
+                output.extend(
+                    quote!(#macro_name!(#inline #function_ident, #bindgen_ident, #modifiers (#(#arg_types),* #vararg));),
+                );
+            }
+            (None, false)
+                if pyo3_build_config::get().implementation() == PythonImplementation::PyPy =>
+            {
+                // Without an explicit macro exclusion, tolerate missing PyPy symbols:
+                // - For PyO3 inline functions it's probably fine to include anyway
+                // - For extern symbols - PyPy may add them in a future release
+            }
+            (None, false) => {
+                // Not in MACRO_EXCLUSIONS, should have a symbol from bindgen
+                let error_message = format!(
+                    "`{function_name}` is not in MACRO_EXCLUSIONS and no symbol was found in bindgen bindings",
+                );
+                output.extend(quote!(compile_error!(#error_message);));
+            }
+        }
+    }
+
+    output.into()
+}
+
+struct FunctionInfo {
+    modifiers: TokenStream, // e.g. `unsafe extern "C"`, empty for no modifiers
+    arg_count: usize,       // not including the "..." for variadic functions
+    /// Whether the function is variadic (i.e. trailing `...` in argument list)
+    variadic: bool,
+}
+
+// Error returned when the function definition does not match the expected name of the file
+struct FunctionNameMismatch(String);
+
+fn get_function_info(
+    function_name: &str,
+    path: &Path,
+) -> Result<FunctionInfo, FunctionNameMismatch> {
+    let html = fs::read_to_string(path).expect("file not found");
+    let html = scraper::Html::parse_document(&html);
+    let selector = scraper::Selector::parse("pre.item-decl code").unwrap();
+
+    let code_el = html
+        .select(&selector)
+        .next()
+        .expect("failed to find code element in function doc");
+    let text = code_el.text().collect::<String>();
+
+    static FUNCTION_DECL_REGEX: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"^pub\s+(.*?)\sfn\s+([^(<]*)").unwrap());
+
+    let Some(captures) = FUNCTION_DECL_REGEX.captures(&text) else {
+        panic!(
+            "failed to parse function declaration for `{function_name}` with regex, got: {text}"
+        );
+    };
+
+    // find modifiers, e.g. `unsafe extern "C"`
+    let modifiers = captures.get(1).unwrap().as_str().parse().unwrap();
+
+    // find function name
+    let parsed_name = captures.get(2).unwrap().as_str().to_string();
+
+    if parsed_name != function_name {
+        return Err(FunctionNameMismatch(parsed_name));
+    }
+
+    let left_paren = text
+        .find('(')
+        .expect("function declaration should have opening paren");
+
+    // Extract text between parens
+    let start = left_paren + 1;
+
+    // some functions might have function pointer arguments with their own parens,
+    // so find the matching closing paren
+    let mut depth = 1;
+    let mut end = 0;
+    let mut last_arg_start = 0;
+    let mut arg_count = 0;
+    let args_begin = text[start..].trim_start();
+    for (i, c) in args_begin.char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' if depth == 1 => {
+                end = i;
+                break;
+            }
+            ')' => {
+                depth -= 1;
+            }
+            ',' if depth == 1 => {
+                arg_count += 1;
+                last_arg_start = i + 1;
+            }
+            _ => (),
+        }
+    }
+
+    let args = &args_begin[..end].trim();
+    let variadic = args.ends_with("...");
+
+    if last_arg_start < end && !variadic && !args_begin[last_arg_start..end].trim_end().is_empty() {
+        // additional argument after the last comma (i.e. no trailing comma)
+        arg_count += 1;
+    }
+
+    Ok(FunctionInfo {
+        modifiers,
+        arg_count,
+        variadic,
+    })
+}
+
+fn get_macro_name_from_input(
+    proc_macro: &str,
+    input: proc_macro::TokenStream,
+) -> Result<Ident, TokenStream> {
+    let input: TokenStream = input.into();
+    let mut input = input.into_iter();
+
+    let macro_name = match input.next() {
+        Some(TokenTree::Ident(i)) => i,
+        _ => {
+            let error_message = format!("{}!() takes only a single ident as input", proc_macro);
+            return Err(quote!(compile_error!(#error_message)));
+        }
+    };
+
+    if input.next().is_some() {
+        let error_message = format!("{}!() takes only a single ident as input", proc_macro);
+        return Err(quote!(compile_error!(#error_message)));
+    }
+
+    Ok(macro_name)
 }

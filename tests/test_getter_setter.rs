@@ -1,11 +1,11 @@
 #![cfg(feature = "macros")]
 
-use std::cell::Cell;
-
 use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PyString;
 use pyo3::types::{IntoPyDict, PyList};
+use std::cell::Cell;
+use std::convert::Infallible;
 
 mod test_utils;
 
@@ -315,5 +315,42 @@ fn test_optional_setter() {
             instance,
             "instance.field = None; assert instance.field is None"
         );
+    })
+}
+
+#[test]
+fn test_ref_only_getter() {
+    #[derive(Clone)]
+    struct RefOnly;
+
+    impl<'py> IntoPyObject<'py> for &RefOnly {
+        type Target = PyString;
+        type Output = Bound<'py, PyString>;
+        type Error = Infallible;
+
+        fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+            Ok(PyString::new(py, "value"))
+        }
+    }
+
+    #[pyclass]
+    struct Container {
+        #[pyo3(get)]
+        value: RefOnly,
+    }
+}
+
+#[test]
+fn test_unit_getter() {
+    #[derive(Clone)]
+    #[pyclass]
+    struct Container {
+        #[pyo3(get)]
+        value: (),
+    }
+
+    Python::attach(|py| {
+        let instance = Py::new(py, Container { value: () }).unwrap();
+        py_run!(py, instance, "assert instance.value is ()");
     })
 }

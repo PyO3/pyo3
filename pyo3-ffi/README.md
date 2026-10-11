@@ -2,7 +2,7 @@
 
 This crate provides [Rust](https://www.rust-lang.org/) FFI declarations for Python 3.
 It supports both the stable and the unstable component of the ABI through the use of cfg flags.
-Python Versions 3.8+ are supported.
+Python Versions 3.9+ are supported.
 It is meant for advanced users only - regular PyO3 users shouldn't
 need to interact with this crate at all.
 
@@ -12,10 +12,10 @@ Manual][capi] for up-to-date documentation.
 
 # Minimum supported Rust and Python versions
 
-Requires Rust 1.63 or greater.
+Requires Rust 1.85 or greater.
 
 `pyo3-ffi` supports the following Python distributions:
-  - CPython 3.8 or greater
+  - CPython 3.9 or greater
   - PyPy 7.3 (Python 3.9+)
   - GraalPy 24.0 or greater (Python 3.10+)
 
@@ -41,12 +41,12 @@ name = "string_sum"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3-ffi = "0.28.3"
+pyo3-ffi = "0.29.3"
 
 [build-dependencies]
 # This is only necessary if you need to configure your build based on
 # the Python version or the compile-time configuration for the interpreter.
-pyo3_build_config = "0.28.3"
+pyo3_build_config = "0.29.3"
 ```
 
 If you need to use conditional compilation based on Python version or how
@@ -145,14 +145,14 @@ static mut SLOTS: [PyModuleDef_Slot; SLOTS_LEN] = [
 // The module initialization function
 #[cfg(not(Py_3_15))]
 #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
     PyModuleDef_Init(&raw mut MODULE_DEF)
 }
 
 #[cfg(Py_3_15)]
 #[allow(non_snake_case, reason = "must be named `PyModExport_<your_module>`")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn PyModExport_string_sum() -> *mut PyModuleDef_Slot {
     (&raw mut SLOTS).cast()
 }

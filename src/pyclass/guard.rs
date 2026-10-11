@@ -1,17 +1,20 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 use crate::impl_::pycell::PyClassObjectBaseLayout as _;
 use crate::impl_::pyclass::PyClassImpl;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
-use crate::pycell::impl_::PyClassObjectLayout as _;
 use crate::pycell::PyBorrowMutError;
-use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
+use crate::pycell::impl_::PyClassObjectLayout as _;
+use crate::pycell::{PyBorrowError, impl_::PyClassBorrowChecker};
 use crate::pyclass::boolean_struct::False;
-use crate::{ffi, Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyClass, PyErr};
-use std::convert::Infallible;
-use std::fmt;
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
-use std::ptr::NonNull;
+use crate::{Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyClass, PyErr, ffi};
+use core::convert::Infallible;
+use core::fmt;
+use core::marker::PhantomData;
+use core::ops::{Deref, DerefMut};
+use core::ptr::NonNull;
 
 /// A wrapper type for an immutably borrowed value from a `PyClass`.
 ///
@@ -34,7 +37,7 @@ use std::ptr::NonNull;
 ///   uniqueness of `&mut` references. As such those references have to be
 ///   tracked dynamically at runtime, using [`PyClassGuard`] and
 ///   [`PyClassGuardMut`] defined in this module. This works similar to std's
-///   [`RefCell`](std::cell::RefCell) type. Especially when building for
+///   [`RefCell`](core::cell::RefCell) type. Especially when building for
 ///   free-threaded Python it gets harder to track which thread borrows which
 ///   object at any time. This can lead to method calls failing with
 ///   [`PyBorrowError`]. In these cases consider using `frozen` classes together
@@ -62,8 +65,9 @@ use std::ptr::NonNull;
 /// #[pymethods]
 /// impl Child {
 ///     #[new]
-///     fn new() -> (Self, Parent) {
-///         (Child { name: "Caterpillar" }, Parent { basename: "Butterfly" })
+///     fn new() -> PyClassInitializer<Self> {
+///         PyClassInitializer::from(Parent { basename: "Butterfly" })
+///             .add_subclass(Child { name: "Caterpillar" })
 ///     }
 ///
 ///     fn format(slf: PyClassGuard<'_, Self>) -> String {
@@ -103,7 +107,9 @@ impl<'a, T: PyClass> PyClassGuard<'a, T> {
         Self::try_from_class_object(obj.get_class_object())
     }
 
-    fn try_from_class_object(obj: &'a <T as PyClassImpl>::Layout) -> Result<Self, PyBorrowError> {
+    pub(crate) fn try_from_class_object(
+        obj: &'a <T as PyClassImpl>::Layout,
+    ) -> Result<Self, PyBorrowError> {
         obj.ensure_threadsafe();
         obj.borrow_checker().try_borrow().map(|_| Self {
             ptr: NonNull::from(obj).cast(),
@@ -138,11 +144,11 @@ impl<'a, T: PyClass> PyClassGuard<'a, T> {
     /// # Ok::<_, PyErr>(())
     /// # }).unwrap();
     /// ```
-    pub fn map<F, U: ?Sized>(self, f: F) -> PyClassGuardMap<'a, U, false>
+    pub fn map<F, U: ?Sized>(self, f: F) -> PyClassGuardMap<'a, U>
     where
         F: FnOnce(&T) -> &U,
     {
-        let slf = std::mem::ManuallyDrop::new(self); // the borrow is released when dropping the `PyClassGuardMap`
+        let slf = core::mem::ManuallyDrop::new(self); // the borrow is released when dropping the `PyClassGuardMap`
         PyClassGuardMap {
             ptr: NonNull::from(f(&slf)),
             checker: slf.as_class_object().borrow_checker(),
@@ -184,8 +190,9 @@ where
     /// #[pymethods]
     /// impl Sub {
     ///     #[new]
-    ///     fn new() -> (Self, Base) {
-    ///         (Self { sub_name: "sub_name" }, Base { base_name: "base_name" })
+    ///     fn new() -> PyClassInitializer<Self> {
+    ///         PyClassInitializer::from(Base { base_name: "base_name" })
+    ///             .add_subclass(Self { sub_name: "sub_name" })
     ///     }
     ///     fn sub_name_len(&self) -> usize {
     ///         self.sub_name.len()
@@ -271,7 +278,7 @@ where
             self.as_class_object().borrow_checker().release_borrow()
         };
         PyClassGuard {
-            ptr: std::mem::ManuallyDrop::new(self).ptr,
+            ptr: core::mem::ManuallyDrop::new(self).ptr,
             marker: PhantomData,
         }
     }
@@ -285,6 +292,12 @@ impl<T: PyClass> Deref for PyClassGuard<'_, T> {
         // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
         // mutable alias is enforced
         unsafe { &*self.as_class_object().get_ptr().cast_const() }
+    }
+}
+
+impl<T: PyClass + fmt::Debug> fmt::Debug for PyClassGuard<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.deref(), f)
     }
 }
 
@@ -391,6 +404,29 @@ impl From<PyClassGuardError<'_, '_>> for PyErr {
     }
 }
 
+/// Wraps a borrowed shared reference `U` to a value stored inside of a pyclass `T`
+///
+/// See [`PyClassGuard::map`]
+pub struct PyClassGuardMap<'a, U: ?Sized> {
+    ptr: NonNull<U>,
+    checker: &'a dyn PyClassBorrowChecker,
+}
+
+impl<U: ?Sized> Deref for PyClassGuardMap<'_, U> {
+    type Target = U;
+
+    fn deref(&self) -> &U {
+        // SAFETY: `checker` guards our access to the `T` that `U` points into
+        unsafe { self.ptr.as_ref() }
+    }
+}
+
+impl<U: ?Sized> Drop for PyClassGuardMap<'_, U> {
+    fn drop(&mut self) {
+        self.checker.release_borrow();
+    }
+}
+
 /// A wrapper type for a mutably borrowed value from a `PyClass`
 ///
 /// # When *not* to use [`PyClassGuardMut`]
@@ -441,25 +477,12 @@ impl From<PyClassGuardError<'_, '_>> for PyErr {
 ///         _slf: *mut ::pyo3::ffi::PyObject,
 ///     ) -> ::pyo3::PyResult<*mut ::pyo3::ffi::PyObject> {
 ///         let function = Number::increment;
-/// #       #[allow(clippy::let_unit_value)]
-///         let mut holder_0 = ::pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT;
-///         let result = {
-///             let ret = function(::pyo3::impl_::extract_argument::extract_pyclass_ref_mut::<Number>(
-///                 unsafe { ::pyo3::impl_::extract_argument::cast_function_argument(py, _slf) },
-///                 &mut holder_0,
-///             )?);
-///             {
-///                 let result = {
-///                     let obj = ret;
-/// #                   #[allow(clippy::useless_conversion)]
-///                     ::pyo3::impl_::wrap::converter(&obj)
-///                         .wrap(obj)
-///                         .map_err(::core::convert::Into::<::pyo3::PyErr>::into)
-///                 };
-///                 ::pyo3::impl_::wrap::converter(&result).map_into_ptr(py, result)
-///             }
-///         };
-///         result
+///         let (mut holder_0,) = (::pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT,);
+///         let ret = function(::pyo3::impl_::extract_argument::extract_pyclass_ref_mut::<Number>(
+///             unsafe { ::pyo3::impl_::extract_argument::cast_function_argument(py, _slf) },
+///             &mut holder_0,
+///         )?);
+///         ::pyo3::impl_::wrap::converter(&ret).wrap_into_ptr(py, ret)
 ///     }
 ///
 ///     unsafe {
@@ -526,7 +549,7 @@ impl From<PyClassGuardError<'_, '_>> for PyErr {
 /// # }
 /// #[pyfunction]
 /// fn swap_numbers(a: &mut Number, b: &mut Number) {
-///     std::mem::swap(&mut a.inner, &mut b.inner);
+///     core::mem::swap(&mut a.inner, &mut b.inner);
 /// }
 /// # fn main() {
 /// #     Python::attach(|py| {
@@ -562,7 +585,7 @@ impl From<PyClassGuardError<'_, '_>> for PyErr {
 ///     if !a.is(b) {
 ///         let mut a: PyClassGuardMut<'_, Number> = a.extract()?;
 ///         let mut b: PyClassGuardMut<'_, Number> = b.extract()?;
-///         std::mem::swap(&mut a.inner, &mut b.inner);
+///         core::mem::swap(&mut a.inner, &mut b.inner);
 ///     } else {
 ///         // Do nothing - they are the same object, so don't need swapping.
 ///     }
@@ -650,14 +673,15 @@ impl<'a, T: PyClass<Frozen = False>> PyClassGuardMut<'a, T> {
     /// # Ok::<_, PyErr>(())
     /// # }).unwrap();
     /// ```
-    pub fn map<F, U: ?Sized>(self, f: F) -> PyClassGuardMap<'a, U, true>
+    pub fn map<F, U: ?Sized>(self, f: F) -> PyClassGuardMapMut<'a, U>
     where
         F: FnOnce(&mut T) -> &mut U,
     {
-        let mut slf = std::mem::ManuallyDrop::new(self); // the borrow is released when dropping the `PyClassGuardMap`
-        PyClassGuardMap {
+        let mut slf = core::mem::ManuallyDrop::new(self); // the borrow is released when dropping the `PyClassGuardMap`
+        PyClassGuardMapMut {
             ptr: NonNull::from(f(&mut slf)),
             checker: slf.as_class_object().borrow_checker(),
+            _borrow: PhantomData,
         }
     }
 }
@@ -675,9 +699,15 @@ where
     /// super-superclass (and so on).
     ///
     /// See [`PyClassGuard::as_super`] for more.
-    pub fn as_super(&mut self) -> &mut PyClassGuardMut<'a, T::BaseType> {
-        // SAFETY: `PyClassGuardMut<T>` and `PyClassGuardMut<U>` have the same layout
-        unsafe { NonNull::from(self).cast().as_mut() }
+    ///
+    /// # Note
+    ///
+    /// The mutable reference to the base type is not exposed directly, but through [`PyClassGuardMutSuper`].
+    pub fn as_super(&mut self) -> PyClassGuardMutSuper<'_, 'a, T::BaseType> {
+        PyClassGuardMutSuper {
+            // SAFETY: `PyClassGuardMut<T>` and `PyClassGuardMut<U>` have the same layout
+            guard: unsafe { NonNull::from(self).cast().as_mut() },
+        }
     }
 
     /// Gets a `PyClassGuardMut<T::BaseType>`.
@@ -687,7 +717,7 @@ where
         // `PyClassGuardMut` is only available for non-frozen classes, so there
         // is no possibility of leaking borrows like `PyClassGuard`
         PyClassGuardMut {
-            ptr: std::mem::ManuallyDrop::new(self).ptr,
+            ptr: core::mem::ManuallyDrop::new(self).ptr,
             marker: PhantomData,
         }
     }
@@ -709,6 +739,12 @@ impl<T: PyClass<Frozen = False>> DerefMut for PyClassGuardMut<'_, T> {
         // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
         // alias is enforced
         unsafe { &mut *self.as_class_object().get_ptr() }
+    }
+}
+
+impl<T: PyClass<Frozen = False> + fmt::Debug> fmt::Debug for PyClassGuardMut<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.deref(), f)
     }
 }
 
@@ -816,15 +852,67 @@ impl From<PyClassGuardMutError<'_, '_>> for PyErr {
     }
 }
 
-/// Wraps a borrowed reference `U` to a value stored inside of a pyclass `T`
+/// Wraps a borrowed mutable reference to the base class `T::BaseType` of a PyClass `T`
 ///
-/// See [`PyClassGuard::map`] and [`PyClassGuardMut::map`]
-pub struct PyClassGuardMap<'a, U: ?Sized, const MUT: bool> {
-    ptr: NonNull<U>,
-    checker: &'a dyn PyClassBorrowChecker,
+/// See [`PyClassGuardMut::as_super`]
+#[repr(transparent)]
+pub struct PyClassGuardMutSuper<'a, 'g, T: PyClass<Frozen = False>> {
+    // NOTE: Exposing this directly from `PyClassGuardMut::as_super` would allow swapping this
+    // `guard` with another guard of the same basetype but different subtype. That is unsound as the
+    // original `PyClassGuardMut` allows access to the `T` stored inside. By wrapping the guard in a
+    // new type which does not expose a mutable reference to the guard directly we ensure that this
+    // swap is impossible.
+    guard: &'a mut PyClassGuardMut<'g, T>,
 }
 
-impl<U: ?Sized, const MUT: bool> Deref for PyClassGuardMap<'_, U, MUT> {
+impl<'a, 'g, T> PyClassGuardMutSuper<'a, 'g, T>
+where
+    T: PyClass<Frozen = False>,
+    T::BaseType: PyClass<Frozen = False>,
+{
+    /// Borrows a mutable reference to `PyClassGuardMut<T::BaseType>`.
+    ///
+    /// See [`PyClassGuardMut::as_super`] for more.
+    pub fn as_super(&mut self) -> PyClassGuardMutSuper<'_, 'g, T::BaseType> {
+        self.guard.as_super()
+    }
+}
+
+impl<T> Deref for PyClassGuardMutSuper<'_, '_, T>
+where
+    T: PyClass<Frozen = False>,
+{
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
+        // alias is enforced
+        unsafe { &*self.guard.as_class_object().get_ptr().cast_const() }
+    }
+}
+
+impl<T> DerefMut for PyClassGuardMutSuper<'_, '_, T>
+where
+    T: PyClass<Frozen = False>,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        // SAFETY: `PyClassObject<T>` contains a valid `T`, by construction no
+        // alias is enforced
+        unsafe { &mut *self.guard.as_class_object().get_ptr() }
+    }
+}
+
+/// Wraps a borrowed mutable reference `U` to a value stored inside of a pyclass `T`
+///
+/// See [`PyClassGuardMut::map`]
+pub struct PyClassGuardMapMut<'a, U: ?Sized> {
+    ptr: NonNull<U>,
+    checker: &'a dyn PyClassBorrowChecker,
+    // We mutate through `ptr`, so make sure we are invariant in `U`
+    _borrow: PhantomData<&'a mut U>,
+}
+
+impl<U: ?Sized> Deref for PyClassGuardMapMut<'_, U> {
     type Target = U;
 
     fn deref(&self) -> &U {
@@ -833,20 +921,16 @@ impl<U: ?Sized, const MUT: bool> Deref for PyClassGuardMap<'_, U, MUT> {
     }
 }
 
-impl<U: ?Sized> DerefMut for PyClassGuardMap<'_, U, true> {
+impl<U: ?Sized> DerefMut for PyClassGuardMapMut<'_, U> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         // SAFETY: `checker` guards our access to the `T` that `U` points into
         unsafe { self.ptr.as_mut() }
     }
 }
 
-impl<U: ?Sized, const MUT: bool> Drop for PyClassGuardMap<'_, U, MUT> {
+impl<U: ?Sized> Drop for PyClassGuardMapMut<'_, U> {
     fn drop(&mut self) {
-        if MUT {
-            self.checker.release_borrow_mut();
-        } else {
-            self.checker.release_borrow();
-        }
+        self.checker.release_borrow_mut();
     }
 }
 
@@ -854,7 +938,7 @@ impl<U: ?Sized, const MUT: bool> Drop for PyClassGuardMap<'_, U, MUT> {
 #[cfg(feature = "macros")]
 mod tests {
     use super::{PyClassGuard, PyClassGuardMut};
-    use crate::{types::PyAnyMethods as _, Bound, IntoPyObject as _, Py, PyErr, Python};
+    use crate::{Bound, IntoPyObject as _, Py, PyErr, Python, types::PyAnyMethods as _};
 
     #[test]
     fn test_into_frozen_super_released_borrow() {

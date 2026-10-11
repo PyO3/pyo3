@@ -35,8 +35,8 @@ struct SubWithoutInit;
 #[pymethods]
 impl SubWithoutInit {
     #[new]
-    fn new() -> (Self, Base) {
-        (Self, Base::new())
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from(Base::new()).add_subclass(Self)
     }
 }
 
@@ -60,8 +60,8 @@ struct SubWithInit;
 #[pymethods]
 impl SubWithInit {
     #[new]
-    fn new() -> (Self, Base) {
-        (Self, Base::new())
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from(Base::new()).add_subclass(Self)
     }
 
     fn __init__(mut slf: pyo3::PyClassGuardMut<'_, Self>) {
@@ -82,5 +82,29 @@ fn test_subclass_with_init() {
         // check SubWithInit.__init__ was called, and Base.__init__ was only called once (through
         // SubWithInit.__init__)
         assert_eq!(obj.as_super().borrow().num, 43);
+    });
+}
+
+#[test]
+fn test_arbitrary_object() {
+    #[pyclass]
+    struct A {}
+
+    #[pyclass]
+    struct B {}
+
+    #[pymethods]
+    impl A {
+        #[new]
+        fn __new__() -> B {
+            B {}
+        }
+    }
+
+    Python::attach(|py| {
+        let typeobj = py.get_type::<A>();
+        let obj = typeobj.call((), None).unwrap();
+
+        assert!(obj.is_instance_of::<B>());
     });
 }

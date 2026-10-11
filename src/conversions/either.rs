@@ -49,8 +49,8 @@ use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_union;
 use crate::{
-    exceptions::PyTypeError, Borrowed, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny,
-    PyErr, Python,
+    Borrowed, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python,
+    exceptions::PyTypeError,
 };
 use either::Either;
 
@@ -118,8 +118,8 @@ where
             // is not experimental, rather than the Rust type names.
             let err_msg = format!(
                 "failed to convert the value to 'Union[{}, {}]'",
-                std::any::type_name::<L>(),
-                std::any::type_name::<R>()
+                core::any::type_name::<L>(),
+                core::any::type_name::<R>()
             );
             Err(PyTypeError::new_err(err_msg))
         }
@@ -128,9 +128,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
+    use alloc::borrow::Cow;
 
     use crate::exceptions::PyTypeError;
+    use crate::platform::prelude::*;
     use crate::{IntoPyObject, Python};
 
     use crate::types::PyAnyMethods;

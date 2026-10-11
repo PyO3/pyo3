@@ -1,3 +1,5 @@
+//! Python slices and related types.
+
 use crate::err::{PyErr, PyResult};
 use crate::ffi;
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -7,7 +9,13 @@ use crate::inspect::PyStaticExpr;
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyRange, PyRangeMethods};
 use crate::{Bound, IntoPyObject, PyAny, Python};
-use std::convert::Infallible;
+#[cfg(RustPython)]
+use crate::{
+    Py,
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+};
+use core::convert::Infallible;
 
 /// Represents a Python `slice`.
 ///
@@ -21,10 +29,24 @@ use std::convert::Infallible;
 #[repr(transparent)]
 pub struct PySlice(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type!(
     PySlice,
     ffi::PySliceObject,
     pyobject_native_static_type_object!(ffi::PySlice_Type),
+    "builtins",
+    "slice",
+    #checkfunction=ffi::PySlice_Check
+);
+
+#[cfg(RustPython)]
+pyobject_native_type!(
+    PySlice,
+    ffi::PySliceObject,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "slice").unwrap().as_type_ptr()
+    },
     "builtins",
     "slice",
     #checkfunction=ffi::PySlice_Check

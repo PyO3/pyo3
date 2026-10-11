@@ -1,6 +1,9 @@
 on:
   workflow_call:
     inputs:
+      sha:
+        type: string
+        default: ""
       os:
         required: true
         type: string
@@ -24,53 +27,43 @@ on:
         default: false
 
 env:
+  CARGO_TERM_COLOR: always
   NOX_DEFAULT_VENV_BACKEND: uv
 
 jobs:
   build:
-    continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["3.8"]'), inputs.python-version) || contains(fromJSON('["beta", "nightly"]'), inputs.rust) }}
+    continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["beta", "nightly"]'), inputs.rust) }}
     runs-on: ${{ inputs.os }}
-    if: ${{ !(startsWith(inputs.python-version, 'graalpy') && startsWith(inputs.os, 'windows')) }}
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # For PRs, we need to run on the real PR head, not the resultant merge of the PR into the target branch.
-          #
-          # This is necessary for coverage reporting to make sense; we then get exactly the coverage change
-          # between the base branch and the real PR head.
-          #
-          # If it were run on the merge commit the problem is that the coverage potentially does not align
-          # with the commit diff, because the merge may affect line numbers.
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.sha }}
 
       # installs using setup-python do not work for arm macOS 3.9 and below
-      - if: ${{ !(inputs.os == 'macos-latest' && contains(fromJSON('["3.8", "3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64') }}
+      - if: ${{ !(inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64') }}
         name: Set up Python ${{ inputs.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
-          # PyPy can have FFI changes within Python versions, which creates pain in CI
-          check-latest: ${{ startsWith(inputs.python-version, 'pypy') }}
+          check-latest: true
 
-      # workaround for the above, only available for 3.9
-      - if: ${{ inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64' }}
-        name: Set up Python ${{ inputs.python-version }}
-        uses: astral-sh/setup-uv@v7
+      - name: Set up uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          python-version: cpython-${{ inputs.python-version }}-macos-x86-64
+          # workaround for the above, only available for 3.9
+          python-version: ${{ inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64' && format('cpython-{0}-macos-x86-64', inputs.python-version) || '' }}
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
-      - name: Install nox
-        run: python -m pip install --upgrade pip && pip install nox[uv]
-
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ inputs.rust }}
-          targets: ${{ inputs.rust-target }}
+        shell: bash
+        env:
+          RUST_TOOLCHAIN: ${{ inputs.rust }}
+          RUST_TARGET: ${{ inputs.rust-target }}
+        run: |
           # rust-src needed to correctly format errors, see #1865
-          components: rust-src,llvm-tools-preview
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --no-self-update --component rust-src --target "$RUST_TARGET" --allow-downgrade
+          rustup default "$RUST_TOOLCHAIN"
 
       # On windows 32 bit, we are running on an x64 host, so we need to specifically set the target
       # NB we don't do this for *all* jobs because it breaks coverage of proc macros to have an
@@ -81,11 +74,7 @@ jobs:
         run: |
           echo "CARGO_BUILD_TARGET=i686-pc-windows-msvc" >> $GITHUB_ENV
 
-      - name: Install zoneinfo backport for Python 3.8
-        if: contains(fromJSON('["3.8"]'), inputs.python-version)
-        run: python -m pip install backports.zoneinfo
-
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
@@ -95,13 +84,13 @@ jobs:
 
       - if: inputs.rust == inputs.MSRV
         name: Prepare MSRV package versions
-        run: nox -s set-msrv-package-versions
+        run: uvx nox -s set-msrv-package-versions
 
       - if: inputs.rust != 'stable'
-        name: Ignore changed error messages when using trybuild
-        run: echo "TRYBUILD=overwrite" >> "$GITHUB_ENV"
+        name: Ignore changed error messages for ui tests (still run for coverage)
+        run: echo "UI_TEST=ignore" >> "$GITHUB_ENV"
 
-      - uses: dorny/paths-filter@v4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         if: ${{ inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') }}
         id: ffi-changes
         with:
@@ -117,45 +106,26 @@ jobs:
       - name: Run pyo3-ffi-check
         # TODO: investigate graalpy failures
         if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy')) }}
-        run: nox -s ffi-check
+        run: uvx nox -s ffi-check
 
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-
-      - name: Prepare coverage environment
-        run: |
-          cargo llvm-cov clean --workspace --profraw-only
-          nox -s set-coverage-env
+      - uses: ./.github/actions/prepare-coverage
+        if: ${{ inputs.os != 'windows-11-arm' }} # https://github.com/rust-lang/rust/issues/150123
 
       - name: Build docs
-        run: nox -s docs
+        run: uvx nox -s docs
 
       - name: Run Rust tests
-        run: nox -s test-rust
+        run: uvx nox -s test-rust
 
       - name: Test python examples and tests
         shell: bash
-        run: nox -s test-py
+        run: uvx nox -s test-py
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
-      - name: Generate coverage report
-        # needs investigation why llvm-cov fails on windows-11-arm
-        continue-on-error: ${{ inputs.os == 'windows-11-arm' }}
-        run: cargo llvm-cov
-          --package=pyo3
-          --package=pyo3-build-config
-          --package=pyo3-macros-backend
-          --package=pyo3-macros
-          --package=pyo3-ffi
-          report --codecov --output-path coverage.json
-
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v6
-        # needs investigation why llvm-cov fails on windows-11-arm
-        continue-on-error: ${{ inputs.os == 'windows-11-arm' }}
+      - uses: ./.github/actions/report-coverage
+        if: ${{ inputs.sha && inputs.os != 'windows-11-arm' }} # https://github.com/rust-lang/rust/issues/150123
         with:
-          files: coverage.json
           name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}
           token: ${{ secrets.CODECOV_TOKEN }}
 

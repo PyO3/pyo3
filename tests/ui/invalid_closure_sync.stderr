@@ -1,0 +1,36 @@
+error[E0277]: `Cell<i32>` cannot be shared between threads safely
+   --> tests/ui/invalid_closure_sync.rs:15:50
+    |
+  8 |           let closure_fn = move |_args: &Bound<'_, PyTuple>,
+    |  __________________________-
+  9 | |                                _kwargs: Option<&Bound<'_, PyDict>>|
+ 10 | |               -> PyResult<()> {
+    | |_____________________________- within this `{closure@tests/ui/invalid_closure_sync.rs:8:26: 10:30}`
+...
+ 15 |           PyCFunction::new_closure(py, None, None, closure_fn).unwrap();
+    |           ------------------------                 ^^^^^^^^^^ `Cell<i32>` cannot be shared between threads safely
+    |           |
+    |           required by a bound introduced by this call
+    |
+    = help: within `{closure@tests/ui/invalid_closure_sync.rs:8:26: 10:30}`, the trait `Sync` is not implemented for `Cell<i32>`
+    = note: if you want to do aliasing and mutation between multiple threads, use `std::sync::RwLock` or `std::sync::atomic::AtomicI32` instead
+note: required because it's used within this closure
+   --> tests/ui/invalid_closure_sync.rs:8:26
+    |
+  8 |           let closure_fn = move |_args: &Bound<'_, PyTuple>,
+    |  __________________________^
+  9 | |                                _kwargs: Option<&Bound<'_, PyDict>>|
+ 10 | |               -> PyResult<()> {
+    | |_____________________________^
+note: required by a bound in `PyCFunction::new_closure`
+ --> src/types/function.rs
+  |
+  |     pub fn new_closure<'py, F, R>(
+  |            ----------- required by a bound in this associated function
+...
+  |         F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + Sync + 'static,
+  |                                                                              ^^^^ required by this bound in `PyCFunction::new_closure`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0277`.

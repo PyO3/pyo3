@@ -24,14 +24,19 @@ error[E0716]: temporary value dropped while borrowed
   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0521]: borrowed data escapes outside of function
- --> tests/ui/static_ref.rs:9:1
-  |
-9 | #[pyfunction]
-  | ^^^^^^^^^^^^^
-  | |
-  | `py` is a reference that is only valid in the function body
-  | `py` escapes the function body here
-  | lifetime `'py` defined here
-  | argument requires that `'py` must outlive `'static`
-  |
-  = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
+  --> tests/ui/static_ref.rs:11:1
+   |
+11 | #[pyfunction]
+   | ^^^^^^^^^^^^^
+   | |
+   | `py` is a reference that is only valid in the function body
+   | `py` escapes the function body here
+   | lifetime `'py` defined here
+   | argument requires that `'py` must outlive `'static`
+   |
+   = note: this error originates in the attribute macro `pyfunction` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 3 previous errors
+
+Some errors have detailed explanations: E0521, E0716.
+For more information about an error, try `rustc --explain E0521`.

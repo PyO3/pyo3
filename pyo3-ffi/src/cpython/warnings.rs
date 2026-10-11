@@ -1,5 +1,5 @@
 use crate::object::PyObject;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 extern_libpython! {
     pub fn PyErr_WarnExplicitObject(

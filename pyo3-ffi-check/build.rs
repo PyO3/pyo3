@@ -10,9 +10,15 @@ fn main() {
     // write docs into the build script output directory, they will be read
     // by the proc macro to resolve what definitions exist
     let status = std::process::Command::new("cargo")
-        .args(["doc", "-p", "pyo3-ffi-check-definitions", "--no-deps"])
+        .args([
+            "doc",
+            "-p",
+            "pyo3-ffi-check-definitions",
+            "--no-deps",
+            "--document-private-items",
+        ])
         .env("CARGO_TARGET_DIR", out_dir)
-        // forward target to the doc buid to ensure `--target` is honored
+        // forward target to the doc build to ensure `--target` is honored
         .env("CARGO_BUILD_TARGET", target)
         .status()
         .expect("failed to build definitions");
@@ -32,7 +38,14 @@ fn main() {
     println!("cargo:rerun-if-changed=definitions");
     println!("cargo:rerun-if-changed=../pyo3-ffi");
 
+    pyo3_build_config::use_pyo3_cfgs();
+
     // Because `pyo3-ffi` is a dependency, libpython is linked, this ensures `main.rs` can run.
     // Slightly needless (no symbols from libpython are actually called), but simple to do.
     pyo3_build_config::add_libpython_rpath_link_args();
+
+    // Forward config into this crate's compilation, so that `ffi-check` macro can consume it.
+    let pyo3_config_raw =
+        std::env::var("DEP_PYTHON_PYO3_CONFIG").expect("PYO3_CONFIG environment variable not set");
+    println!("cargo:rustc-env=DEP_PYTHON_PYO3_CONFIG={pyo3_config_raw}");
 }

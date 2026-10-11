@@ -1,4 +1,5 @@
-#![cfg(all(feature = "macros", not(any(PyPy, GraalPy))))]
+#![cfg(feature = "macros")]
+#![cfg(not(any(PyPy, GraalPy)))]
 
 use pyo3::{prelude::*, types::PySuper};
 
@@ -25,8 +26,8 @@ struct SubClass {}
 #[pymethods]
 impl SubClass {
     #[new]
-    fn new() -> (Self, BaseClass) {
-        (SubClass {}, BaseClass::new())
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from(BaseClass::new()).add_subclass(Self {})
     }
 
     fn method<'py>(self_: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {

@@ -5,16 +5,21 @@
 //! They exist to monomorphise std::panic::catch_unwind once into PyO3, rather than inline in every
 //! function, thus saving a huge amount of compile-time complexity.
 
-use std::{
-    any::Any,
-    os::raw::c_int,
-    panic::{self, UnwindSafe},
-};
+#[cfg(wip_feature_std)]
+use core::any::Any;
+use core::{ffi::c_int, panic::UnwindSafe};
 
 use crate::internal::state::AttachGuard;
+#[cfg(wip_feature_std)]
+use crate::panic::PanicException;
+#[allow(
+    unused_imports,
+    reason = "conditional compilation use item from prelude"
+)]
+use crate::platform::prelude::*;
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput, impl_::panic::PanicTrap,
-    panic::PanicException, types::PyModule, Bound, PyResult, Python,
+    Bound, PyResult, Python, ffi, ffi_ptr_ext::FfiPtrExt, impl_::callback::PyCallbackOutput,
+    impl_::panic::PanicTrap, types::PyModule,
 };
 
 #[inline]
@@ -150,12 +155,16 @@ trampolines!(
     ) -> *mut ffi::PyObject;
 );
 
-/// "fastcall" method calls only avaible on abi3 in Python 3.10 and up, otherwise fall back to the older call convention.
+/// "fastcall" method calls only available on abi3 in Python 3.10 and up, otherwise fall back to the older call convention.
 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 pub use self::fastcall_cfunction_with_keywords as maybe_fastcall_cfunction_with_keywords;
 
 #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
 pub use self::cfunction_with_keywords as maybe_fastcall_cfunction_with_keywords;
+
+/// Short aliases for the trampolines above, used by the macros to keep the generated code small.
+pub use self::cfunction_with_keywords as cfunc_kw;
+pub use self::maybe_fastcall_cfunction_with_keywords as fastcall_kw;
 
 // Trampolines used by slot methods
 trampolines!(
@@ -234,7 +243,7 @@ pub unsafe extern "C" fn releasebufferproc<Meth: MethodDef<releasebufferproc::Fu
     slf: *mut ffi::PyObject,
     buf: *mut ffi::Py_buffer,
 ) {
-    // SAFETY: caller upholds rquirements
+    // SAFETY: caller upholds requirements
     unsafe { releasebufferproc::inner(slf, buf, Meth::METH) }
 }
 
@@ -277,7 +286,7 @@ pub(crate) unsafe fn dealloc(
                 f(py, slf);
                 Ok(())
             },
-            std::ptr::null_mut(),
+            core::ptr::null_mut(),
         )
     }
 }
@@ -300,16 +309,20 @@ where
     // SAFETY: This function requires the thread to already be attached.
     let guard = unsafe { AttachGuard::assume() };
     let py = guard.python();
-    let out = panic_result_into_callback_output(
-        py,
-        panic::catch_unwind(move || -> PyResult<_> { body(py) }),
-    );
+    let out = cfg_select! {
+        wip_feature_std => panic_result_into_callback_output(
+            py,
+            std::panic::catch_unwind(move || -> PyResult<_> { body(py) }),
+        ),
+        _ => result_into_callback_output(py, body(py)),
+    };
     trap.disarm();
     out
 }
 
 /// Converts the output of std::panic::catch_unwind into a Python function output, either by raising a Python
 /// exception or by unwrapping the contained success output.
+#[cfg(wip_feature_std)]
 #[inline]
 fn panic_result_into_callback_output<R>(
     py: Python<'_>,
@@ -319,9 +332,21 @@ where
     R: PyCallbackOutput,
 {
     let py_err = match panic_result {
-        Ok(Ok(value)) => return value,
-        Ok(Err(py_err)) => py_err,
+        Ok(result) => return result_into_callback_output(py, result),
         Err(payload) => PanicException::from_panic_payload(payload),
+    };
+    py_err.restore(py);
+    R::ERR_VALUE
+}
+
+#[inline]
+fn result_into_callback_output<R>(py: Python<'_>, result: PyResult<R>) -> R
+where
+    R: PyCallbackOutput,
+{
+    let py_err = match result {
+        Ok(value) => return value,
+        Err(py_err) => py_err,
     };
     py_err.restore(py);
     R::ERR_VALUE
@@ -349,9 +374,14 @@ where
     let guard = unsafe { AttachGuard::assume() };
     let py = guard.python();
 
-    if let Err(py_err) = panic::catch_unwind(move || body(py))
-        .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload)))
-    {
+    let result = cfg_select! {
+        wip_feature_std => std::panic::catch_unwind(move || body(py))
+            .unwrap_or_else(|payload| Err(PanicException::from_panic_payload(payload))),
+
+        _ => body(py),
+    };
+
+    if let Err(py_err) = result {
         // SAFETY: caller upholds requirements
         py_err.write_unraisable(py, unsafe { ctx.assume_borrowed_or_opt(py) }.as_deref());
     }

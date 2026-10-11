@@ -1,11 +1,22 @@
-use crate::byteswriter::PyBytesWriter;
+//! See [`PyBytes`] for more info. This mod also contains its helper type [`PyBytesWriter`].
+
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
-use crate::{ffi, Py, PyAny, PyResult, Python};
-use std::io::Write;
-use std::ops::Index;
-use std::slice::SliceIndex;
-use std::str;
+#[allow(unused_imports, reason = "used to build docs")]
+use crate::platform::prelude::*;
+use crate::{Py, PyAny, PyResult, Python, ffi};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+};
+use core::ops::Index;
+use core::slice::SliceIndex;
+use core::str;
+
+pub use self::writer::PyBytesWriter;
+
+mod writer;
 
 /// Represents a Python `bytes` object.
 ///
@@ -49,7 +60,20 @@ use std::str;
 #[repr(transparent)]
 pub struct PyBytes(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyBytes, pyobject_native_static_type_object!(ffi::PyBytes_Type), "builtins", "bytes", #checkfunction=ffi::PyBytes_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyBytes,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "bytes").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "bytes",
+    #checkfunction=ffi::PyBytes_Check
+);
 
 impl PyBytes {
     /// Creates a new Python bytestring object.
@@ -96,16 +120,16 @@ impl PyBytes {
         F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
         unsafe {
-            let pyptr = ffi::PyBytes_FromStringAndSize(std::ptr::null(), len as ffi::Py_ssize_t);
+            let pyptr = ffi::PyBytes_FromStringAndSize(core::ptr::null(), len as ffi::Py_ssize_t);
             // Check for an allocation error and return it
             let pybytes = pyptr.assume_owned_or_err(py)?.cast_into_unchecked();
             let buffer: *mut u8 = ffi::PyBytes_AsString(pyptr).cast();
             debug_assert!(!buffer.is_null());
             // Zero-initialise the uninitialised bytestring
-            std::ptr::write_bytes(buffer, 0u8, len);
+            core::ptr::write_bytes(buffer, 0u8, len);
             // (Further) Initialise the bytestring in init
             // If init returns an Err, pypybytearray will automatically deallocate the buffer
-            init(std::slice::from_raw_parts_mut(buffer, len)).map(|_| pybytes)
+            init(core::slice::from_raw_parts_mut(buffer, len)).map(|_| pybytes)
         }
     }
 
@@ -123,12 +147,11 @@ impl PyBytes {
     ///
     /// ```
     /// use pyo3::{prelude::*, types::PyBytes};
-    /// use std::io::Write;
     ///
     /// # fn main() -> PyResult<()> {
     /// Python::attach(|py| -> PyResult<()> {
     ///     let py_bytes = PyBytes::new_with_writer(py, 0, |writer| {
-    ///         writer.write_all(b"hello world")?;
+    ///         writer.write_bytes(b"hello world")?;
     ///         Ok(())
     ///     })?;
     ///     assert_eq!(py_bytes.as_bytes(), b"hello world");
@@ -137,13 +160,13 @@ impl PyBytes {
     /// # }
     /// ```
     #[inline]
-    pub fn new_with_writer<F>(
-        py: Python<'_>,
+    pub fn new_with_writer<'py, F>(
+        py: Python<'py>,
         reserved_capacity: usize,
         write: F,
-    ) -> PyResult<Bound<'_, PyBytes>>
+    ) -> PyResult<Bound<'py, PyBytes>>
     where
-        F: FnOnce(&mut dyn Write) -> PyResult<()>,
+        F: FnOnce(&mut PyBytesWriter<'py>) -> PyResult<()>,
     {
         let mut writer = PyBytesWriter::with_capacity(py, reserved_capacity)?;
         write(&mut writer)?;
@@ -158,7 +181,7 @@ impl PyBytes {
     ///
     /// This function dereferences the raw pointer `ptr` as the
     /// leading pointer of a slice of length `len`. [As with
-    /// `std::slice::from_raw_parts`, this is
+    /// `core::slice::from_raw_parts`, this is
     /// unsafe](https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html#safety).
     pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> Bound<'_, PyBytes> {
         unsafe {
@@ -191,11 +214,20 @@ impl<'a> Borrowed<'a, '_, PyBytes> {
     /// Gets the Python string as a byte slice.
     #[allow(clippy::wrong_self_convention)]
     pub(crate) fn as_bytes(self) -> &'a [u8] {
+        #[cfg(not(Py_LIMITED_API))]
+        unsafe {
+            let buffer = ffi::PyBytes_AS_STRING(self.as_ptr()).cast::<u8>();
+            let length = ffi::Py_SIZE(self.as_ptr()) as usize;
+            debug_assert!(!buffer.is_null());
+            core::slice::from_raw_parts(buffer, length)
+        }
+
+        #[cfg(Py_LIMITED_API)]
         unsafe {
             let buffer = ffi::PyBytes_AsString(self.as_ptr()) as *const u8;
             let length = ffi::PyBytes_Size(self.as_ptr()) as usize;
             debug_assert!(!buffer.is_null());
-            std::slice::from_raw_parts(buffer, length)
+            core::slice::from_raw_parts(buffer, length)
         }
     }
 }
@@ -387,10 +419,12 @@ mod tests {
                 Err(PyValueError::new_err("Hello Crustaceans!"))
             });
             assert!(py_bytes_result.is_err());
-            assert!(py_bytes_result
-                .err()
-                .unwrap()
-                .is_instance_of::<PyValueError>(py));
+            assert!(
+                py_bytes_result
+                    .err()
+                    .unwrap()
+                    .is_instance_of::<PyValueError>(py)
+            );
         });
     }
 
@@ -432,8 +466,8 @@ mod tests {
             let py_bytes = PyBytes::new(py, b);
             unsafe {
                 assert_eq!(
-                    ffi::PyBytes_AsString(py_bytes.as_ptr()) as *const std::ffi::c_char,
-                    ffi::PyBytes_AS_STRING(py_bytes.as_ptr()) as *const std::ffi::c_char
+                    ffi::PyBytes_AsString(py_bytes.as_ptr()) as *const core::ffi::c_char,
+                    ffi::PyBytes_AS_STRING(py_bytes.as_ptr()) as *const core::ffi::c_char
                 );
             }
         })
@@ -453,10 +487,21 @@ mod tests {
     }
 
     #[test]
+    fn test_py_as_bytes() {
+        let pyobj: Py<PyBytes> = Python::attach(|py| PyBytes::new(py, b"abc").unbind());
+
+        let data = Python::attach(|py| pyobj.as_bytes(py));
+
+        assert_eq!(data, b"abc");
+
+        Python::attach(move |_py| drop(pyobj));
+    }
+
+    #[test]
     fn test_with_writer() {
         Python::attach(|py| {
             let bytes = PyBytes::new_with_writer(py, 0, |writer| {
-                writer.write_all(b"hallo")?;
+                writer.write_bytes(b"hallo")?;
                 Ok(())
             })
             .unwrap();

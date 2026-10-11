@@ -1,12 +1,14 @@
 use crate::impl_::pyfunction::PyFunctionDef;
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 use crate::types::PyFrame;
+#[cfg(Py_3_15)]
+use crate::types::PyFrozenDict;
 use crate::types::{
     PyBool, PyByteArray, PyBytes, PyCapsule, PyComplex, PyDict, PyFloat, PyFrozenSet, PyList,
     PyMapping, PyMappingProxy, PyModule, PyRange, PySequence, PySet, PySlice, PyString,
     PyTraceback, PyTuple, PyType, PyWeakref, PyWeakrefProxy, PyWeakrefReference,
 };
-use crate::{ffi, Bound, PyAny, PyResult};
+use crate::{Bound, PyAny, PyResult, ffi};
 
 use crate::pyclass_init::PyClassInitializer;
 
@@ -33,6 +35,8 @@ impl Sealed for Bound<'_, PyCapsule> {}
 impl Sealed for Bound<'_, PyComplex> {}
 impl Sealed for Bound<'_, PyDict> {}
 impl Sealed for Bound<'_, PyFloat> {}
+#[cfg(Py_3_15)]
+impl Sealed for Bound<'_, PyFrozenDict> {}
 impl Sealed for Bound<'_, PyFrozenSet> {}
 impl Sealed for Bound<'_, PyList> {}
 impl Sealed for Bound<'_, PyMapping> {}
@@ -61,15 +65,8 @@ impl Sealed for ModuleDef {}
 impl<T: crate::type_object::PyTypeInfo> Sealed for PyNativeTypeInitializer<T> {}
 impl<T: crate::pyclass::PyClass> Sealed for PyClassInitializer<T> {}
 
+#[cfg(wip_feature_std)]
+#[allow(clippy::disallowed_types)]
 impl Sealed for std::sync::Once {}
-impl<T> Sealed for std::sync::Mutex<T> {}
-#[cfg(feature = "lock_api")]
-impl<R, T> Sealed for lock_api::Mutex<R, T> {}
 #[cfg(feature = "parking_lot")]
 impl Sealed for parking_lot::Once {}
-#[cfg(feature = "arc_lock")]
-impl<R, T> Sealed for std::sync::Arc<lock_api::Mutex<R, T>> {}
-#[cfg(feature = "lock_api")]
-impl<R, G, T> Sealed for lock_api::ReentrantMutex<R, G, T> {}
-#[cfg(feature = "arc_lock")]
-impl<R, G, T> Sealed for std::sync::Arc<lock_api::ReentrantMutex<R, G, T>> {}

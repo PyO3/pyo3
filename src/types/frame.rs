@@ -1,11 +1,11 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
+use crate::PyAny;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::sealed::Sealed;
 use crate::types::{PyCode, PyDict};
-use crate::PyAny;
-use crate::{ffi, Bound, PyResult, Python};
+use crate::{Bound, PyResult, Python, ffi};
+use core::ffi::CStr;
 use pyo3_ffi::PyObject;
-use std::ffi::CStr;
 
 /// Represents a Python frame.
 ///
@@ -43,7 +43,7 @@ impl PyFrame {
         unsafe {
             Ok(ffi::PyFrame_New(
                 state,
-                code.into_ptr().cast(),
+                code.as_ptr().cast(),
                 globals.as_ptr(),
                 locals.as_ptr(),
             )
@@ -65,11 +65,11 @@ pub trait PyFrameMethods<'py>: Sealed {
     fn line_number(&self) -> i32;
 
     /// Gets this frame's next outer frame if there is one
-    #[cfg(all(Py_3_9, not(Py_LIMITED_API)))]
+    #[cfg(not(Py_LIMITED_API))]
     fn outer(&self) -> Option<Bound<'py, PyFrame>>;
 
     /// Gets the frame code
-    #[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
     fn code(&self) -> Bound<'py, PyCode>;
 
     /// Gets the variable `name` of this frame.
@@ -97,7 +97,7 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
         unsafe { ffi::PyFrame_GetLineNumber(self.as_ptr().cast()) }
     }
 
-    #[cfg(all(Py_3_9, not(Py_LIMITED_API)))]
+    #[cfg(not(Py_LIMITED_API))]
     fn outer(&self) -> Option<Bound<'py, PyFrame>> {
         // SAFETY:
         // - we're attached to the interpreter
@@ -113,7 +113,7 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
         }
     }
 
-    #[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
     fn code(&self) -> Bound<'py, PyCode> {
         // SAFETY:
         // - we're attached to the interpreter
@@ -149,11 +149,17 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
         // - `self` is a `PyFrameObject`
         // - `PyFrame_GetBuiltins` returns an owned reference
         // - the result can not be null
-        // - the result is a dict object
         unsafe {
             ffi::PyFrame_GetBuiltins(self.as_ptr().cast())
                 .assume_owned_unchecked(self.py())
-                .cast_into_unchecked()
+                .cast_into()
+                // The result is expected (and documented) to be a dict object, however it is
+                // possible for Python code to overwrite `__builtins__` with any arbitrary object.
+                // As reasonable code should never do this, we panic here for correctness in case
+                // the type does not match.
+                //
+                // See https://github.com/PyO3/pyo3/issues/6048
+                .expect("`PyFrame_GetBuiltins` returns a `dict`")
         }
     }
 
@@ -187,7 +193,6 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
 mod tests {
     use super::*;
 
-    #[cfg(Py_3_9)]
     fn get_frame(py: Python<'_>) -> Bound<'_, PyFrame> {
         use crate::types::PyAnyMethods as _;
 
@@ -222,7 +227,7 @@ def get_frame():
     }
 
     #[test]
-    #[cfg(all(Py_3_9, not(Py_LIMITED_API)))]
+    #[cfg(not(Py_LIMITED_API))]
     fn test_frame_outer() {
         Python::attach(|py| {
             use crate::types::PyAnyMethods as _;
@@ -258,7 +263,7 @@ def outer():
     }
 
     #[test]
-    #[cfg(any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_10))]
+    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
     fn test_frame_get_code() {
         Python::attach(|py| {
             use crate::types::PyAnyMethods as _;
@@ -302,6 +307,27 @@ def outer():
             );
             assert!(builtins.contains("len").unwrap());
         })
+    }
+
+    #[test]
+    #[cfg(all(Py_3_11, not(Py_LIMITED_API)))]
+    #[should_panic(expected = "`PyFrame_GetBuiltins` returns a `dict`")]
+    fn test_frame_builtins_panics_on_type_error() {
+        use crate::types::PyAnyMethods as _;
+        Python::attach(|py| -> PyResult<()> {
+            let sys = py.import("sys")?;
+            let globals = PyDict::new(py);
+            globals.set_item("getframe", sys.getattr("_getframe")?)?;
+            globals.set_item("__builtins__", py.eval(c"object()", None, None)?)?;
+            py.run(c"frame = getframe()", Some(&globals), None)?;
+            let frame: Bound<'_, PyFrame> = globals.get_item("frame")?.cast_into()?;
+
+            // This should panic, as `__builtins__` is not a dict
+            let _builtins = frame.builtins();
+
+            Ok(())
+        })
+        .unwrap();
     }
 
     #[test]

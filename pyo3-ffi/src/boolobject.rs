@@ -1,19 +1,23 @@
 #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
 use crate::longobject::PyLongObject;
 use crate::object::*;
-use std::ffi::{c_int, c_long};
+use core::ffi::{c_int, c_long};
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyBool_Check(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut PyBool_Type)
 }
 
 extern_libpython! {
+    #[cfg(RustPython)]
+    pub fn PyBool_Check(op: *mut PyObject) -> c_int;
+
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
-    #[cfg_attr(PyPy, link_name = "_PyPy_FalseStruct")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "_PyPy_FalseStruct")]
     static mut _Py_FalseStruct: PyLongObject;
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
-    #[cfg_attr(PyPy, link_name = "_PyPy_TrueStruct")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "_PyPy_TrueStruct")]
     static mut _Py_TrueStruct: PyLongObject;
 
     #[cfg(GraalPy)]
@@ -60,6 +64,6 @@ pub unsafe fn Py_IsFalse(x: *mut PyObject) -> c_int {
 // skipped Py_RETURN_FALSE
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyBool_FromLong")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBool_FromLong")]
     pub fn PyBool_FromLong(arg1: c_long) -> *mut PyObject;
 }

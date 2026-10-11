@@ -141,7 +141,9 @@ The macro **must** be invoked _before_ initializing Python.
 
 As an example, the below adds the module `foo` to the embedded interpreter:
 
-```rust
+<!-- uses `standalone_crate` because `append_to_inittab` requires a fresh interpreter. -->
+
+```rust,standalone_crate
 use pyo3::prelude::*;
 
 #[pymodule]
@@ -154,10 +156,13 @@ mod foo {
     }
 }
 
+# #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 fn main() -> PyResult<()> {
     pyo3::append_to_inittab!(foo);
     Python::attach(|py| Python::run(py, c"import foo; foo.add_one(6)", None, None))
 }
+# #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED))]
+# fn main() -> () {}
 ```
 
 If `append_to_inittab` cannot be used due to constraints in the program, an alternative is to create a module using [`PyModule::new`] and insert it manually into `sys.modules`:
@@ -242,6 +247,9 @@ The example below shows:
 use pyo3::prelude::*;
 use pyo3_ffi::c_str;
 
+# #[cfg(not(wip_feature_std))]
+# fn main() {}
+# #[cfg(wip_feature_std)]
 fn main() -> PyResult<()> {
     let py_foo = c_str!(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -273,12 +281,20 @@ It is recommended to use absolute paths because then your binary can be run from
 `src/main.rs`:
 
 ```rust,no_run
+# #[cfg(wip_feature_std)]
 use pyo3::prelude::*;
+# #[cfg(wip_feature_std)]
 use pyo3::types::PyList;
+# #[cfg(wip_feature_std)]
 use std::fs;
+# #[cfg(wip_feature_std)]
 use std::path::Path;
+# #[cfg(wip_feature_std)]
 use std::ffi::CString;
 
+# #[cfg(not(wip_feature_std))]
+# fn main() {}
+# #[cfg(wip_feature_std)]
 fn main() -> PyResult<()> {
     let path = Path::new("/usr/share/python_app");
     let py_app = CString::new(fs::read_to_string(path.join("app.py"))?)?;
@@ -368,7 +384,9 @@ See also [the FAQ entry](../faq.md#ctrl-c-doesnt-do-anything-while-my-rust-code-
 
 Alternatively, set Python's `signal` module to take the default action for a signal:
 
-```rust
+<!-- uses `standalone_crate` because this modifies the global signal handler -->
+
+```rust,standalone_crate
 use pyo3::prelude::*;
 
 # fn main() -> PyResult<()> {

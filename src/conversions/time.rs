@@ -50,19 +50,17 @@
 //! }
 //! ```
 
-use crate::exceptions::{PyTypeError, PyValueError};
+use crate::exceptions::{PyOverflowError, PyTypeError, PyValueError};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
-#[cfg(Py_LIMITED_API)]
-use crate::intern;
-#[cfg(not(Py_LIMITED_API))]
 use crate::types::datetime::{PyDateAccess, PyDeltaAccess};
-use crate::types::{PyAnyMethods, PyDate, PyDateTime, PyDelta, PyNone, PyTime, PyTzInfo};
-#[cfg(not(Py_LIMITED_API))]
-use crate::types::{PyTimeAccess, PyTzInfoAccess};
-#[cfg(feature = "experimental-inspect")]
-use crate::{type_hint_identifier, PyTypeInfo};
+use crate::types::{
+    PyAnyMethods, PyDate, PyDateTime, PyDelta, PyNone, PyTime, PyTimeAccess, PyTzInfo,
+    PyTzInfoAccess,
+};
 use crate::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, Python};
+#[cfg(feature = "experimental-inspect")]
+use crate::{PyTypeInfo, type_hint_identifier};
 use time::{
     Date, Duration, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcDateTime, UtcOffset,
 };
@@ -109,46 +107,22 @@ macro_rules! month_from_number {
     };
 }
 
-fn extract_date_time(dt: &Bound<'_, PyAny>) -> PyResult<(Date, Time)> {
-    #[cfg(not(Py_LIMITED_API))]
-    {
-        let dt = dt.cast::<PyDateTime>()?;
-        let date = Date::from_calendar_date(
-            dt.get_year(),
-            month_from_number!(dt.get_month()),
-            dt.get_day(),
-        )
-        .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
+fn extract_date_time(dt: &Bound<'_, PyDateTime>) -> PyResult<(Date, Time)> {
+    let date = Date::from_calendar_date(
+        dt.get_year(),
+        month_from_number!(dt.get_month()),
+        dt.get_day(),
+    )
+    .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
 
-        let time = Time::from_hms_micro(
-            dt.get_hour(),
-            dt.get_minute(),
-            dt.get_second(),
-            dt.get_microsecond(),
-        )
-        .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
-        Ok((date, time))
-    }
-
-    #[cfg(Py_LIMITED_API)]
-    {
-        let date = Date::from_calendar_date(
-            dt.getattr(intern!(dt.py(), "year"))?.extract()?,
-            month_from_number!(dt.getattr(intern!(dt.py(), "month"))?.extract::<u8>()?),
-            dt.getattr(intern!(dt.py(), "day"))?.extract()?,
-        )
-        .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))?;
-
-        let time = Time::from_hms_micro(
-            dt.getattr(intern!(dt.py(), "hour"))?.extract()?,
-            dt.getattr(intern!(dt.py(), "minute"))?.extract()?,
-            dt.getattr(intern!(dt.py(), "second"))?.extract()?,
-            dt.getattr(intern!(dt.py(), "microsecond"))?.extract()?,
-        )
-        .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
-
-        Ok((date, time))
-    }
+    let time = Time::from_hms_micro(
+        dt.get_hour(),
+        dt.get_minute(),
+        dt.get_second(),
+        dt.get_microsecond(),
+    )
+    .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))?;
+    Ok((date, time))
 }
 
 impl<'py> IntoPyObject<'py> for Duration {
@@ -178,11 +152,13 @@ impl<'py> IntoPyObject<'py> for Duration {
                 total_seconds % SECONDS_PER_DAY,
             )
         };
-        // Create the timedelta with days, seconds, microseconds
-        // Safe to unwrap as we've verified the values are within bounds
+        let days = days
+            .try_into()
+            .map_err(|_| PyOverflowError::new_err("duration out of range for Python timedelta"))?;
+
         PyDelta::new(
             py,
-            days.try_into().expect("days overflow"),
+            days,
             seconds.try_into().expect("seconds overflow"),
             micro_seconds,
             true,
@@ -197,30 +173,11 @@ impl FromPyObject<'_, '_> for Duration {
     const INPUT_TYPE: PyStaticExpr = PyDelta::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
-        #[cfg(not(Py_LIMITED_API))]
-        let (days, seconds, microseconds) = {
-            let delta = ob.cast::<PyDelta>()?;
-            (
-                delta.get_days().into(),
-                delta.get_seconds().into(),
-                delta.get_microseconds().into(),
-            )
-        };
+        let delta = ob.cast::<PyDelta>()?;
 
-        #[cfg(Py_LIMITED_API)]
-        let (days, seconds, microseconds) = {
-            (
-                ob.getattr(intern!(ob.py(), "days"))?.extract()?,
-                ob.getattr(intern!(ob.py(), "seconds"))?.extract()?,
-                ob.getattr(intern!(ob.py(), "microseconds"))?.extract()?,
-            )
-        };
-
-        Ok(
-            Duration::days(days)
-                + Duration::seconds(seconds)
-                + Duration::microseconds(microseconds),
-        )
+        Ok(Duration::days(delta.get_days().into())
+            + Duration::seconds(delta.get_seconds().into())
+            + Duration::microseconds(delta.get_microseconds().into()))
     }
 }
 
@@ -248,26 +205,12 @@ impl FromPyObject<'_, '_> for Date {
     const INPUT_TYPE: PyStaticExpr = PyDate::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
-        let (year, month, day) = {
-            #[cfg(not(Py_LIMITED_API))]
-            {
-                let date = ob.cast::<PyDate>()?;
-                (date.get_year(), date.get_month(), date.get_day())
-            }
-
-            #[cfg(Py_LIMITED_API)]
-            {
-                let year = ob.getattr(intern!(ob.py(), "year"))?.extract()?;
-                let month: u8 = ob.getattr(intern!(ob.py(), "month"))?.extract()?;
-                let day = ob.getattr(intern!(ob.py(), "day"))?.extract()?;
-                (year, month, day)
-            }
-        };
+        let date = ob.cast::<PyDate>()?;
 
         // Convert the month number to time::Month enum
-        let month = month_from_number!(month);
+        let month = month_from_number!(date.get_month());
 
-        Date::from_calendar_date(year, month, day)
+        Date::from_calendar_date(date.get_year(), month, date.get_day())
             .map_err(|_| PyValueError::new_err("invalid or out-of-range date"))
     }
 }
@@ -297,29 +240,15 @@ impl FromPyObject<'_, '_> for Time {
     const INPUT_TYPE: PyStaticExpr = PyTime::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
-        let (hour, minute, second, microsecond) = {
-            #[cfg(not(Py_LIMITED_API))]
-            {
-                let time = ob.cast::<PyTime>()?;
-                let hour: u8 = time.get_hour();
-                let minute: u8 = time.get_minute();
-                let second: u8 = time.get_second();
-                let microsecond = time.get_microsecond();
-                (hour, minute, second, microsecond)
-            }
+        let time = ob.cast::<PyTime>()?;
 
-            #[cfg(Py_LIMITED_API)]
-            {
-                let hour: u8 = ob.getattr(intern!(ob.py(), "hour"))?.extract()?;
-                let minute: u8 = ob.getattr(intern!(ob.py(), "minute"))?.extract()?;
-                let second: u8 = ob.getattr(intern!(ob.py(), "second"))?.extract()?;
-                let microsecond = ob.getattr(intern!(ob.py(), "microsecond"))?.extract()?;
-                (hour, minute, second, microsecond)
-            }
-        };
-
-        Time::from_hms_micro(hour, minute, second, microsecond)
-            .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))
+        Time::from_hms_micro(
+            time.get_hour(),
+            time.get_minute(),
+            time.get_second(),
+            time.get_microsecond(),
+        )
+        .map_err(|_| PyValueError::new_err("invalid or out-of-range time"))
     }
 }
 
@@ -364,19 +293,9 @@ impl FromPyObject<'_, '_> for PrimitiveDateTime {
     const INPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn extract(dt: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
-        let has_tzinfo = {
-            #[cfg(not(Py_LIMITED_API))]
-            {
-                let dt = dt.cast::<PyDateTime>()?;
-                dt.get_tzinfo().is_some()
-            }
-            #[cfg(Py_LIMITED_API)]
-            {
-                !dt.getattr(intern!(dt.py(), "tzinfo"))?.is_none()
-            }
-        };
+        let dt = dt.cast::<PyDateTime>()?;
 
-        if has_tzinfo {
+        if dt.get_tzinfo().is_some() {
             return Err(PyTypeError::new_err("expected a datetime without tzinfo"));
         }
 
@@ -409,14 +328,13 @@ impl FromPyObject<'_, '_> for UtcOffset {
     const INPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
-        #[cfg(not(Py_LIMITED_API))]
-        let ob = ob.cast::<PyTzInfo>()?;
+        let tz = ob.cast::<PyTzInfo>()?;
 
         // Get the offset in seconds from the Python tzinfo
-        let py_timedelta = ob.call_method1("utcoffset", (PyNone::get(ob.py()),))?;
+        let py_timedelta = tz.call_method1("utcoffset", (PyNone::get(tz.py()),))?;
         if py_timedelta.is_none() {
             return Err(PyTypeError::new_err(format!(
-                "{ob:?} is not a fixed offset timezone"
+                "{tz:?} is not a fixed offset timezone"
             )));
         }
 
@@ -474,28 +392,13 @@ impl FromPyObject<'_, '_> for OffsetDateTime {
     const INPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
-        let offset: UtcOffset = {
-            #[cfg(not(Py_LIMITED_API))]
-            {
-                let dt = ob.cast::<PyDateTime>()?;
-                let tzinfo = dt.get_tzinfo().ok_or_else(|| {
-                    PyTypeError::new_err("expected a datetime with non-None tzinfo")
-                })?;
-                tzinfo.extract()?
-            }
-            #[cfg(Py_LIMITED_API)]
-            {
-                let tzinfo = ob.getattr(intern!(ob.py(), "tzinfo"))?;
-                if tzinfo.is_none() {
-                    return Err(PyTypeError::new_err(
-                        "expected a datetime with non-None tzinfo",
-                    ));
-                }
-                tzinfo.extract()?
-            }
-        };
+        let dt = ob.cast::<PyDateTime>()?;
+        let offset = dt
+            .get_tzinfo()
+            .ok_or_else(|| PyTypeError::new_err("expected a datetime with non-None tzinfo"))?
+            .extract::<UtcOffset>()?;
 
-        let (date, time) = extract_date_time(&ob)?;
+        let (date, time) = extract_date_time(&dt)?;
 
         let primitive_dt = PrimitiveDateTime::new(date, time);
         Ok(primitive_dt.assume_offset(offset))
@@ -545,26 +448,10 @@ impl FromPyObject<'_, '_> for UtcDateTime {
     const INPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
-        let tzinfo = {
-            #[cfg(not(Py_LIMITED_API))]
-            {
-                let dt = ob.cast::<PyDateTime>()?;
-                dt.get_tzinfo().ok_or_else(|| {
-                    PyTypeError::new_err("expected a datetime with non-None tzinfo")
-                })?
-            }
-
-            #[cfg(Py_LIMITED_API)]
-            {
-                let tzinfo = ob.getattr(intern!(ob.py(), "tzinfo"))?;
-                if tzinfo.is_none() {
-                    return Err(PyTypeError::new_err(
-                        "expected a datetime with non-None tzinfo",
-                    ));
-                }
-                tzinfo
-            }
-        };
+        let dt = ob.cast::<PyDateTime>()?;
+        let tzinfo = dt
+            .get_tzinfo()
+            .ok_or_else(|| PyTypeError::new_err("expected a datetime with non-None tzinfo"))?;
 
         // Verify that the tzinfo is UTC
         let is_utc = tzinfo.eq(PyTzInfo::utc(ob.py())?)?;
@@ -575,7 +462,7 @@ impl FromPyObject<'_, '_> for UtcDateTime {
             ));
         }
 
-        let (date, time) = extract_date_time(&ob)?;
+        let (date, time) = extract_date_time(&dt)?;
         let primitive_dt = PrimitiveDateTime::new(date, time);
         Ok(primitive_dt.assume_utc().into())
     }
@@ -593,8 +480,8 @@ impl_into_py_for_ref!(UtcDateTime, PyDateTime);
 mod tests {
     use super::*;
     use crate::intern;
-    use crate::types::any::PyAnyMethods;
     use crate::types::PyTypeMethods;
+    use crate::types::any::PyAnyMethods;
 
     mod utils {
         use super::*;
@@ -769,14 +656,13 @@ mod tests {
         ) -> f64 {
             let py_tz = offset.into_pyobject(py).unwrap();
             let utc_offset = py_tz.call_method1("utcoffset", (py.None(),)).unwrap();
-            let total_seconds = utc_offset
+            utc_offset
                 .getattr(intern!(py, "total_seconds"))
                 .unwrap()
                 .call0()
                 .unwrap()
                 .extract::<f64>()
-                .unwrap();
-            total_seconds
+                .unwrap()
         }
 
         pub(crate) fn extract_from_utc_date_time(
@@ -861,6 +747,11 @@ mod tests {
             assert!(result.is_err());
             let err_type = result.unwrap_err().get_type(py).name().unwrap();
             assert_eq!(err_type, "OverflowError");
+
+            for duration in [Duration::MIN, Duration::MAX] {
+                let err = duration.into_pyobject(py).unwrap_err();
+                assert_eq!(err.get_type(py).name().unwrap(), "OverflowError");
+            }
         });
     }
 

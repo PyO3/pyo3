@@ -29,8 +29,8 @@ mod quotes;
 
 pub use frompyobject::build_derive_from_pyobject;
 pub use intopyobject::build_derive_into_pyobject;
-pub use module::{pymodule_function_impl, pymodule_module_impl, PyModuleOptions};
-pub use pyclass::{build_py_class, build_py_enum, PyClassArgs};
-pub use pyfunction::{build_py_function, PyFunctionOptions};
-pub use pyimpl::{build_py_methods, PyClassMethodsType};
+pub use module::{PyModuleOptions, pymodule_function_impl, pymodule_module_impl};
+pub use pyclass::{PyClassArgs, build_py_class, build_py_enum};
+pub use pyfunction::{PyFunctionOptions, build_py_function};
+pub use pyimpl::{PyClassMethodsType, build_py_methods};
 pub use utils::get_doc;

@@ -1,5 +1,5 @@
 use crate::object::*;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 #[repr(C)]
@@ -11,7 +11,8 @@ pub struct PyCellObject {
 extern_libpython! {
     pub fn PyCell_New(o: *mut PyObject) -> *mut PyObject;
     pub fn PyCell_Get(o: *mut PyObject) -> *mut PyObject;
-    pub fn PyCell_Set(o: *mut PyObject, val: *mut PyObject) -> *mut PyObject;
+    pub fn PyCell_Set(o: *mut PyObject, val: *mut PyObject) -> c_int;
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCell_Type")]
     pub static mut PyCell_Type: PyTypeObject;
 }
 

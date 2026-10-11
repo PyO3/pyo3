@@ -1,7 +1,7 @@
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{PyStaticConstant, PyStaticExpr};
-use crate::{ffi, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyTypeInfo, Python};
+use crate::{Borrowed, Bound, PyAny, PyTypeInfo, Python, ffi, types::any::PyAnyMethods};
 
 /// Represents the Python `None` object.
 ///

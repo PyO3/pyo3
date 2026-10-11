@@ -1,10 +1,10 @@
 use crate::sync::PyOnceLock;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyCFunction;
-use crate::{intern, wrap_pyfunction, Bound, Py, PyAny, PyResult, Python};
+use crate::types::any::PyAnyMethods;
+use crate::{Bound, Py, PyAny, PyResult, Python, intern, wrap_pyfunction};
+use alloc::sync::Arc;
+use alloc::task::Wake;
 use pyo3_macros::pyfunction;
-use std::sync::Arc;
-use std::task::Wake;
 
 /// Lazy `asyncio.Future` wrapper, implementing [`Wake`] by calling `Future.set_result`.
 ///

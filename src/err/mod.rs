@@ -1,3 +1,6 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 use crate::conversion::IntoPyObject;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
@@ -5,30 +8,29 @@ use crate::inspect::PyStaticExpr;
 use crate::instance::Bound;
 #[cfg(Py_3_11)]
 use crate::intern;
+#[cfg(wip_feature_std)]
 use crate::panic::PanicException;
+use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::PyTypeInfo;
-use crate::types::any::PyAnyMethods;
 #[cfg(Py_3_11)]
 use crate::types::PyString;
+use crate::types::any::PyAnyMethods;
 use crate::types::{
-    string::PyStringMethods, traceback::PyTracebackMethods, typeobject::PyTypeMethods, PyTraceback,
-    PyType,
+    PyTraceback, PyType, string::PyStringMethods, traceback::PyTracebackMethods,
+    typeobject::PyTypeMethods,
 };
-use crate::{exceptions::PyBaseException, ffi};
 use crate::{BoundObject, Py, PyAny, Python};
+use crate::{exceptions::PyBaseException, ffi};
+use core::convert::Infallible;
+use core::ffi::CStr;
 use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
-use std::convert::Infallible;
-use std::ffi::CStr;
 
 mod cast_error;
-mod downcast_error;
 mod err_state;
 mod impls;
 
 pub use cast_error::{CastError, CastIntoError};
-#[allow(deprecated)]
-pub use downcast_error::{DowncastError, DowncastIntoError};
 
 /// Represents a Python exception.
 ///
@@ -285,6 +287,7 @@ impl PyErr {
     pub fn take(py: Python<'_>) -> Option<PyErr> {
         let state = PyErrStateNormalized::take(py)?;
 
+        #[cfg(wip_feature_std)]
         if PanicException::is_exact_type_of(state.pvalue.bind(py)) {
             Self::print_panic_and_unwind(py, state)
         }
@@ -292,6 +295,7 @@ impl PyErr {
         Some(PyErr::from_state(PyErrState::normalized(state)))
     }
 
+    #[cfg(wip_feature_std)]
     #[cold]
     fn print_panic_and_unwind(py: Python<'_>, state: PyErrStateNormalized) -> ! {
         let msg: String = state
@@ -301,8 +305,10 @@ impl PyErr {
             .map(|py_str| py_str.to_string_lossy().into())
             .unwrap_or_else(|_| String::from("Unwrapped panic from Python code"));
 
-        eprintln!("--- PyO3 is resuming a panic after fetching a PanicException from Python. ---");
-        eprintln!("Python stack trace below:");
+        std::eprintln!(
+            "--- PyO3 is resuming a panic after fetching a PanicException from Python. ---"
+        );
+        std::eprintln!("Python stack trace below:");
 
         PyErrState::normalized(state).restore(py);
 
@@ -349,18 +355,18 @@ impl PyErr {
         dict: Option<Py<PyAny>>,
     ) -> PyResult<Py<PyType>> {
         let base: *mut ffi::PyObject = match base {
-            None => std::ptr::null_mut(),
+            None => core::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
         };
 
         let dict: *mut ffi::PyObject = match dict {
-            None => std::ptr::null_mut(),
+            None => core::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
         };
 
         let doc_ptr = match doc.as_ref() {
             Some(c) => c.as_ptr(),
-            None => std::ptr::null(),
+            None => core::ptr::null(),
         };
 
         // SAFETY: correct call to FFI function, return value is known to be a new
@@ -393,7 +399,7 @@ impl PyErr {
                 self.value(py).as_ptr(),
                 traceback
                     .as_ref()
-                    .map_or(std::ptr::null_mut(), |traceback| traceback.as_ptr()),
+                    .map_or(core::ptr::null_mut(), |traceback| traceback.as_ptr()),
             )
         }
     }
@@ -477,7 +483,7 @@ impl PyErr {
     #[inline]
     pub fn write_unraisable(self, py: Python<'_>, obj: Option<&Bound<'_, PyAny>>) {
         self.restore(py);
-        unsafe { ffi::PyErr_WriteUnraisable(obj.map_or(std::ptr::null_mut(), Bound::as_ptr)) }
+        unsafe { ffi::PyErr_WriteUnraisable(obj.map_or(core::ptr::null_mut(), Bound::as_ptr)) }
     }
 
     /// Issues a warning message.
@@ -508,7 +514,7 @@ impl PyErr {
         message: &CStr,
         stacklevel: i32,
     ) -> PyResult<()> {
-        error_on_minusone(py, unsafe {
+        error_on_negative(py, unsafe {
             ffi::PyErr_WarnEx(
                 category.as_ptr(),
                 message.as_ptr(),
@@ -535,14 +541,14 @@ impl PyErr {
         registry: Option<&Bound<'py, PyAny>>,
     ) -> PyResult<()> {
         let module_ptr = match module {
-            None => std::ptr::null_mut(),
+            None => core::ptr::null_mut(),
             Some(s) => s.as_ptr(),
         };
         let registry: *mut ffi::PyObject = match registry {
-            None => std::ptr::null_mut(),
+            None => core::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
         };
-        error_on_minusone(py, unsafe {
+        error_on_negative(py, unsafe {
             ffi::PyErr_WarnExplicit(
                 category.as_ptr(),
                 message.as_ptr(),
@@ -599,7 +605,7 @@ impl PyErr {
             // PyException_SetCause _steals_ a reference to cause, so must use .into_ptr()
             ffi::PyException_SetCause(
                 value.as_ptr(),
-                cause.map_or(std::ptr::null_mut(), Py::into_ptr),
+                cause.map_or(core::ptr::null_mut(), Py::into_ptr),
             );
         }
     }
@@ -622,7 +628,7 @@ impl PyErr {
         unsafe {
             ffi::PyException_SetContext(
                 value.as_ptr(),
-                context.map_or(std::ptr::null_mut(), Py::into_ptr),
+                context.map_or(core::ptr::null_mut(), Py::into_ptr),
             );
         }
     }
@@ -663,8 +669,8 @@ fn failed_to_fetch() -> PyErr {
     }
 }
 
-impl std::fmt::Debug for PyErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+impl core::fmt::Debug for PyErr {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         Python::attach(|py| {
             f.debug_struct("PyErr")
                 .field("type", &self.get_type(py))
@@ -688,14 +694,14 @@ impl std::fmt::Debug for PyErr {
     }
 }
 
-impl std::fmt::Display for PyErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for PyErr {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         Python::attach(|py| {
             let value = self.value(py);
-            let type_name = value.get_type().qualname().map_err(|_| std::fmt::Error)?;
+            let type_name = value.get_type().qualname().map_err(|_| core::fmt::Error)?;
             write!(f, "{type_name}")?;
             if let Ok(s) = value.str() {
-                write!(f, ": {}", &s.to_string_lossy())
+                write!(f, ": {}", s.to_string_lossy())
             } else {
                 write!(f, ": <exception str() failed>")
             }
@@ -703,7 +709,7 @@ impl std::fmt::Display for PyErr {
     }
 }
 
-impl std::error::Error for PyErr {}
+impl core::error::Error for PyErr {}
 
 impl<'py> IntoPyObject<'py> for PyErr {
     type Target = PyBaseException;
@@ -741,7 +747,7 @@ impl<'py> IntoPyObject<'py> for &PyErr {
 /// [`crate::import_exception!`] and [`crate::create_exception!`] macros.
 pub trait ToPyErr {}
 
-impl<'py, T> std::convert::From<Bound<'py, T>> for PyErr
+impl<'py, T> core::convert::From<Bound<'py, T>> for PyErr
 where
     T: ToPyErr,
 {
@@ -751,53 +757,37 @@ where
     }
 }
 
-/// Returns Ok if the error code is not -1.
+/// Returns Ok if the error code is non-negative.
 #[inline]
-pub(crate) fn error_on_minusone<T: SignedInteger>(py: Python<'_>, result: T) -> PyResult<()> {
-    if result != T::MINUS_ONE {
+pub(crate) fn error_on_negative<T: From<i8> + Ord>(py: Python<'_>, result: T) -> PyResult<()> {
+    if result >= T::from(0) {
         Ok(())
     } else {
+        debug_assert!(result == T::from(-1));
         Err(PyErr::fetch(py))
     }
 }
 
-/// Returns Ok wrapping the result if the error code is not -1.
+/// Returns Ok wrapping the result if the error code is non-negative.
 #[inline]
-pub(crate) fn error_on_minusone_with_result<T: SignedInteger>(
+pub(crate) fn error_on_negative_with_result<T: From<i8> + Ord>(
     py: Python<'_>,
     result: T,
 ) -> PyResult<T> {
-    if result != T::MINUS_ONE {
+    if result >= T::from(0) {
         Ok(result)
     } else {
+        debug_assert!(result == T::from(-1));
         Err(PyErr::fetch(py))
     }
 }
-
-pub(crate) trait SignedInteger: Eq {
-    const MINUS_ONE: Self;
-}
-
-macro_rules! impl_signed_integer {
-    ($t:ty) => {
-        impl SignedInteger for $t {
-            const MINUS_ONE: Self = -1;
-        }
-    };
-}
-
-impl_signed_integer!(i8);
-impl_signed_integer!(i16);
-impl_signed_integer!(i32);
-impl_signed_integer!(i64);
-impl_signed_integer!(i128);
-impl_signed_integer!(isize);
 
 #[cfg(test)]
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
-    use crate::impl_::pyclass::{value_of, IsSend, IsSync};
+    use crate::impl_::pyclass::{IsSend, IsSync, value_of};
+    use crate::platform::prelude::*;
     use crate::test_utils::assert_warnings;
     use crate::{PyErr, PyTypeInfo, Python};
 
@@ -846,6 +836,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(wip_feature_std)]
     #[should_panic(expected = "new panic")]
     fn fetching_panic_exception_resumes_unwind() {
         use crate::panic::PanicException;
@@ -863,6 +854,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "new panic")]
     #[cfg(not(Py_3_12))]
+    #[cfg(wip_feature_std)]
     fn fetching_normalized_panic_exception_resumes_unwind() {
         use crate::panic::PanicException;
 
@@ -937,12 +929,13 @@ mod tests {
             let err = PyErr::new::<PyValueError, _>("foo");
             assert!(err.matches(py, PyValueError::type_object(py)).unwrap());
 
-            assert!(err
-                .matches(
+            assert!(
+                err.matches(
                     py,
                     (PyValueError::type_object(py), PyTypeError::type_object(py))
                 )
-                .unwrap());
+                .unwrap()
+            );
 
             assert!(!err.matches(py, PyTypeError::type_object(py)).unwrap());
 
@@ -1033,14 +1026,15 @@ mod tests {
                 None,
             )
             .unwrap_err();
-            assert!(err
-                .value(py)
-                .getattr("args")
-                .unwrap()
-                .get_item(0)
-                .unwrap()
-                .eq("I am warning you")
-                .unwrap());
+            assert!(
+                err.value(py)
+                    .getattr("args")
+                    .unwrap()
+                    .get_item(0)
+                    .unwrap()
+                    .eq("I am warning you")
+                    .unwrap()
+            );
 
             // Finally, reset filter again
             warnings.call_method0("resetwarnings").unwrap();

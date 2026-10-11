@@ -1,6 +1,6 @@
 use crate::attributes::{CrateAttribute, RenamingRule};
 use proc_macro2::{Span, TokenStream, TokenTree};
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, quote};
 use std::ffi::CString;
 use std::mem::take;
 use syn::spanned::Spanned;
@@ -380,6 +380,7 @@ pub(crate) fn locate_tokens_at(tokens: TokenStream, span: Span) -> TokenStream {
 ///
 /// This is useful if `Self` is used in `const` context, where explicit
 /// lifetimes are not allowed (yet).
+#[cfg(feature = "experimental-inspect")]
 pub(crate) fn elide_lifetimes(ty: &mut syn::Type) {
     struct ElideLifetimesVisitor;
 

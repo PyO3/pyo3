@@ -94,12 +94,8 @@ from word_count import search_sequential_detached
 
 executor = ThreadPoolExecutor(max_workers=2)
 
-future_1 = executor.submit(
-    word_count.search_sequential_detached, contents, needle
-)
-future_2 = executor.submit(
-    word_count.search_sequential_detached, contents, needle
-)
+future_1 = executor.submit(word_count.search_sequential_detached, contents, needle)
+future_2 = executor.submit(word_count.search_sequential_detached, contents, needle)
 result_1 = future_1.result()
 result_2 = future_2.result()
 ```
@@ -138,12 +134,9 @@ In the example above we made a Python interface to a low-level rust function, an
 It is also possible to spawn threads in Rust that acquire the GIL and operate on Python objects.
 However, care must be taken to avoid writing code that deadlocks with the GIL in these cases.
 
-- Note: This example is meant to illustrate how to drop and re-acquire the GIL
-        to avoid creating deadlocks. Unless the spawned threads subsequently
-        release the GIL or you are using the free-threaded build of CPython, you
-        will not see any speedups due to multi-threaded parallelism using `rayon`
-        to parallelize code that acquires and holds the GIL for the entire
-        execution of the spawned thread.
+> [!NOTE]
+> This example is meant to illustrate how to drop and re-acquire the GIL to avoid creating deadlocks.
+> Unless the spawned threads subsequently release the GIL or you are using the free-threaded build of CPython, you will not see any speedups due to multi-threaded parallelism using `rayon` to parallelize code that acquires and holds the GIL for the entire execution of the spawned thread.
 
 In the example below, we share a `Vec` of User ID objects defined using the `pyclass` macro and spawn threads to process the collection of data into a `Vec` of booleans based on a predicate using a `rayon` parallel iterator:
 

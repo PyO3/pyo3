@@ -1,8 +1,8 @@
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyTypeInfo,
-    Python,
+    Borrowed, Bound, PyAny, PyTypeInfo, Python, ffi, ffi_ptr_ext::FfiPtrExt,
+    types::any::PyAnyMethods,
 };
 
 /// Represents the Python `Ellipsis` object.
@@ -67,9 +67,11 @@ mod tests {
     #[test]
     fn test_ellipsis_type_object_consistent() {
         Python::attach(|py| {
-            assert!(PyEllipsis::get(py)
-                .get_type()
-                .is(PyEllipsis::type_object(py)));
+            assert!(
+                PyEllipsis::get(py)
+                    .get_type()
+                    .is(PyEllipsis::type_object(py))
+            );
         })
     }
 

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import functools
 import io
 import json
 import os
@@ -8,23 +11,14 @@ import sys
 import sysconfig
 import tarfile
 import tempfile
+from collections.abc import Iterable, Iterator
 from contextlib import ExitStack, contextmanager
+from difflib import unified_diff
 from functools import lru_cache
 from glob import glob
 from pathlib import Path
 from shlex import quote
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Literal,
-    Optional,
-    Set,
-    Tuple,
-)
+from typing import Any, Literal, Protocol
 
 import nox.command
 
@@ -41,7 +35,7 @@ try:
 except ImportError:
     requests = None
 
-nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "rumdl", "docs"]
+nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "rumdl", "docs", "typos"]
 
 PYO3_DIR = Path(__file__).parent
 PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).absolute()
@@ -51,13 +45,21 @@ PYO3_DOCS_TARGET = PYO3_TARGET / "doc"
 FREE_THREADED_BUILD = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 
 
-def _get_output(*args: str) -> str:
-    return subprocess.run(args, capture_output=True, text=True, check=True).stdout
+def _get_output(*args: str, env: dict[str, str] | None = None) -> str:
+    try:
+        return subprocess.run(
+            args, capture_output=True, text=True, check=True, stdin=None, env=env
+        ).stdout
+    except subprocess.CalledProcessError as e:
+        print(f"Command {args} failed with exit code {e.returncode}")
+        print(f"stdout:\n{e.stdout}")
+        print(f"stderr:\n{e.stderr}")
+        raise nox.command.CommandFailed() from e
 
 
 def _parse_supported_interpreter_version(
-    python_impl: Literal["cpython", "pypy"],
-) -> Tuple[str, str]:
+    python_impl: Literal["cpython", "pypy", "graalpy"],
+) -> tuple[str, str]:
     output = _get_output("cargo", "metadata", "--format-version=1", "--no-deps")
     cargo_packages = json.loads(output)["packages"]
     # Check Python interpreter version support in package metadata
@@ -70,8 +72,8 @@ def _parse_supported_interpreter_version(
 
 
 def _supported_interpreter_versions(
-    python_impl: Literal["cpython", "pypy"],
-) -> List[str]:
+    python_impl: Literal["cpython", "pypy", "graalpy"],
+) -> list[str]:
     min_version, max_version = _parse_supported_interpreter_version(python_impl)
     major = int(min_version.split(".")[0])
     assert major == 3, f"unsupported Python major version {major}"
@@ -84,12 +86,22 @@ def _supported_interpreter_versions(
     return versions
 
 
+@functools.cache
+def _is_no_std() -> bool:
+    no_std = os.environ.get("PYO3_WIP_NO_STD")
+    if no_std is None:
+        return False
+    no_std = no_std.strip()
+    return no_std == "1" or no_std.lower() == "true"
+
+
 PY_VERSIONS = _supported_interpreter_versions("cpython")
-# We don't yet support abi3-py315 but do support cp315 and cp315t
-# version-specific builds
 ABI3_PY_VERSIONS = [p for p in PY_VERSIONS if not p.endswith("t")]
-ABI3_PY_VERSIONS.remove("3.15")
+ABI3T_PY_VERSIONS = [
+    p for p in PY_VERSIONS if p.endswith("t") and int(p.split(".")[1].strip("t")) > 14
+]
 PYPY_VERSIONS = _supported_interpreter_versions("pypy")
+GRAALPY_VERSIONS = _supported_interpreter_versions("graalpy")
 
 
 @nox.session(venv_backend="none")
@@ -112,7 +124,18 @@ def test_rust(session: nox.Session):
 
     _run_cargo_test(session, package="pyo3-ffi", extra_flags=extra_flags)
 
+    env = os.environ.copy()
     extra_flags.append("--no-default-features")
+
+    if is_rust_nightly():
+        # Forcing doctest merge helps smoke test that merged doctests are running
+        # correctly. Requires a nightly flag; Rust 2024 edition will attempt to
+        # merge doctests but silently fall back if the merge fails due to e.g.
+        # symbol conflicts. Using `standalone_crate` can isolate problematic tests
+        # as a short-term workaround.
+        env["RUSTDOCFLAGS"] = (
+            env.get("RUSTDOCFLAGS", "") + " -Z unstable-options --merge-doctests=yes"
+        )
 
     for feature_set in _get_feature_sets():
         flags = extra_flags.copy()
@@ -126,32 +149,65 @@ def test_rust(session: nox.Session):
 
         # We need to pass the feature set to the test command
         # so that it can be used in the test code
-        # (e.g. for `#[cfg(feature = "abi3-py38")]`)
-        if feature_set and "abi3" in feature_set and FREE_THREADED_BUILD:
-            # free-threaded builds don't support abi3 yet
-            continue
+        # (e.g. for `#[cfg(feature = "abi3-py39")]`)
+        _run_cargo_test(session, features=feature_set, extra_flags=flags, env=env)
 
-        _run_cargo_test(session, features=feature_set, extra_flags=flags)
+        if feature_set is not None and "full" in feature_set:
+            # UI tests can have different output depending on features enabled, but
+            # need at least the macros feature, so "downgrade" full to macros to
+            # capture this divergent output
+            _run_cargo_test(
+                session,
+                features=feature_set.replace("full", "macros"),
+                extra_flags=[*extra_flags, "--test", "test_compile_error"],
+                env=env,
+            )
 
         if (
             feature_set
             and "abi3" in feature_set
+            and "abi3t" not in feature_set
             and "full" in feature_set
-            and sys.version_info >= (3, 9)
+            and sys.version_info >= (3, 10)
+            and sys.implementation.name != "pypy"
         ):
-            # run abi3-py38 tests to check abi3 forward compatibility
+            # run abi3-py39 tests to check abi3 forward compatibility
             _run_cargo_test(
                 session,
-                features=feature_set.replace("abi3", "abi3-py38"),
+                features=feature_set.replace("abi3", "abi3-py39"),
+                extra_flags=flags,
+                env=env,
+            )
+
+        if (
+            feature_set
+            and "abi3t" in feature_set
+            and "full" in feature_set
+            and sys.version_info >= (3, 16)
+        ):
+            # run abi3t-py315 tests to check for abi3t forward
+            # compatibility
+            _run_cargo_test(
+                session,
+                features=feature_set.replace("abi3t", "abi3t-py315"),
                 extra_flags=flags,
             )
 
 
 @nox.session(name="test-py", venv_backend="none")
 def test_py(session: nox.Session) -> None:
-    _run(session, "nox", "-f", "pytests/noxfile.py", external=True)
+    features = (
+        ",".join(f"pyo3/{feat}" for feat in _REQUIRED_FOR_NO_STD)
+        if _is_no_std()
+        else ""
+    )
+    extra_args = ("--", f"--features={features}") if features else ()
+
+    _run(session, "nox", "-f", "pytests/noxfile.py", *extra_args, external=True)
     for example in glob("examples/*/noxfile.py"):
-        _run(session, "nox", "-f", example, external=True)
+        if _is_no_std() and example.startswith("examples/setuptools-rust-starter"):
+            continue
+        _run(session, "nox", "-f", example, *extra_args, external=True)
     for example in glob("pyo3-ffi/examples/*/noxfile.py"):
         _run(session, "nox", "-f", example, external=True)
 
@@ -168,18 +224,14 @@ def coverage(session: nox.Session) -> None:
 def set_coverage_env(session: nox.Session) -> None:
     """For use in GitHub Actions to set coverage environment variables."""
     with open(os.environ["GITHUB_ENV"], "a") as env_file:
-        for k, v in _get_coverage_env().items():
+        for k, v in _get_coverage_env(*session.posargs).items():
             print(f"{k}={v}", file=env_file)
 
 
 @nox.session(name="generate-coverage-report", venv_backend="none")
 def generate_coverage_report(session: nox.Session) -> None:
-    cov_format = "codecov"
-    output_file = "coverage.json"
-
-    if "lcov" in session.posargs:
-        cov_format = "lcov"
-        output_file = "lcov.info"
+    # default to `--html` report if no additional arguments provided (convenient for local use)
+    posargs = ("--html",) if not session.posargs else tuple(session.posargs)
 
     _run_cargo(
         session,
@@ -189,11 +241,23 @@ def generate_coverage_report(session: nox.Session) -> None:
         "--package=pyo3-macros-backend",
         "--package=pyo3-macros",
         "--package=pyo3-ffi",
+        "--include-build-script",
         "report",
-        f"--{cov_format}",
-        "--output-path",
-        output_file,
+        *posargs,
     )
+
+
+@nox.session(venv_backend="none")
+def fmt(session: nox.Session):
+    """Check formatting and lints."""
+    for name in (
+        "ruff",
+        "rustfmt",
+        "rumdl",
+        "check-test-features",
+        "typos",
+    ):
+        session.notify(name)
 
 
 @nox.session(venv_backend="none")
@@ -205,9 +269,8 @@ def rustfmt(session: nox.Session):
 
 @nox.session(name="ruff")
 def ruff(session: nox.Session):
-    session.install("ruff")
-    _run(session, "ruff", "format", ".", "--check")
-    _run(session, "ruff", "check", ".")
+    _run(session, "uv", "run", "ruff", "format", ".", "--check")
+    _run(session, "uv", "run", "ruff", "check", ".")
 
 
 @nox.session(name="rumdl", venv_backend="none")
@@ -221,16 +284,27 @@ def rumdl(session: nox.Session):
     )
 
 
+@nox.session(name="typos", venv_backend="none")
+def typos(session: nox.Session):
+    _run(session, "uv", "run", "typos", *session.posargs, external=True)
+
+
 @nox.session(name="clippy", venv_backend="none")
 def clippy(session: nox.Session) -> bool:
     if not (_clippy(session) and _clippy_additional_workspaces(session)):
         session.error("one or more jobs failed")
 
 
-def _clippy(session: nox.Session, *, env: Dict[str, str] = None) -> bool:
+def _clippy(
+    session: nox.Session,
+    *,
+    env: dict[str, str] | None = None,
+    version: tuple[int, int] | None = None,
+    free_threaded: bool = FREE_THREADED_BUILD,
+) -> bool:
     success = True
     env = env or os.environ
-    for feature_set in _get_feature_sets():
+    for feature_set in _get_feature_sets(version=version, free_threaded=free_threaded):
         try:
             _run_cargo(
                 session,
@@ -290,9 +364,13 @@ def codspeed(session: nox.Session) -> bool:
 def clippy_all(session: nox.Session) -> None:
     success = True
 
-    def _clippy_with_config(env: Dict[str, str]) -> None:
+    def _clippy_with_config(
+        *, env: dict[str, str], version: tuple[int, int] | None, free_threaded: bool
+    ) -> None:
         nonlocal success
-        success &= _clippy(session, env=env)
+        success &= _clippy(
+            session, env=env, version=version, free_threaded=free_threaded
+        )
 
     _for_all_version_configs(session, _clippy_with_config)
     success &= _clippy_additional_workspaces(session)
@@ -305,9 +383,13 @@ def clippy_all(session: nox.Session) -> None:
 def check_all(session: nox.Session) -> None:
     success = True
 
-    def _check(env: Dict[str, str]) -> None:
+    def _check(
+        *, env: dict[str, str], version: tuple[int, int] | None, free_threaded: bool
+    ) -> None:
         nonlocal success
-        for feature_set in _get_feature_sets():
+        for feature_set in _get_feature_sets(
+            version=version, free_threaded=free_threaded
+        ):
             try:
                 _run_cargo(
                     session,
@@ -325,16 +407,6 @@ def check_all(session: nox.Session) -> None:
 
     if not success:
         session.error("one or more jobs failed")
-
-
-@nox.session(venv_backend="none")
-def publish(session: nox.Session) -> None:
-    _run_cargo_publish(session, package="pyo3-build-config")
-    _run_cargo_publish(session, package="pyo3-macros-backend")
-    _run_cargo_publish(session, package="pyo3-macros")
-    _run_cargo_publish(session, package="pyo3-ffi")
-    _run_cargo_publish(session, package="pyo3")
-    _run_cargo_publish(session, package="pyo3-introspection")
 
 
 @nox.session(venv_backend="none")
@@ -372,7 +444,7 @@ def contributors(session: nox.Session) -> None:
         for commit in body["commits"]:
             try:
                 authors.add(commit["author"]["login"])
-            except Exception:
+            except KeyError:
                 continue
 
         if "next" in resp.links:
@@ -380,7 +452,7 @@ def contributors(session: nox.Session) -> None:
         else:
             break
 
-    authors = sorted(list(authors), key=lambda author: author.lower())
+    authors = sorted(authors, key=lambda author: author.lower())
 
     for author in authors:
         print(f"@{author}")
@@ -388,7 +460,7 @@ def contributors(session: nox.Session) -> None:
 
 class EmscriptenInfo:
     def __init__(self):
-        self.emscripten_dir = PYO3_DIR / "emscripten"
+        self.emscripten_dir = PYO3_DIR / "wasm" / "emscripten"
         self.builddir = PYO3_DIR / ".nox/emscripten"
         self.builddir.mkdir(exist_ok=True, parents=True)
 
@@ -448,9 +520,13 @@ def test_emscripten(session: nox.Session):
             "-C link-arg=-sEXPORTED_FUNCTIONS=_main,__PyRuntime",
             "-C link-arg=-sALLOW_MEMORY_GROWTH=1",
             "-C link-arg=-sSTACK_SIZE=262144",
+            # https://github.com/python/cpython/issues/156780
+            "-C link-arg=-sMAIN_MODULE=2",
         ]
     )
-    session.env["RUSTDOCFLAGS"] = session.env["RUSTFLAGS"]
+    session.env["RUSTDOCFLAGS"] = " ".join(
+        [session.env["RUSTFLAGS"], session.env.get("RUSTDOCFLAGS", "")]
+    )
     session.env["CARGO_BUILD_TARGET"] = target
     session.env["PYO3_CROSS_LIB_DIR"] = pythonlibdir
     _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
@@ -463,6 +539,105 @@ def test_emscripten(session: nox.Session):
         "-c",
         f"source {emsdk_env} && cargo test {' '.join(quote(arg) for arg in session.posargs)}",
     )
+
+
+class WasiInfo:
+    def __init__(self):
+        self.wasi_dir = PYO3_DIR / "wasm" / "wasi"
+        self.builddir = PYO3_DIR / ".nox/wasi"
+        self.builddir.mkdir(exist_ok=True, parents=True)
+
+        self.pyversion = sys.version.split()[0]
+        self.pymajor, self.pyminor = self.pyversion.split(".")[:2]
+        self.pymajorminor = f"{self.pymajor}.{self.pyminor}"
+
+        # In CI the WASI SDK is installed by setup-wasi-sdk-action (sets WASI_SDK_PATH);
+        # otherwise the Makefile downloads it into the build dir.
+        wasi_sdk_env = os.environ.get("WASI_SDK_PATH")
+        self.wasi_sdk = (
+            Path(wasi_sdk_env) if wasi_sdk_env else self.builddir / "wasi-sdk"
+        )
+        self.cpython_dir = self.builddir / "build" / f"Python-{self.pyversion}"
+        crossbuild_dir = self.cpython_dir / "cross-build" / "wasm32-wasip1"
+        self.libdir = crossbuild_dir / "build" / f"lib.wasi-wasm32-{self.pymajorminor}"
+
+
+def _make_wasm(session: nox.Session, info: WasiInfo, *targets: str):
+    _run(
+        session,
+        "make",
+        "-C",
+        str(info.wasi_dir),
+        *targets,
+        f"PYTHON={sys.executable}",
+        f"BUILDROOT={info.builddir}",
+        f"PYMAJORMINORMICRO={info.pyversion}",
+        external=True,
+    )
+
+
+@nox.session(name="prepare-wasm", venv_backend="none")
+def prepare_wasm(session: nox.Session):
+    import tomllib
+
+    info = WasiInfo()
+    _make_wasm(session, info, "prepare")
+
+    with (info.cpython_dir / "Platforms/WASI/config.toml").open("rb") as config_file:
+        wasi_sdk_version = tomllib.load(config_file)["targets"]["wasi-sdk"]
+
+    session.log("CPython requires WASI SDK %s", wasi_sdk_version)
+    if github_output := os.environ.get("GITHUB_OUTPUT"):
+        with open(github_output, "a") as output_file:
+            print(f"wasi-sdk-version={wasi_sdk_version}", file=output_file)
+
+
+@nox.session(name="build-wasm", venv_backend="none")
+def build_wasm(session: nox.Session):
+    _make_wasm(session, WasiInfo())
+
+
+@nox.session(name="test-wasm", venv_backend="none")
+def test_wasm(session: nox.Session):
+    info = WasiInfo()
+
+    target = "wasm32-wasip1"
+
+    # if wasmtime was installed by build-wasm, this is where it would be;
+    # in CI it is installed by the wasmtime/setup action
+    session.env["PATH"] = (
+        f"{info.builddir / 'wasmtime'}{os.pathsep}{os.environ['PATH']}"
+    )
+    session.env["PYO3_CROSS_LIB_DIR"] = str(info.libdir)
+    session.env["CARGO_BUILD_TARGET"] = target
+    # The checkout is mounted at `/`; point the embedded interpreter at the stdlib and
+    # the WASI build outputs.
+    build_lib_dir = info.libdir.relative_to(info.cpython_dir).as_posix()
+    session.env["CARGO_TARGET_WASM32_WASIP1_RUNNER"] = (
+        f"wasmtime run --dir {info.cpython_dir}::/ --env PYTHONPATH=/Lib:/{build_lib_dir}"
+    )
+    session.env["RUSTFLAGS"] = " ".join(
+        [
+            f"-C link-arg=-L{info.wasi_sdk}/share/wasi-sysroot/lib/wasm32-wasi",
+            "-C link-arg=-lwasi-emulated-signal",
+            "-C link-arg=-lwasi-emulated-process-clocks",
+            "-C link-arg=-lwasi-emulated-getpid",
+            "-C link-arg=-lpthread",
+            "-C link-arg=-lHacl_Hash_MD5",
+            "-C link-arg=-lHacl_Hash_SHA1",
+            "-C link-arg=-lHacl_Hash_SHA2",
+            "-C link-arg=-lHacl_Hash_SHA3",
+            "-C link-arg=-lHacl_Hash_BLAKE2",
+            "-C link-arg=-lHacl_HMAC",
+            "-C link-arg=-lexpat",
+        ]
+    )
+    session.env["RUSTDOCFLAGS"] = " ".join(
+        [session.env["RUSTFLAGS"], session.env.get("RUSTDOCFLAGS", "")]
+    )
+    _run(session, "rustup", "target", "add", target, "--toolchain", "stable")
+
+    _run(session, "cargo", "test", *session.posargs, external=True)
 
 
 @nox.session(name="test-cross-compilation-windows")
@@ -506,8 +681,6 @@ def test_cross_compilation_windows(session: nox.Session):
         "build",
         "--manifest-path",
         "examples/maturin-starter/Cargo.toml",
-        "--features",
-        "pyo3/generate-import-lib",
         "--target",
         "x86_64-pc-windows-gnu",
         env=env,
@@ -520,8 +693,6 @@ def test_cross_compilation_windows(session: nox.Session):
         "clang",
         "--manifest-path",
         "examples/maturin-starter/Cargo.toml",
-        "--features",
-        "pyo3/generate-import-lib",
         "--target",
         "x86_64-pc-windows-msvc",
         env=env,
@@ -715,7 +886,7 @@ def _url_path_from_file_path(file_path: str) -> str:
     return url_path
 
 
-def _url_and_file_paths(url_path: str, file_path: str) -> Tuple[str, str]:
+def _url_and_file_paths(url_path: str, file_path: str) -> tuple[str, str]:
     """Returns all combinations of url and file paths with and without index.html suffix"""
     if url_path == file_path:
         return (url_path,)
@@ -759,11 +930,18 @@ def check_guide(session: nox.Session):
     }
 
     excludes = [
+        # The current release tag may not exist yet (e.g. on the release PR itself).
+        rf"^https://github\.com/pyo3/pyo3/compare/[^/]+\.{{3}}v{re.escape(pyo3_version)}$",
         # exclude some old http links from copyright notices, known to fail
         "http://www.adobe.com/",
         "http://www.nhncorp.com/",
         # PR seems to be gone, possibly user deleted account?
         "https://github.com/PyO3/pyo3/pull/938",
+        # This article returns HTTP 202 on GitHub Actions runners.
+        (
+            r"^https://towardsdatascience\.com/"
+            r"nine-rules-for-writing-python-extensions-in-rust-d35ea3a4ec29/$"
+        ),
     ]
 
     common_args = (
@@ -926,9 +1104,7 @@ def _format_ffi_extern(session: nox.Session, *, check: bool = False):
 
     # Run rustfmt on the modified files
     try:
-        _run(
-            session, "rustfmt", "--edition", "2021", *[str(f) for f in files_to_format]
-        )
+        _run(session, "rustfmt", *[str(f) for f in files_to_format])
     except Exception:
         # Restore originals on failure
         for path, content in originals.items():
@@ -980,6 +1156,86 @@ def format_ffi_extern(session: nox.Session):
     _format_ffi_extern(session)
 
 
+_INNER_CFG_RE = re.compile(r"^#!\[\s*cfg\s*\((.*)\)\s*\]\s*$")
+_FEATURE_RE = re.compile(r'feature\s*=\s*"([^"]+)"')
+
+
+def _read_inner_cfgs(path: Path) -> list[str]:
+    """Return the bodies of leading `#![cfg(...)]` inner attributes."""
+    cfgs: list[str] = []
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped == "" or stripped.startswith("//"):
+                continue
+            if not stripped.startswith("#!["):
+                break
+            m = _INNER_CFG_RE.match(stripped)
+            if m:
+                cfgs.append(m.group(1).strip())
+    return cfgs
+
+
+@nox.session(name="check-test-features", venv_backend="none")
+def check_test_features(session: nox.Session) -> None:
+    if toml is None:
+        session.error("requires Python 3.11 or `toml` to be installed")
+
+    expected_tests = {}
+    errors = []
+    for path in sorted((PYO3_DIR / "tests").glob("test_*.rs")):
+        features = set()
+        for body in _read_inner_cfgs(path):
+            feature = _FEATURE_RE.search(body)
+            if not feature:
+                continue
+
+            if feature.group(0) != body:
+                # To keep the this check simple, expect a single simple `cfg` per required feature
+                errors.append(
+                    f'{path}: please use simple `#![cfg(feature = "...")] for feature predicates, got `#![cfg({body})]`'
+                )
+
+            features.add(feature.group(1))
+
+        if features:
+            expected_tests[path.stem] = sorted(features)
+
+    declared_tests = {
+        test["name"]: test
+        for test in toml.loads((PYO3_DIR / "Cargo.toml").read_text()).get("test", [])
+    }
+    all_test_names = sorted(expected_tests.keys() | declared_tests.keys())
+
+    for test in all_test_names:
+        declared = declared_tests.get(test, {})
+
+        if (expected := expected_tests.get(test)) is None:
+            if declared.get("harness", True):
+                # `test_compile_error` (e.g.) has a custom `main`, this lint can't currently
+                # handle that.
+                errors.append(f"Remove [[test]] entry for {test!r} from Cargo.toml")
+            continue
+
+        declared_features = declared.get("required-features", [])
+
+        if set(declared_features) != set(expected):
+            errors.append(
+                f"""- Update Cargo.toml for test {test}:
+
+    [[test]]
+    name = "{test}"
+    required-features = [{", ".join(f'"{f}"' for f in expected)}]
+                """
+            )
+
+    if errors:
+        print("Errors found in test feature predicates:", file=sys.stderr)
+        for error in errors:
+            print("  " + error, file=sys.stderr)
+        session.error()
+
+
 @nox.session(name="address-sanitizer", venv_backend="none")
 def address_sanitizer(session: nox.Session):
     _run_cargo(
@@ -1003,6 +1259,8 @@ _IGNORE_CHANGELOG_PR_CATEGORIES = (
     "release",
     "docs",
     "ci",
+    "internal",
+    "refactor",
 )
 
 
@@ -1041,7 +1299,7 @@ def check_changelog(session: nox.Session):
     if not fragments:
         session.error(
             "Changelog entry not found, please add one (or more) to the `newsfragments` directory.\n"
-            "Alternatively, start the PR title with `docs:` if this PR is a docs-only PR.\n"
+            "Alternatively, start the PR title with `docs:`, `refactor:`, or `internal:` if applicable.\n"
             "See https://github.com/PyO3/pyo3/blob/main/Contributing.md#documenting-changes for more information."
         )
 
@@ -1052,51 +1310,21 @@ def check_changelog(session: nox.Session):
 
 @nox.session(name="set-msrv-package-versions", venv_backend="none")
 def set_msrv_package_versions(session: nox.Session):
-    from collections import defaultdict
-
     projects = (
         PYO3_DIR,
         *(Path(p).parent for p in glob("examples/*/Cargo.toml")),
         *(Path(p).parent for p in glob("pyo3-ffi/examples/*/Cargo.toml")),
     )
-    min_pkg_versions = {}
 
     # run cargo update first to ensure that everything is at highest
     # possible version, so that this matches what CI will resolve to.
     for project in projects:
         _run_cargo(
             session,
-            "+stable",
             "update",
             f"--manifest-path={project}/Cargo.toml",
             env=os.environ | {"CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS": "fallback"},
         )
-
-        lock_file = project / "Cargo.lock"
-
-        def load_pkg_versions():
-            cargo_lock = toml.loads(lock_file.read_text())
-            # Cargo allows to depends on multiple versions of the same package
-            pkg_versions = defaultdict(list)
-            for pkg in cargo_lock["package"]:
-                name = pkg["name"]
-                if name not in min_pkg_versions:
-                    continue
-                pkg_versions[name].append(pkg["version"])
-            return pkg_versions
-
-        pkg_versions = load_pkg_versions()
-        for pkg_name, min_version in min_pkg_versions.items():
-            versions = pkg_versions.get(pkg_name, [])
-            for version in versions:
-                if version != min_version:
-                    pkg_id = pkg_name + ":" + version
-                    _run_cargo_set_package_version(
-                        session, pkg_id, min_version, project=project
-                    )
-                    # assume `_run_cargo_set_package_version` has changed something
-                    # and re-read `Cargo.lock`
-                    pkg_versions = load_pkg_versions()
 
         # As a smoke test, cargo metadata solves all dependencies, so
         # will break if any crates rely on cargo features not
@@ -1111,7 +1339,16 @@ def set_msrv_package_versions(session: nox.Session):
 
 @nox.session(name="ffi-check")
 def ffi_check(session: nox.Session):
-    _run_cargo(session, "run", _FFI_CHECK)
+    # on windows, missing symbols are reported best at link time against a
+    # proper import library, so running with raw dylib disabled gets the best
+    # feedback. Exercise both paths.
+    no_raw_dylib_env = {**os.environ, "PYO3_USE_RAW_DYLIB": "0"}
+    raw_dylib_env = {**os.environ, "PYO3_USE_RAW_DYLIB": "1"}
+    if sys.platform == "win32":
+        # only relevant to run this on windows; the env var is ignored on
+        # other platforms
+        _run_cargo(session, "run", _FFI_CHECK, env=no_raw_dylib_env)
+    _run_cargo(session, "run", _FFI_CHECK, env=raw_dylib_env)
     _check_raw_dylib_macro(session)
 
 
@@ -1121,23 +1358,50 @@ def test_version_limits(session: nox.Session):
     with _config_file() as config_file:
         env["PYO3_CONFIG_FILE"] = config_file.name
 
-        assert "3.6" not in PY_VERSIONS
-        config_file.set("CPython", "3.6")
+        # Oldest-support Python version - 1 should error
+        assert "3.7" not in PY_VERSIONS
+        config_file.set("CPython", "3.7")
         _run_cargo(session, "check", env=env, expect_error=True)
 
+        # We allow building with our max version + 1, to support
+        # development work
         assert "3.16" not in PY_VERSIONS
         config_file.set("CPython", "3.16")
-        _run_cargo(session, "check", env=env, expect_error=True)
-
-        # 3.16 CPython should build if abi3 is explicitly requested
-        _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
-
-        # 3.15 CPython should build with forward compatibility
-        # TODO: check on 3.16 when adding abi3-py315 support
-        config_file.set("CPython", "3.15")
-        env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
         _run_cargo(session, "check", env=env)
 
+        # We do not allow allow building with max version + 2
+        assert "3.17" not in PY_VERSIONS
+        config_file.set("CPython", "3.17")
+        _run_cargo(session, "check", env=env, expect_error=True)
+
+        # ... but should build with PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
+        env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
+        _run_cargo(session, "check", env=env)
+        del env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"]
+
+        # and PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY=1
+        env["PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY"] = "1"
+        _run_cargo(session, "check", env=env)
+        del env["PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY"]
+
+        # max version + 2 should build if abi3 is explicitly requested
+        _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
+
+        # max_version + 1 also should build with forward compatibility
+        config_file.set("CPython", "3.16")
+        env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"] = "1"
+        _run_cargo(session, "check", env=env)
+        del env["PYO3_USE_ABI3_FORWARD_COMPATIBILITY"]
+
+        # including the other spelling for the environment variable
+        env["PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY"] = "1"
+        _run_cargo(session, "check", env=env)
+        del env["PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY"]
+
+        # or if abi3 is explicitly requested
+        _run_cargo(session, "check", "--features=pyo3/abi3", env=env)
+
+        # we only support 3.11 PyPy
         assert "3.10" not in PYPY_VERSIONS
         config_file.set("PyPy", "3.10")
         _run_cargo(session, "check", env=env, expect_error=True)
@@ -1149,6 +1413,36 @@ def test_version_limits(session: nox.Session):
         # 3.14t is PyO3's minimum version of free-threaded Python
         config_file.set("CPython", "3.14t")
         _run_cargo(session, "check", env=env)
+
+        # 3.15t is PyO3's maximum version of free-threaded Python
+        config_file.set("CPython", "3.15t")
+        _run_cargo(session, "check", env=env)
+
+        # 3.16t should build with abi3t forward compatibility
+        config_file.set("CPython", "3.16t")
+        env["PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY"] = "1"
+        _run_cargo(session, "check", env=env)
+        del env["PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY"]
+
+        # 3.17t isn't supported
+        config_file.set("CPython", "3.17t")
+        _run_cargo(session, "check", env=env, expect_error=True)
+
+        # Setting PYO3_USE_ABI3T_FORWARD_COMPATIBILITY=1 succeeds
+        env["PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY"] = "1"
+        _run_cargo(session, "check", env=env)
+        del env["PYO3_USE_STABLE_ABI_FORWARD_COMPATIBILITY"]
+
+        # 3.17t CPython should build if abi3t is explicitly requested
+        _run_cargo(session, "check", "--features=pyo3/abi3t", env=env)
+
+        # abi3t builds should succeed on Python versions that do not support abi3t
+        config_file.set("CPython", "3.14")
+        _run_cargo(session, "check", "--features=pyo3/abi3t", env=env)
+
+        # the build should also succeed if both abi3 and abi3t features are enabled
+        config_file.set("CPython", "3.14")
+        _run_cargo(session, "check", "--features=pyo3/abi3t,pyo3/abi3", env=env)
 
     # attempt to build with latest version and check that abi3 version
     # configured matches the feature
@@ -1171,7 +1465,7 @@ def test_version_limits(session: nox.Session):
     # "An abi3-py3* feature must be specified when compiling without a Python
     # interpreter."
     #
-    # then `ABI3_MAX_MINOR` in `pyo3-build-config/src/impl_.rs` is probably outdated.
+    # then `STABLE_ABI_MAX_MINOR` in `pyo3-build-config/src/impl_.rs` is probably outdated.
     assert f"version=3.{max_minor_version}" in stderr, (
         f"Expected to see version=3.{max_minor_version}, got: \n\n{stderr}"
     )
@@ -1185,23 +1479,32 @@ def _check_raw_dylib_macro(session: nox.Session):
 
     # Build the set of DLL names that default_lib_name_windows can produce
     expected_dlls = {"python3", "python3_d"}
-    for minor in range(min_minor, max_minor + 1):
+    for minor in range(min_minor, max_minor + 2):  # allow prerelease of next version
         expected_dlls.add(f"python3{minor}")
         expected_dlls.add(f"python3{minor}_d")
         if minor >= 13:
             expected_dlls.add(f"python3{minor}t")
             expected_dlls.add(f"python3{minor}t_d")
+        if minor >= 15:
+            expected_dlls.add("python3t")
+            expected_dlls.add("python3t_d")
 
     # PyPy DLL names (libpypy3.X-c.dll)
     pypy_min, pypy_max = _parse_supported_interpreter_version("pypy")
     pypy_min_minor = int(pypy_min.split(".")[1])
     pypy_max_minor = int(pypy_max.split(".")[1])
-    for minor in range(pypy_min_minor, pypy_max_minor + 1):
+    for minor in range(
+        pypy_min_minor,
+        pypy_max_minor + 2,  # allow prerelease of next version
+    ):
         expected_dlls.add(f"libpypy3.{minor}-c")
+
+    # GraalPy DLL (python-native.dll)
+    expected_dlls.add("python-native")
 
     # Parse the DLL name list in the extern_libpython!(@impl ...) invocation
     lib_rs = (PYO3_DIR / "pyo3-ffi" / "src" / "impl_" / "macros.rs").read_text()
-    found_dlls = set(re.findall(r'"((?:python|libpypy)[^"]+)"', lib_rs))
+    found_dlls = set(re.findall(r'"((?:python(?!XY)|libpypy)[^"]+)"', lib_rs))
 
     missing = expected_dlls - found_dlls
     extra = found_dlls - expected_dlls
@@ -1250,12 +1553,12 @@ def _check_raw_dylib_macro(session: nox.Session):
     )
 
 
-def _raw_dylib_x86_private_functions() -> Set[str]:
+def _raw_dylib_x86_private_functions() -> set[str]:
     ffi_src = PYO3_DIR / "pyo3-ffi" / "src"
     private_fns = set()
     for path in ffi_src.rglob("*.rs"):
         for block in _iter_extern_libpython_blocks(path.read_text()):
-            attrs: List[str] = []
+            attrs: list[str] = []
             for line in block.splitlines():
                 stripped = line.strip()
                 if stripped.startswith("#["):
@@ -1323,6 +1626,12 @@ def _cfg_attr_is_non_cpython_only(attr: str) -> bool:
     )
 
 
+_REQUIRED_FOR_NO_STD = {
+    "hashbrown",
+    "parking_lot",
+}
+
+
 @nox.session(name="check-feature-powerset", venv_backend="none")
 def check_feature_powerset(session: nox.Session):
     if toml is None:
@@ -1333,6 +1642,10 @@ def check_feature_powerset(session: nox.Session):
     # free-threaded builds do not support ABI3 (yet)
     EXPECTED_ABI3_FEATURES = {
         f"abi3-py3{ver.split('.')[1]}" for ver in ABI3_PY_VERSIONS
+    }
+
+    EXPECTED_ABI3T_FEATURES = {
+        f"abi3t-py3{ver.split('.')[1].strip('t')}" for ver in ABI3T_PY_VERSIONS
     }
 
     EXCLUDED_FROM_FULL = {
@@ -1348,20 +1661,37 @@ def check_feature_powerset(session: nox.Session):
     features = cargo_toml["features"]
 
     full_feature = set(features["full"])
-    abi3_features = {feature for feature in features if feature.startswith("abi3")}
+    abi3_features = {
+        feature
+        for feature in features
+        if feature.startswith("abi3") and not feature.startswith("abi3t")
+    }
     abi3_version_features = abi3_features - {"abi3"}
 
-    unexpected_abi3_features = abi3_version_features - EXPECTED_ABI3_FEATURES
-    if unexpected_abi3_features:
+    abi3t_features = {feature for feature in features if feature.startswith("abi3t")}
+    abi3t_version_features = abi3t_features - {"abi3t"}
+
+    unexpected_stable_abi_features = (
+        abi3_version_features - EXPECTED_ABI3_FEATURES - EXPECTED_ABI3T_FEATURES
+    )
+    if unexpected_stable_abi_features:
         session.error(
-            f"unexpected `abi3` features found in Cargo.toml: {unexpected_abi3_features}"
+            f"unexpected `abi3` or `abi3t` features found in Cargo.toml: {unexpected_stable_abi_features}"
         )
 
     missing_abi3_features = EXPECTED_ABI3_FEATURES - abi3_version_features
     if missing_abi3_features:
         session.error(f"missing `abi3` features in Cargo.toml: {missing_abi3_features}")
 
-    expected_full_feature = features.keys() - EXCLUDED_FROM_FULL - abi3_features
+    missing_abi3t_features = EXPECTED_ABI3T_FEATURES - abi3t_version_features
+    if missing_abi3t_features:
+        session.error(
+            f"missing `abi3t` features in Cargo.toml: {missing_abi3t_features}"
+        )
+
+    expected_full_feature = (
+        features.keys() - EXCLUDED_FROM_FULL - abi3_features - abi3t_features
+    )
 
     uncovered_features = expected_full_feature - full_feature
     if uncovered_features:
@@ -1390,7 +1720,10 @@ def check_feature_powerset(session: nox.Session):
     features_to_skip = [
         *(EXCLUDED_FROM_FULL),
         *abi3_version_features,
+        *abi3t_version_features,
     ]
+    if _is_no_std():
+        features_to_skip.extend(_REQUIRED_FOR_NO_STD)
 
     # deny warnings
     env = os.environ.copy()
@@ -1402,70 +1735,116 @@ def check_feature_powerset(session: nox.Session):
         subcommand = "minimal-versions"
 
     comma_join = ",".join
-    _run_cargo(
-        session,
-        subcommand,
-        "--feature-powerset",
-        '--optional-deps=""',
-        f'--skip="{comma_join(features_to_skip)}"',
-        *(f"--group-features={comma_join(group)}" for group in features_to_group),
-        "check",
-        "--all-targets",
-        env=env,
-    )
+    for abi_name in ["abi3", "abi3t"]:
+        args = [
+            session,
+            subcommand,
+            "--feature-powerset",
+            '--optional-deps=""',
+            f'--skip="{comma_join(features_to_skip + [abi_name])}"',
+            *(f"--group-features={comma_join(group)}" for group in features_to_group),
+            "check",
+            "--all-targets",
+        ]
+        if not _is_no_std():
+            args.append(f"--features={comma_join(_REQUIRED_FOR_NO_STD)}")
+        _run_cargo(*args, env=env)
 
 
 @nox.session(name="update-ui-tests", venv_backend="none")
 def update_ui_tests(session: nox.Session):
     env = os.environ.copy()
-    env["TRYBUILD"] = "overwrite"
-    command = ["test", "--test", "test_compile_error"]
-    _run_cargo(session, *command, env=env)
+    env["UI_TEST"] = "bless"
+    command = ["test", "--test", "test_compile_error", "--no-default-features"]
+    _run_cargo(session, *command, "--features=macros", env=env)
     _run_cargo(session, *command, "--features=full", env=env)
     _run_cargo(session, *command, "--features=abi3,full", env=env)
+
+    env["PYO3_WIP_NO_STD"] = "1"
+    _run_cargo(
+        session,
+        *command,
+        f"--features=macros,{','.join(_REQUIRED_FOR_NO_STD)}",
+        env=env,
+    )
 
 
 @nox.session(name="test-introspection")
 def test_introspection(session: nox.Session):
-    session.install("maturin")
-    session.install("ruff")
-    options = []
-    target = os.environ.get("CARGO_BUILD_TARGET")
-    if target is not None:
-        options += ("--target", target)
-    profile = os.environ.get("CARGO_BUILD_PROFILE")
-    if profile == "release":
-        options.append("--release")
-    session.run_always(
-        "maturin",
-        "develop",
-        "-m",
-        "./pytests/Cargo.toml",
-        "--features",
-        "experimental-async,experimental-inspect",
-        *options,
-    )
-    lib_file = session.run(
-        "python",
-        "-c",
-        "import pyo3_pytests; print(pyo3_pytests.pyo3_pytests.__file__)",
-        silent=True,
-    ).strip()
-    _run_cargo_test(
-        session,
-        package="pyo3-introspection",
-        env={"PYO3_PYTEST_LIB_PATH": lib_file},
-    )
+    with tempfile.TemporaryDirectory() as stub_dir:
+        session.install("maturin")
+        session.install("ruff")
+        options = []
+        target = os.environ.get("CARGO_BUILD_TARGET")
+        if target is not None:
+            options += ("--target", target)
+        profile = os.environ.get("CARGO_BUILD_PROFILE")
+        if profile == "release":
+            options.append("--release")
+        _run(
+            session,
+            "maturin",
+            "develop",
+            "-m",
+            "./pytests/Cargo.toml",
+            "--features",
+            "experimental-async,experimental-inspect",
+            *options,
+        )
+        lib_file = session.run(
+            "python",
+            "-c",
+            "import pyo3_pytests; print(pyo3_pytests.pyo3_pytests.__file__)",
+            silent=True,
+        ).strip()
+        _run_cargo(
+            session,
+            "run",
+            "-p",
+            "pyo3-introspection",
+            "--",
+            lib_file,
+            "pyo3_pytests",
+            stub_dir,
+        )
+        _run(session, "ruff", "format", stub_dir)
+        _ensure_directory_equals(Path(stub_dir), Path("pytests/stubs"))
 
 
-@lru_cache()
-def _get_rust_info() -> Tuple[str, ...]:
+def _ensure_directory_equals(expected_dir: Path, actual_dir: Path):
+    # Assert all expected files are in actual and are equals
+    for expected_file_path in expected_dir.rglob("*"):
+        file_path = expected_file_path.relative_to(expected_dir)
+        actual_file_path = actual_dir / file_path
+        assert actual_file_path.exists(), f"File {file_path} does not exist"
+        expected_file_content = expected_file_path.read_text()
+        actual_file_content = actual_file_path.read_text()
+        diff = "\n".join(
+            unified_diff(
+                expected_file_content.split("\n"),
+                actual_file_content.split("\n"),
+                fromfile="expected",
+                tofile="actual",
+            )
+        )
+        assert not diff, f"Content is different in {file_path}:\n{diff}"
+    # Assert all actual files are expected
+    for actual_file_path in actual_dir.rglob("*"):
+        file_path = actual_file_path.relative_to(actual_dir)
+        expected_file_path = expected_dir / file_path
+        assert expected_file_path.exists(), (
+            f"File {file_path} exist even if not expected"
+        )
+
+
+@lru_cache
+def _get_rust_info() -> tuple[str, ...]:
     output = _get_output("rustc", "-vV")
 
     return tuple(output.splitlines())
 
 
-def get_rust_version() -> Tuple[int, int, int, List[str]]:
+def get_rust_version() -> tuple[int, int, int, list[str]]:
     for line in _get_rust_info():
         if line.startswith(_RELEASE_LINE_START):
             version = line[len(_RELEASE_LINE_START) :].strip()
@@ -1487,10 +1866,19 @@ def _get_rust_default_target() -> str:
             return line[len(_HOST_LINE_START) :].strip()
 
 
-@lru_cache()
-def _get_feature_sets() -> Tuple[Optional[str], ...]:
+@lru_cache
+def _get_feature_sets(
+    *,
+    version: tuple[int, int] | None = None,
+    free_threaded: bool = FREE_THREADED_BUILD,
+) -> tuple[str | None, ...]:
     """Returns feature sets to use for Rust jobs"""
+    if version is None:
+        version = sys.version_info[:2]
+
     cargo_target = os.getenv("CARGO_BUILD_TARGET", "")
+
+    required = ",".join(_REQUIRED_FOR_NO_STD) if _is_no_std() else ""
 
     features = "full"
 
@@ -1501,17 +1889,49 @@ def _get_feature_sets() -> Tuple[Optional[str], ...]:
     if is_rust_nightly():
         features += ",nightly"
 
-    return (None, "abi3", features, f"abi3,{features}")
+    if free_threaded:
+        if version >= (3, 15):
+            return (
+                required,
+                f"abi3t,{required}",
+                f"{features},{required}",
+                f"abi3t,{features},{required}",
+            )
+        else:
+            return (required, f"{features},{required}")
+
+    # do fewer abi3t builds?
+    if version >= (3, 15):
+        return (
+            required,
+            f"abi3,{required}",
+            f"abi3t,{required}",
+            f"{features},{required}",
+            f"abi3,{features},{required}",
+            f"abi3t,{features},{required}",
+        )
+    return (
+        required,
+        f"abi3,{required}",
+        f"{features},{required}",
+        f"abi3,{features},{required}",
+    )
 
 
 _RELEASE_LINE_START = "release: "
 _HOST_LINE_START = "host: "
 
 
-def _get_coverage_env() -> Dict[str, str]:
-    env = {}
-    output = _get_output("cargo", "llvm-cov", "show-env")
+def _get_coverage_env(*flags: str) -> dict[str, str]:
+    llvm_cov_execution_env = os.environ.copy()
+    # prevent llvm-cov from hanging asking to install llvm-tools-preview
+    # (allow user to override this, if they wish, e.g. in CI)
+    llvm_cov_execution_env.setdefault("CARGO_LLVM_COV_SETUP", "no")
+    output = _get_output(
+        "cargo", "llvm-cov", "show-env", *flags, env=llvm_cov_execution_env
+    )
 
+    env = {}
     for line in output.strip().splitlines():
         (key, value) = line.split("=", maxsplit=1)
         # Strip single or double quotes from the variable value
@@ -1562,10 +1982,10 @@ def _run_cargo(
 def _run_cargo_test(
     session: nox.Session,
     *,
-    package: Optional[str] = None,
-    features: Optional[str] = None,
-    env: Optional[Dict[str, str]] = None,
-    extra_flags: Optional[List[str]] = None,
+    package: str | None = None,
+    features: str | None = None,
+    env: dict[str, str] | None = None,
+    extra_flags: list[str] | None = None,
 ) -> None:
     command = ["cargo"]
     if "careful" in session.posargs:
@@ -1584,29 +2004,27 @@ def _run_cargo_test(
     if extra_flags:
         command.extend(extra_flags)
 
-    _run(session, *command, external=True, env=env or {})
+    test_env = dict(env or {})
+    if features and "abi3t" in features and sys.platform == "win32":
+        # On the GIL-enabled CPython MSI installation, python3t.dll (the abi3t forwarder) lives
+        # in <base_prefix>\abi3t-compat\, not next to python.exe. The interpreter
+        # finds it there when importing a .pyd, but our test binaries link it
+        # directly and the loader only searches PATH.
+        abi3t_compat = Path(sys.base_prefix) / "abi3t-compat"
+        if abi3t_compat.is_dir():
+            path = test_env.get("PATH", os.environ.get("PATH", ""))
+            test_env["PATH"] = os.pathsep.join((str(abi3t_compat), path))
+
+    _run(session, *command, external=True, env=test_env)
 
 
-def _run_cargo_publish(session: nox.Session, *, package: str) -> None:
-    _run_cargo(session, "publish", f"--package={package}")
+class Job(Protocol):
+    def __call__(
+        self, *, env: dict[str, str], version: tuple[int, int], free_threaded: bool
+    ) -> None: ...
 
 
-def _run_cargo_set_package_version(
-    session: nox.Session,
-    pkg_id: str,
-    version: str,
-    *,
-    project: Optional[str] = None,
-) -> None:
-    command = ["cargo", "update", "-p", pkg_id, "--precise", version, "--workspace"]
-    if project:
-        command.append(f"--manifest-path={project}/Cargo.toml")
-    _run(session, *command, external=True)
-
-
-def _for_all_version_configs(
-    session: nox.Session, job: Callable[[Dict[str, str]], None]
-) -> None:
+def _for_all_version_configs(session: nox.Session, job: Job) -> None:
     env = os.environ.copy()
     with _config_file() as config_file:
         env["PYO3_CONFIG_FILE"] = config_file.name
@@ -1614,13 +2032,18 @@ def _for_all_version_configs(
         def _job_with_config(implementation, version):
             session.log(f"{implementation} {version}")
             config_file.set(implementation, version)
-            job(env)
+            major_minor = tuple[int, int](map(int, version.strip("t").split(".")))
+            free_threaded = version.endswith("t")
+            job(env=env, version=major_minor, free_threaded=free_threaded)
 
         for version in PY_VERSIONS:
             _job_with_config("CPython", version)
 
         for version in PYPY_VERSIONS:
             _job_with_config("PyPy", version)
+
+        for version in GRAALPY_VERSIONS:
+            _job_with_config("GraalVM", version)
 
 
 class _ConfigFile:

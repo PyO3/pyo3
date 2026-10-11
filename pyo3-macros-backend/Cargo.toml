@@ -1,14 +1,14 @@
 [package]
 name = "pyo3-macros-backend"
-version = "0.28.3"
+version = "0.29.3"
 description = "Code generation for PyO3 package"
-authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
-keywords = ["pyo3", "python", "cpython", "ffi"]
-homepage = "https://github.com/pyo3/pyo3"
-repository = "https://github.com/pyo3/pyo3"
-categories = ["api-bindings", "development-tools::ffi"]
-license = "MIT OR Apache-2.0"
-edition = "2021"
+authors.workspace = true
+keywords.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
 rust-version.workspace = true
 
 # Note: we use default-features = false for proc-macro related crates
@@ -20,8 +20,7 @@ proc-macro2 = { version = "1.0.60", default-features = false }
 quote = { version = "1.0.37", default-features = false }
 
 [dependencies.syn]
-# 2.0.59 for `LitCStr`
-version = "2.0.59"
+version = "3"
 default-features = false
 features = ["derive", "parsing", "printing", "clone-impls", "full", "extra-traits", "visit-mut"]
 

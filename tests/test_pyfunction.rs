@@ -1,17 +1,18 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "macros")]
-#![warn(unsafe_op_in_unsafe_fn)]
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
+use std::sync::atomic::{AtomicI32, Ordering};
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
 use pyo3::buffer::PyBuffer;
 #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 use pyo3::exceptions::PyWarning;
 use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
 use pyo3::prelude::*;
-#[cfg(not(Py_LIMITED_API))]
 use pyo3::types::PyDateTime;
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(PyPy))]
 use pyo3::types::PyFunction;
 use pyo3::types::{self, PyCFunction};
 use pyo3_macros::pyclass;
@@ -113,7 +114,7 @@ fn test_required_optional_class() {
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
 #[pyfunction]
 fn buffer_inplace_add(py: Python<'_>, x: PyBuffer<i32>, y: PyBuffer<i32>) {
     let x = x.as_mut_slice(py).unwrap();
@@ -124,7 +125,7 @@ fn buffer_inplace_add(py: Python<'_>, x: PyBuffer<i32>, y: PyBuffer<i32>) {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
+#[cfg(any(not(Py_LIMITED_API), Py_3_11))]
 #[test]
 fn test_buffer_add() {
     Python::attach(|py| {
@@ -156,7 +157,7 @@ assert a, array.array("i", [2, 4, 6, 8])
     });
 }
 
-#[cfg(not(any(Py_LIMITED_API, PyPy)))]
+#[cfg(not(PyPy))]
 #[pyfunction]
 fn function_with_pyfunction_arg<'py>(fun: &Bound<'py, PyFunction>) -> PyResult<Bound<'py, PyAny>> {
     fun.call((), None)
@@ -184,7 +185,7 @@ fn test_functions_with_function_args() {
         "#
         );
 
-        #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+        #[cfg(not(PyPy))]
         {
             let py_func_arg = wrap_pyfunction!(function_with_pyfunction_arg)(py).unwrap();
 
@@ -200,7 +201,6 @@ fn test_functions_with_function_args() {
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
 fn datetime_to_timestamp(dt: &Bound<'_, PyAny>) -> PyResult<i64> {
     let dt = dt.cast::<PyDateTime>()?;
     let ts: f64 = dt.call_method0("timestamp")?.extract()?;
@@ -208,7 +208,6 @@ fn datetime_to_timestamp(dt: &Bound<'_, PyAny>) -> PyResult<i64> {
     Ok(ts as i64)
 }
 
-#[cfg(not(Py_LIMITED_API))]
 #[pyfunction]
 fn function_with_custom_conversion(
     #[pyo3(from_py_with = datetime_to_timestamp)] timestamp: i64,
@@ -216,7 +215,6 @@ fn function_with_custom_conversion(
     timestamp
 }
 
-#[cfg(not(Py_LIMITED_API))]
 #[test]
 fn test_function_with_custom_conversion() {
     Python::attach(|py| {
@@ -235,7 +233,6 @@ fn test_function_with_custom_conversion() {
     });
 }
 
-#[cfg(not(Py_LIMITED_API))]
 #[test]
 fn test_function_with_custom_conversion_error() {
     Python::attach(|py| {
@@ -565,13 +562,12 @@ fn test_closure() {
 #[test]
 fn test_closure_counter() {
     Python::attach(|py| {
-        let counter = std::cell::RefCell::new(0);
+        let counter = AtomicI32::new(0);
         let counter_fn = move |_args: &Bound<'_, types::PyTuple>,
                                _kwargs: Option<&Bound<'_, types::PyDict>>|
               -> PyResult<i32> {
-            let mut counter = counter.borrow_mut();
-            *counter += 1;
-            Ok(*counter)
+            let prev_count = counter.fetch_add(1, Ordering::SeqCst);
+            Ok(prev_count + 1)
         };
         let counter_py = PyCFunction::new_closure(py, None, None, counter_fn).unwrap();
 
@@ -618,9 +614,9 @@ fn return_value_borrows_from_arguments<'py>(
     py: Python<'py>,
     key: &'py Key,
     value: &'py Value,
-) -> HashMap<&'py str, i32> {
+) -> BTreeMap<&'py str, i32> {
     py.detach(move || {
-        let mut map = HashMap::new();
+        let mut map = BTreeMap::new();
         map.insert(key.0.as_str(), value.0);
         map
     })
@@ -808,4 +804,44 @@ fn test_pyfunction_multiple_warnings() {
             )
         ]
     );
+}
+
+#[test]
+#[cfg(any(not(PyPy), Py_3_12))]
+fn test_pyfunction_is_not_static() {
+    use pyo3::ffi;
+
+    // one function for each calling convention
+    #[pyfunction]
+    fn no_args() {}
+
+    #[pyfunction]
+    fn positional(_arg: i32) {}
+
+    #[pyfunction]
+    #[pyo3(signature = (**_kwargs))]
+    fn keywords(_kwargs: Option<&Bound<'_, types::PyDict>>) {}
+
+    Python::attach(|py| {
+        let module = PyModule::new(py, "test_module").unwrap();
+        for function in [
+            wrap_pyfunction!(no_args, &module).unwrap(),
+            wrap_pyfunction!(positional, &module).unwrap(),
+            wrap_pyfunction!(keywords, &module).unwrap(),
+        ] {
+            let name = function.getattr("__name__").unwrap();
+            // `METH_STATIC` and `METH_CLASS` are only for methods of a class
+            let flags = unsafe { ffi::PyCFunction_GetFlags(function.as_ptr()) };
+            assert_eq!(
+                flags & (ffi::METH_STATIC | ffi::METH_CLASS),
+                0,
+                "`{name}` has flags {flags:#x}"
+            );
+            // `METH_STATIC` would make `__self__` `None`
+            assert!(
+                function.getattr("__self__").unwrap().is(&module),
+                "`{name}.__self__` is not the module"
+            );
+        }
+    });
 }

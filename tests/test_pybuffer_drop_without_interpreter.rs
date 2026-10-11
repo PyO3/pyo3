@@ -1,5 +1,9 @@
-#![cfg(any(not(Py_LIMITED_API), Py_3_11))] // buffer availability
-#![cfg(not(any(PyPy, GraalPy)))] // cannot control interpreter lifecycle in PyPy or GraalPy
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+// buffer availability
+#![cfg(any(not(Py_LIMITED_API), Py_3_11))]
+// cannot control interpreter lifecycle in PyPy or GraalPy
+#![cfg(not(any(PyPy, GraalPy)))]
 
 //! Dropping `Py<T>` after the interpreter has been finalized should be sound.
 //!

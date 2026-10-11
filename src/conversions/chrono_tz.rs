@@ -1,4 +1,4 @@
-#![cfg(all(Py_3_9, feature = "chrono-tz"))]
+#![cfg(feature = "chrono-tz")]
 
 //! Conversions to and from [chrono-tz](https://docs.rs/chrono-tz/)’s `Tz`.
 //!
@@ -38,26 +38,22 @@ use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_identifier;
-use crate::types::{any::PyAnyMethods, PyTzInfo};
-#[cfg(all(feature = "experimental-inspect", not(Py_3_9)))]
-use crate::PyTypeInfo;
-use crate::{intern, Borrowed, Bound, FromPyObject, PyAny, PyErr, Python};
+use crate::types::{PyTzInfo, any::PyAnyMethods};
+use crate::{Borrowed, Bound, FromPyObject, PyAny, PyErr, Python, intern};
+use alloc::borrow::Cow;
 use chrono_tz::Tz;
-use std::borrow::Cow;
-use std::str::FromStr;
+use core::str::FromStr;
 
 impl<'py> IntoPyObject<'py> for Tz {
     type Target = PyTzInfo;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
-    #[cfg(all(feature = "experimental-inspect", Py_3_9))]
+    #[cfg(feature = "experimental-inspect")]
     const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("zoneinfo", "ZoneInfo");
-
-    #[cfg(all(feature = "experimental-inspect", not(Py_3_9)))]
-    const OUTPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyTzInfo::timezone(py, self.name())
@@ -81,11 +77,8 @@ impl<'py> IntoPyObject<'py> for &Tz {
 impl FromPyObject<'_, '_> for Tz {
     type Error = PyErr;
 
-    #[cfg(all(feature = "experimental-inspect", Py_3_9))]
+    #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("zoneinfo", "ZoneInfo");
-
-    #[cfg(all(feature = "experimental-inspect", not(Py_3_9)))]
-    const INPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
 
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         Tz::from_str(
@@ -98,16 +91,18 @@ impl FromPyObject<'_, '_> for Tz {
 
 #[cfg(all(test, not(windows)))] // Troubles loading timezones on Windows
 mod tests {
-    use super::*;
     use crate::prelude::PyAnyMethods;
+    #[cfg(feature = "chrono")]
     use crate::types::IntoPyDict;
     use crate::types::PyTzInfo;
-    use crate::Bound;
-    use crate::Python;
-    use chrono::offset::LocalResult;
-    use chrono::NaiveDate;
-    use chrono::{DateTime, Utc};
+    use crate::{Bound, IntoPyObject, Python};
+    #[cfg(feature = "chrono")]
+    use alloc::string::ToString;
+    #[cfg(feature = "chrono")]
+    use chrono::{DateTime, NaiveDate, Utc, offset::LocalResult};
     use chrono_tz::Tz;
+    #[cfg(feature = "chrono")]
+    use core::str::FromStr;
 
     #[test]
     fn test_frompyobject() {
@@ -125,6 +120,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "chrono")]
     fn test_ambiguous_datetime_to_pyobject() {
         let dates = [
             DateTime::<Utc>::from_str("2020-10-24 23:00:00 UTC").unwrap(),
@@ -173,6 +169,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "chrono")]
     fn test_nonexistent_datetime_from_pyobject() {
         // Pacific_Apia skipped the 30th of December 2011 entirely
 
@@ -199,12 +196,14 @@ mod tests {
 
             // now try to extract
             let err = py_dt.extract::<DateTime<Tz>>().unwrap_err();
-            assert_eq!(err.to_string(), "ValueError: The datetime datetime.datetime(2011, 12, 30, 2, 0, tzinfo=zoneinfo.ZoneInfo(key='Pacific/Apia')) contains an incompatible timezone");
+            assert_eq!(
+                err.to_string(),
+                "ValueError: The datetime datetime.datetime(2011, 12, 30, 2, 0, tzinfo=zoneinfo.ZoneInfo(key='Pacific/Apia')) contains an incompatible timezone"
+            );
         });
     }
 
     #[test]
-    #[cfg(not(Py_GIL_DISABLED))] // https://github.com/python/cpython/issues/116738#issuecomment-2404360445
     fn test_into_pyobject() {
         Python::attach(|py| {
             let assert_eq = |l: Bound<'_, PyTzInfo>, r: Bound<'_, PyTzInfo>| {

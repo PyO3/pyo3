@@ -16,6 +16,7 @@ It's also possible to tweak its configuration (mostly to tune its performance).
 
 ```rust,no_run
 #[pyo3::pymodule]
+# #[pyo3(name = "example_logging")]
 mod my_module {
     use log::info;
     use pyo3::prelude::*;
@@ -28,7 +29,7 @@ mod my_module {
     }
 
     #[pymodule_init]
-    fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    fn init() {
         // A good place to install the Rust -> Python logger.
         pyo3_log::init();
     }
@@ -41,7 +42,7 @@ Then it is up to the Python side to actually output the messages somewhere.
 import logging
 import my_module
 
-FORMAT = '%(levelname)s %(name)s %(asctime)-15s %(filename)s:%(lineno)d %(message)s'
+FORMAT = "%(levelname)s %(name)s %(asctime)-15s %(filename)s:%(lineno)d %(message)s"
 logging.basicConfig(format=FORMAT)
 logging.getLogger().setLevel(logging.INFO)
 my_module.log_something()

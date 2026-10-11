@@ -7,6 +7,7 @@ enum ComplexEnum {
 }
 
 #[pymethods]
+//~^ ERROR: type mismatch resolving `<ComplexEnum as PyClass>::Frozen == False`
 impl ComplexEnum {
     fn mutate_in_place(&mut self) {
         *self = match self {
@@ -23,6 +24,7 @@ enum TupleEnum {
 }
 
 #[pymethods]
+//~^ ERROR: type mismatch resolving `<TupleEnum as PyClass>::Frozen == False`
 impl TupleEnum {
     fn mutate_in_place(&mut self) {
         *self = match self {

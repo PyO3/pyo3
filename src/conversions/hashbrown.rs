@@ -19,16 +19,16 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 use crate::{
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
     conversion::{FromPyObjectOwned, IntoPyObject},
     types::{
-        any::PyAnyMethods, dict::PyDictMethods, frozenset::PyFrozenSetMethods, set::PySetMethods,
-        PyDict, PyFrozenSet, PySet,
+        PyDict, PyFrozenSet, PySet, any::PyAnyMethods, dict::PyDictMethods,
+        frozenset::PyFrozenSetMethods, set::PySetMethods,
     },
-    Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python,
 };
 #[cfg(feature = "experimental-inspect")]
-use crate::{type_hint_subscript, type_hint_union, PyTypeInfo};
-use std::hash;
+use crate::{PyTypeInfo, type_hint_subscript, type_hint_union};
+use core::hash;
 
 impl<'py, K, V, H> IntoPyObject<'py> for hashbrown::HashMap<K, V, H>
 where
@@ -150,16 +150,20 @@ where
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         match ob.cast::<PySet>() {
-            Ok(set) => set
-                .iter()
-                .map(|any| any.extract().map_err(Into::into))
-                .collect(),
+            Ok(set) => {
+                let mut result = Self::with_capacity_and_hasher(set.len(), S::default());
+                for item in set.iter() {
+                    result.insert(item.extract().map_err(Into::into)?);
+                }
+                Ok(result)
+            }
             Err(err) => {
                 if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
-                    frozen_set
-                        .iter()
-                        .map(|any| any.extract().map_err(Into::into))
-                        .collect()
+                    let mut result = Self::with_capacity_and_hasher(frozen_set.len(), S::default());
+                    for item in frozen_set.iter() {
+                        result.insert(item.extract().map_err(Into::into)?);
+                    }
+                    Ok(result)
                 } else {
                     Err(PyErr::from(err))
                 }
@@ -172,13 +176,11 @@ where
 mod tests {
     use super::*;
     use crate::types::IntoPyDict;
-    use std::collections::hash_map::RandomState;
 
     #[test]
     fn test_hashbrown_hashmap_into_pyobject() {
         Python::attach(|py| {
-            let mut map =
-                hashbrown::HashMap::<i32, i32, RandomState>::with_hasher(RandomState::new());
+            let mut map = hashbrown::HashMap::<i32, i32>::default();
             map.insert(1, 1);
 
             let py_map = (&map).into_pyobject(py).unwrap();
@@ -200,8 +202,7 @@ mod tests {
     #[test]
     fn test_hashbrown_hashmap_into_dict() {
         Python::attach(|py| {
-            let mut map =
-                hashbrown::HashMap::<i32, i32, RandomState>::with_hasher(RandomState::new());
+            let mut map = hashbrown::HashMap::<i32, i32>::default();
             map.insert(1, 1);
 
             let py_map = map.into_py_dict(py).unwrap();
@@ -223,11 +224,11 @@ mod tests {
     fn test_extract_hashbrown_hashset() {
         Python::attach(|py| {
             let set = PySet::new(py, [1, 2, 3, 4, 5]).unwrap();
-            let hash_set: hashbrown::HashSet<usize, RandomState> = set.extract().unwrap();
+            let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
 
             let set = PyFrozenSet::new(py, [1, 2, 3, 4, 5]).unwrap();
-            let hash_set: hashbrown::HashSet<usize, RandomState> = set.extract().unwrap();
+            let hash_set: hashbrown::HashSet<usize> = set.extract().unwrap();
             assert_eq!(hash_set, [1, 2, 3, 4, 5].iter().copied().collect());
         });
     }
@@ -235,8 +236,7 @@ mod tests {
     #[test]
     fn test_hashbrown_hashset_into_pyobject() {
         Python::attach(|py| {
-            let hs: hashbrown::HashSet<u64, RandomState> =
-                [1, 2, 3, 4, 5].iter().cloned().collect();
+            let hs: hashbrown::HashSet<u64> = [1, 2, 3, 4, 5].iter().cloned().collect();
 
             let hso = hs.clone().into_pyobject(py).unwrap();
 

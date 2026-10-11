@@ -1,15 +1,15 @@
 [package]
 name = "pyo3-ffi"
-version = "0.28.3"
+version = "0.29.3"
 description = "Python-API bindings for the PyO3 ecosystem"
-authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
-keywords = ["pyo3", "python", "cpython", "ffi"]
-homepage = "https://github.com/pyo3/pyo3"
-repository = "https://github.com/pyo3/pyo3"
-categories = ["api-bindings", "development-tools::ffi"]
-license = "MIT OR Apache-2.0"
-edition = "2021"
 links = "python"
+authors.workspace = true
+keywords.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
@@ -19,37 +19,44 @@ libc = "0.2.62"
 
 default = []
 
-# deprecated
-extension-module = ["pyo3-build-config/extension-module"]
-
 # Use the Python limited API. See https://www.python.org/dev/peps/pep-0384/ for more.
-abi3 = ["pyo3-build-config/abi3"]
+abi3 = []
+
+# Use the Free-threaded Python limited API. See https://www.python.org/dev/peps/pep-0803/ for more.
+abi3t = []
 
 # With abi3, we can manually set the minimum Python version.
-abi3-py38 = ["abi3-py39", "pyo3-build-config/abi3-py38"]
-abi3-py39 = ["abi3-py310", "pyo3-build-config/abi3-py39"]
-abi3-py310 = ["abi3-py311", "pyo3-build-config/abi3-py310"]
-abi3-py311 = ["abi3-py312", "pyo3-build-config/abi3-py311"]
-abi3-py312 = ["abi3-py313", "pyo3-build-config/abi3-py312"]
-abi3-py313 = ["abi3-py314", "pyo3-build-config/abi3-py313"]
-abi3-py314 = ["abi3", "pyo3-build-config/abi3-py314"]
+abi3-py39 = ["abi3-py310"]
+abi3-py310 = ["abi3-py311"]
+abi3-py311 = ["abi3-py312"]
+abi3-py312 = ["abi3-py313"]
+abi3-py313 = ["abi3-py314"]
+abi3-py314 = ["abi3-py315"]
+abi3-py315 = ["abi3"]
 
-# deprecated: no longer needed, raw-dylib is used instead
+abi3t-py315 = ["abi3t"]
+
+# deprecated
+extension-module = ["pyo3-build-config/extension-module"]
 generate-import-lib = ["pyo3-build-config/generate-import-lib"]
 
 [dev-dependencies]
 paste = "1"
 
 [build-dependencies]
-pyo3-build-config = { path = "../pyo3-build-config", version = "=0.28.3", features = ["resolve-config"] }
+pyo3-build-config = { path = "../pyo3-build-config", version = "=0.29.3" }
 
 [lints]
 workspace = true
 
 [package.metadata.cpython]
-min-version = "3.8"
+min-version = "3.9"
 max-version = "3.15" # inclusive
 
 [package.metadata.pypy]
 min-version = "3.11"
 max-version = "3.11" # inclusive
+
+[package.metadata.graalpy]
+min-version = "3.12"
+max-version = "3.13" # inclusive

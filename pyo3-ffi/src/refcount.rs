@@ -1,18 +1,21 @@
-use crate::pyport::Py_ssize_t;
 use crate::PyObject;
+use crate::pyport::Py_ssize_t;
 #[cfg(all(not(Py_LIMITED_API), py_sys_config = "Py_REF_DEBUG"))]
-use std::ffi::c_char;
-#[cfg(any(Py_3_12, all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API))))]
-use std::ffi::c_int;
+use core::ffi::c_char;
+#[cfg(any(
+    all(Py_3_12, not(PyPy)),
+    all(py_sys_config = "Py_REF_DEBUG", not(Py_LIMITED_API))
+))]
+use core::ffi::c_int;
 #[cfg(all(Py_3_14, any(not(Py_GIL_DISABLED), target_pointer_width = "32")))]
-use std::ffi::c_long;
+use core::ffi::c_long;
 #[cfg(any(Py_GIL_DISABLED, all(Py_3_12, not(Py_3_14))))]
-use std::ffi::c_uint;
+use core::ffi::c_uint;
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
-use std::ffi::c_ulong;
-use std::ptr;
-#[cfg(Py_GIL_DISABLED)]
-use std::sync::atomic::Ordering::Relaxed;
+use core::ffi::c_ulong;
+use core::ptr;
+#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
+use core::sync::atomic::Ordering::Relaxed;
 
 #[cfg(all(Py_3_14, not(Py_3_15)))]
 const _Py_STATICALLY_ALLOCATED_FLAG: c_int = 1 << 7;
@@ -102,7 +105,15 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
 
     #[cfg(all(not(Py_GIL_DISABLED), not(all(Py_LIMITED_API, Py_3_14)), Py_3_12))]
     {
-        (*ob).ob_refcnt.ob_refcnt
+        #[cfg(not(PyPy))]
+        {
+            (*ob).ob_refcnt.ob_refcnt
+        }
+
+        #[cfg(PyPy)]
+        {
+            (*ob).ob_refcnt
+        }
     }
 
     #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), not(GraalPy)))]
@@ -116,7 +127,9 @@ pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
     }
 }
 
+#[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
 #[cfg(Py_3_12)]
+#[cfg(not(PyPy))]
 #[inline(always)]
 unsafe fn _Py_IsImmortal(op: *mut PyObject) -> c_int {
     #[cfg(all(target_pointer_width = "64", not(Py_GIL_DISABLED)))]
@@ -158,10 +171,10 @@ extern_libpython! {
     #[cfg_attr(PyPy, link_name = "_PyPy_Dealloc")]
     fn _Py_Dealloc(arg1: *mut PyObject);
 
-    #[cfg_attr(PyPy, link_name = "PyPy_IncRef")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPy_IncRef")]
     #[cfg_attr(GraalPy, link_name = "_Py_IncRef")]
     pub fn Py_IncRef(o: *mut PyObject);
-    #[cfg_attr(PyPy, link_name = "PyPy_DecRef")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPy_DecRef")]
     #[cfg_attr(GraalPy, link_name = "_Py_DecRef")]
     pub fn Py_DecRef(o: *mut PyObject);
 
@@ -182,7 +195,8 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
         Py_GIL_DISABLED,
         Py_LIMITED_API,
         py_sys_config = "Py_REF_DEBUG",
-        GraalPy
+        GraalPy,
+        PyPy
     ))]
     {
         // _Py_IncRef was added to the ABI in 3.10; skips null checks
@@ -202,7 +216,8 @@ pub unsafe fn Py_INCREF(op: *mut PyObject) {
         Py_GIL_DISABLED,
         Py_LIMITED_API,
         py_sys_config = "Py_REF_DEBUG",
-        GraalPy
+        GraalPy,
+        PyPy
     )))]
     {
         #[cfg(all(Py_3_14, target_pointer_width = "64"))]
@@ -259,7 +274,8 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
         Py_GIL_DISABLED,
         Py_LIMITED_API,
         all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
-        GraalPy
+        GraalPy,
+        PyPy
     ))]
     {
         // _Py_DecRef was added to the ABI in 3.10; skips null checks
@@ -278,7 +294,8 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
         Py_GIL_DISABLED,
         Py_LIMITED_API,
         all(py_sys_config = "Py_REF_DEBUG", not(Py_3_12)),
-        GraalPy
+        GraalPy,
+        PyPy
     )))]
     {
         #[cfg(Py_3_12)]
@@ -298,8 +315,8 @@ pub unsafe fn Py_DECREF(op: *mut PyObject) {
 
             #[cfg(py_sys_config = "Py_REF_DEBUG")]
             if (*op).ob_refcnt.ob_refcnt < 0 {
-                let location = std::panic::Location::caller();
-                let filename = std::ffi::CString::new(location.file()).unwrap();
+                let location = core::panic::Location::caller();
+                let filename = alloc::ffi::CString::new(location.file()).unwrap();
                 _Py_NegativeRefcount(filename.as_ptr(), location.line() as i32, op);
             }
 

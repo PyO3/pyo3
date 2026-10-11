@@ -1,6 +1,15 @@
-use std::{ffi::CStr, process::exit};
+use std::{
+    ffi::{CStr, c_void},
+    process::exit,
+};
 
 use pyo3_ffi_check_definitions::{bindgen as bindings, pyo3_ffi};
+
+/// Functions which don't have equivalent addresses between pyo3-ffi and bindgen.
+static SPECIAL_CASE_FUNCTIONS: &[&str] = &[
+    "PyEval_RestoreThread", // PyO3 adds special handling for pthread_exit
+    "PyGILState_Ensure",    // Similar to PyEval_RestoreThread
+];
 
 fn main() {
     println!(
@@ -70,6 +79,150 @@ fn main() {
     }
 
     pyo3_ffi_check_macro::for_all_structs!(check_struct);
+
+    struct ReturnTypeSniffer<T> {
+        _marker: std::marker::PhantomData<T>,
+    }
+
+    impl<T> ReturnTypeSniffer<T> {
+        /// Uses type inference of return value from a closure to sniff return type `T` without needing
+        /// to ever call the function.
+        fn new(_: impl FnOnce() -> T) -> Self {
+            Self {
+                _marker: std::marker::PhantomData,
+            }
+        }
+
+        fn check_compatible<U>(
+            symbol: &str,
+            _pyo3_ffi_type: &ReturnTypeSniffer<T>,
+            _bindgen_type: &ReturnTypeSniffer<U>,
+        ) -> bool {
+            let mut compatible = true;
+            if std::mem::size_of::<T>() != std::mem::size_of::<U>() {
+                compatible = false;
+                println!(
+                    "error: {symbol} return type size differs (pyo3-ffi type is {}, bindgen type is {})",
+                    std::any::type_name::<T>(),
+                    std::any::type_name::<U>(),
+                );
+            }
+
+            if std::mem::align_of::<T>() != std::mem::align_of::<U>() {
+                compatible = false;
+                println!(
+                    "error: {symbol} return type alignment differs (pyo3-ffi type is {}, bindgen type is {})",
+                    std::any::type_name::<T>(),
+                    std::any::type_name::<U>(),
+                );
+            }
+            compatible
+        }
+    }
+
+    /// tt muncher macro replacing arg types with `todo!()` to
+    /// allow to sniff return type
+    macro_rules! todo_args {
+        // entry point
+        (($f:expr)($($args:tt)*)) => {
+            todo_args!(@[($f)()] $($args)*)
+        };
+        // terminate when no more args
+        (@[($f:expr)($($inferred:tt)*)]) => {
+            // allow not expect because args might be empty
+            #[allow(unreachable_code, reason = "args are todo!()")]
+            ($f)($($inferred)*)
+        };
+        // consume comma
+        (@[($f:expr)($($inferred:tt)*)] , $($args:tt)*) => {
+            todo_args!(@[($f)($($inferred)* ,)] $($args)*)
+        };
+        // consume `_`
+        (@[($f:expr)($($inferred:tt)*)] _ $($args:tt)*) => {
+            todo_args!(@[($f)($($inferred)* todo!())] $($args)*)
+        };
+        // consume trailing `...`
+        (@[($f:expr)($($inferred:tt)*)] ...) => {
+            todo_args!(@[($f)($($inferred)*)])
+        };
+    }
+
+    // Check that the function signatures are compatible between pyo3-ffi and bindgen.
+    //
+    // Typically `name` == `bindgen_name`, but e.g. for PyPy this is not the case.
+    macro_rules! check_function {
+        ($name:ident, $bindgen_name:ident, [$($modifiers:tt)*] ($($arg_types:tt)*)) => {{
+            // Check functions have the same number of arguments
+            #[allow(deprecated)]
+            let pyo3_ffi_fn = { pyo3_ffi::$name as $($modifiers)* fn($($arg_types)*) -> _ };
+            let bindgen_fn = bindings::$bindgen_name as $($modifiers)* fn($($arg_types)*) -> _;
+
+            // Check function addresses are the same (i.e. link is configured as expected).
+            // This will also trigger build errors if linker fails to find the symbol pyo3-ffi
+            // is expecting.
+            if !std::ptr::fn_addr_eq(pyo3_ffi_fn, bindgen_fn)
+                && !SPECIAL_CASE_FUNCTIONS.contains(&stringify!($name))
+            {
+                failed = true;
+                println!(
+                    "error: function address of {} differs between pyo3_ffi ({:p}) and bindgen ({:p})",
+                    stringify!($name),
+                    pyo3_ffi_fn,
+                    bindgen_fn
+                );
+            }
+
+            // TODO: can probably sniff arg types by binding sniffers for each argument position and then passing
+            // those inside `todo_args!` to use type inference for each argument.
+
+            // Check return types are compatible
+            #[allow(deprecated)]
+            let pyo3_ffi_return_type = ReturnTypeSniffer::new(|| unsafe { todo_args!((pyo3_ffi::$name)($($arg_types)*)) });
+            let bindgen_return_type = ReturnTypeSniffer::new(|| unsafe { todo_args!((bindings::$bindgen_name)($($arg_types)*)) });
+
+            failed |= !ReturnTypeSniffer::check_compatible(stringify!($name), &pyo3_ffi_return_type, &bindgen_return_type);
+        }};
+        // case when the function is an inline function in the headers, in which case pyo3-ffi will use the
+        // Rust abi and the extern symbol uses the C abi
+        (@inline $name:ident, $bindgen_name:ident, ($($arg_types:tt)*)) => {{
+            // Check functions have the same number of arguments
+            #[allow(deprecated)]
+            { pyo3_ffi::$name as unsafe fn($($arg_types)*) -> _ };
+            bindings::$bindgen_name as unsafe extern "C" fn($($arg_types)*) -> _;
+
+            // TODO: can probably sniff arg types by binding sniffers for each argument position and then passing
+            // those inside `todo_args!` to use type inference for each argument.
+
+            // Check return types are compatible
+            #[allow(deprecated)]
+            let pyo3_ffi_return_type = ReturnTypeSniffer::new(|| unsafe { todo_args!((pyo3_ffi::$name)($($arg_types)*)) });
+            let bindgen_return_type = ReturnTypeSniffer::new(|| unsafe { todo_args!((bindings::$bindgen_name)($($arg_types)*)) });
+
+            failed |= !ReturnTypeSniffer::check_compatible(stringify!($name), &pyo3_ffi_return_type, &bindgen_return_type);
+        }};
+    }
+
+    pyo3_ffi_check_macro::for_all_functions!(check_function);
+
+    macro_rules! check_static {
+        ($name:ident, $bindgen_name:ident) => {{
+            #[allow(deprecated)]
+            let pyo3_ffi_ptr = (&raw const pyo3_ffi::$name).cast::<c_void>();
+            let bindgen_ptr = (&raw const bindings::$bindgen_name).cast::<c_void>();
+
+            if pyo3_ffi_ptr != bindgen_ptr {
+                failed = true;
+                println!(
+                    "error: static address of {} differs between pyo3_ffi ({:p}) and bindgen ({:p})",
+                    stringify!($name),
+                    pyo3_ffi_ptr,
+                    bindgen_ptr
+                );
+            }
+        }};
+    }
+
+    pyo3_ffi_check_macro::for_all_statics!(check_static);
 
     if failed {
         exit(1);

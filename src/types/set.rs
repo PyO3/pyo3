@@ -1,12 +1,20 @@
+//! Python sets and related types.
+
 use crate::types::PyIterator;
+use crate::{BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python, ffi};
+#[cfg(RustPython)]
+use crate::{
+    Py,
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+};
 use crate::{
     err::{self, PyErr, PyResult},
     ffi_ptr_ext::FfiPtrExt,
     instance::Bound,
     py_result_ext::PyResultExt,
 };
-use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, Python};
-use std::ptr;
+use core::ptr;
 
 /// Represents a Python `set`.
 ///
@@ -21,11 +29,24 @@ pub struct PySet(PyAny);
 #[cfg(not(any(PyPy, GraalPy)))]
 pyobject_subclassable_native_type!(PySet, crate::ffi::PySetObject);
 
-#[cfg(not(any(PyPy, GraalPy)))]
+#[cfg(all(not(any(PyPy, GraalPy)), not(RustPython)))]
 pyobject_native_type!(
     PySet,
     ffi::PySetObject,
     pyobject_native_static_type_object!(ffi::PySet_Type),
+    "builtins",
+    "set",
+    #checkfunction=ffi::PySet_Check
+);
+
+#[cfg(all(not(any(PyPy, GraalPy)), RustPython))]
+pyobject_native_type!(
+    PySet,
+    ffi::PySetObject,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "set").unwrap().as_type_ptr()
+    },
     "builtins",
     "set",
     #checkfunction=ffi::PySet_Check
@@ -129,62 +150,50 @@ impl<'py> PySetMethods<'py> for Bound<'py, PySet> {
 
     #[inline]
     fn len(&self) -> usize {
-        unsafe { ffi::PySet_Size(self.as_ptr()) as usize }
+        let size = cfg_select! {
+            // SAFETY: self is a valid set object.
+            not(any(Py_LIMITED_API, PyPy, GraalPy)) => unsafe {
+                ffi::PySet_GET_SIZE(self.as_ptr())
+            },
+            // SAFETY: self is a valid set object.
+            _ => unsafe { ffi::PySet_Size(self.as_ptr()) },
+        };
+        size as usize
     }
 
     fn contains<K>(&self, key: K) -> PyResult<bool>
     where
         K: IntoPyObject<'py>,
     {
-        fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
-            match unsafe { ffi::PySet_Contains(set.as_ptr(), key.as_ptr()) } {
-                1 => Ok(true),
-                0 => Ok(false),
-                _ => Err(PyErr::fetch(set.py())),
-            }
-        }
-
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        match unsafe { ffi::PySet_Contains(self.as_ptr(), key.as_ptr()) } {
+            1 => Ok(true),
+            0 => Ok(false),
+            _ => Err(PyErr::fetch(py)),
+        }
     }
 
     fn discard<K>(&self, key: K) -> PyResult<bool>
     where
         K: IntoPyObject<'py>,
     {
-        fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
-            match unsafe { ffi::PySet_Discard(set.as_ptr(), key.as_ptr()) } {
-                1 => Ok(true),
-                0 => Ok(false),
-                _ => Err(PyErr::fetch(set.py())),
-            }
-        }
-
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        match unsafe { ffi::PySet_Discard(self.as_ptr(), key.as_ptr()) } {
+            1 => Ok(true),
+            0 => Ok(false),
+            _ => Err(PyErr::fetch(py)),
+        }
     }
 
     fn add<K>(&self, key: K) -> PyResult<()>
     where
         K: IntoPyObject<'py>,
     {
-        fn inner(set: &Bound<'_, PySet>, key: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
-            err::error_on_minusone(set.py(), unsafe {
-                ffi::PySet_Add(set.as_ptr(), key.as_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        err::error_on_negative(py, unsafe { ffi::PySet_Add(self.as_ptr(), key.as_ptr()) })
     }
 
     fn pop(&self) -> Option<Bound<'py, PyAny>> {
@@ -267,12 +276,12 @@ impl ExactSizeIterator for BoundSetIterator<'_> {
 #[cfg(test)]
 mod tests {
     use super::PySet;
+    use crate::platform::collections::HashSet;
     use crate::{
+        Python,
         conversion::IntoPyObject,
         types::{PyAnyMethods, PySetMethods},
-        Python,
     };
-    use std::collections::HashSet;
 
     #[test]
     fn test_set_new() {
@@ -358,9 +367,10 @@ mod tests {
             assert!(val.is_some());
             let val2 = set.pop();
             assert!(val2.is_none());
-            assert!(py
-                .eval(c"print('Exception state should not be set.')", None, None)
-                .is_ok());
+            assert!(
+                py.eval(c"print('Exception state should not be set.')", None, None)
+                    .is_ok()
+            );
         });
     }
 

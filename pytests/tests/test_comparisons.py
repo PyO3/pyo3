@@ -1,6 +1,7 @@
-from typing import Type, TypeVar
-
+# ruff: file-ignore[SIM201,SIM202] we deliberately want to exercise specific comparison operators
 import sys
+from typing import TypeVar
+
 import pytest
 from pyo3_pytests.comparisons import (
     Eq,
@@ -42,7 +43,7 @@ EqType = TypeVar("EqType", Eq, EqDerived, PyEq)
 @pytest.mark.parametrize(
     "ty", (Eq, EqDerived, PyEq), ids=("rust", "rust-derived", "python")
 )
-def test_eq(ty: Type[EqType]):
+def test_eq(ty: type[EqType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
@@ -64,17 +65,24 @@ def test_eq(ty: Type[EqType]):
     assert not c == 1
     assert c != 1
 
-    with pytest.raises(TypeError):
-        assert a <= b  # type: ignore[operator]
+    # Ensure that passing a wrong self type from Python does not cause UB
+    if ty is not PyEq:
+        with pytest.raises(TypeError):
+            ty.__eq__(object(), 1)  # type: ignore
+        with pytest.raises(TypeError):
+            ty.__ne__(object(), 1)  # type: ignore
 
     with pytest.raises(TypeError):
-        assert a >= b  # type: ignore[operator]
+        assert a <= b  # type: ignore
 
     with pytest.raises(TypeError):
-        assert a < c  # type: ignore[operator]
+        assert a >= b  # type: ignore
 
     with pytest.raises(TypeError):
-        assert c > a  # type: ignore[operator]
+        assert a < c  # type: ignore
+
+    with pytest.raises(TypeError):
+        assert c > a  # type: ignore
 
 
 class PyEqDefaultNe:
@@ -89,7 +97,7 @@ EqDefaultType = TypeVar("EqDefaultType", EqDefaultNe, PyEqDefaultNe)
 
 
 @pytest.mark.parametrize("ty", (EqDefaultNe, PyEqDefaultNe), ids=("rust", "python"))
-def test_eq_default_ne(ty: Type[EqDefaultType]):
+def test_eq_default_ne(ty: type[EqDefaultType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
@@ -104,17 +112,24 @@ def test_eq_default_ne(ty: Type[EqDefaultType]):
     assert b != c
     assert not (b == c)
 
-    with pytest.raises(TypeError):
-        assert a <= b  # type: ignore[operator]
+    # Ensure that passing a wrong self type from Python does not cause UB
+    if ty is not PyEqDefaultNe:
+        with pytest.raises(TypeError):
+            ty.__eq__(object(), 1)  # type: ignore
+        with pytest.raises(TypeError):
+            ty.__ne__(object(), 1)  # type: ignore
 
     with pytest.raises(TypeError):
-        assert a >= b  # type: ignore[operator]
+        assert a <= b  # type: ignore
 
     with pytest.raises(TypeError):
-        assert a < c  # type: ignore[operator]
+        assert a >= b  # type: ignore
 
     with pytest.raises(TypeError):
-        assert c > a  # type: ignore[operator]
+        assert a < c  # type: ignore
+
+    with pytest.raises(TypeError):
+        assert c > a  # type: ignore
 
 
 class PyOrdered:
@@ -152,7 +167,7 @@ OrderedType = TypeVar("OrderedType", Ordered, OrderedDerived, OrderedRichCmp, Py
     (Ordered, OrderedDerived, OrderedRichCmp, PyOrdered),
     ids=("rust", "rust-derived", "rust-richcmp", "python"),
 )
-def test_ordered(ty: Type[OrderedType]):
+def test_ordered(ty: type[OrderedType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)
@@ -175,6 +190,17 @@ def test_ordered(ty: Type[OrderedType]):
     assert c >= a
     assert c > b
     assert c >= b
+
+    # Ensure that passing a wrong self type from Python does not cause UB
+    if ty is not PyOrdered:
+        with pytest.raises(TypeError):
+            ty.__lt__(object(), 1)  # type: ignore
+        with pytest.raises(TypeError):
+            ty.__le__(object(), 1)  # type: ignore
+        with pytest.raises(TypeError):
+            ty.__gt__(object(), 1)  # type: ignore
+        with pytest.raises(TypeError):
+            ty.__ge__(object(), 1)  # type: ignore
 
 
 class PyOrderedDefaultNe:
@@ -205,7 +231,7 @@ OrderedDefaultType = TypeVar("OrderedDefaultType", OrderedDefaultNe, PyOrderedDe
 @pytest.mark.parametrize(
     "ty", (OrderedDefaultNe, PyOrderedDefaultNe), ids=("rust", "python")
 )
-def test_ordered_default_ne(ty: Type[OrderedDefaultType]):
+def test_ordered_default_ne(ty: type[OrderedDefaultType]):
     a = ty(0)
     b = ty(0)
     c = ty(1)

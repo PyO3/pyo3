@@ -4,20 +4,21 @@ To get started using PyO3 you will need three things: a Rust toolchain, a Python
 We'll cover each of these below.
 
 > [!TIP]
-> If you'd like to chat to the PyO3 maintainers and other PyO3 users, consider joining the [PyO3 Discord server](https://discord.gg/33kcChzH7f). We're keen to hear about your experience getting started, so we can make PyO3 as accessible as possible for everyone!
+> If you'd like to chat to the PyO3 maintainers and other PyO3 users, consider joining the [PyO3 Discord server](https://discord.gg/33kcChzH7f).
+> We're keen to hear about your experience getting started, so we can make PyO3 as accessible as possible for everyone!
 
 ## Rust
 
 First, make sure you have Rust installed on your system.
 If you haven't already done so, try following the instructions [on the Rust website](https://www.rust-lang.org/tools/install).
 PyO3 runs on both the `stable` and `nightly` versions so you can choose whichever one fits you best.
-The minimum required Rust version is 1.83.
+The minimum required Rust version is 1.85.
 
 If you can run `rustc --version` and the version is new enough you're good to go!
 
 ## Python
 
-To use PyO3, you need at least Python 3.8.
+To use PyO3, you need at least Python 3.9.
 While you can simply use the default Python interpreter on your system, it is recommended to use a virtual environment.
 
 ## Virtualenvs
@@ -127,7 +128,7 @@ Also, make sure that the crate type is `cdylib` and add PyO3 as a dependency as 
 name = "pyo3_start"
 # these are good defaults:
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
 # The name of the native library. This is the name which will be used in Python to import the
@@ -153,7 +154,7 @@ build-backend = "maturin"
 
 [project]
 name = "pyo3_example"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
@@ -191,6 +192,9 @@ $ python
 >>> pyo3_example.sum_as_string(5, 20)
 '25'
 ```
+
+By default, `maturin develop` builds your Rust code with Cargo's default [`dev` profile](https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles), which includes debug information and limited optimizations.
+When checking runtime performance, run `maturin develop --release` to build with Cargo's `release` profile and enable optimizations.
 
 For more instructions on how to use Python code from Rust, see the [Python from Rust](python-from-rust.md) page.
 

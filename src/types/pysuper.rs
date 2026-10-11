@@ -1,7 +1,7 @@
-use crate::instance::Bound;
-use crate::types::any::PyAnyMethods;
-use crate::types::PyType;
 use crate::PyTypeInfo;
+use crate::instance::Bound;
+use crate::types::PyType;
+use crate::types::any::PyAnyMethods;
 use crate::{PyAny, PyResult};
 
 /// Represents a Python `super` object.
@@ -11,7 +11,7 @@ use crate::{PyAny, PyResult};
 #[repr(transparent)]
 pub struct PySuper(PyAny);
 
-#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
+#[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, RustPython)))]
 pyobject_native_type_core!(
     PySuper,
     pyobject_native_static_type_object!(crate::ffi::PySuper_Type),
@@ -19,13 +19,13 @@ pyobject_native_type_core!(
     "super"
 );
 
-#[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
+#[cfg(any(Py_LIMITED_API, PyPy, GraalPy, RustPython))]
 pyobject_native_type_core!(
     PySuper,
     |py| {
+        use crate::Py;
         use crate::sync::PyOnceLock;
         use crate::types::{PyType, PyTypeMethods};
-        use crate::Py;
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "builtins", "super").unwrap().as_type_ptr()
     },
@@ -64,8 +64,8 @@ impl PySuper {
     /// #[pymethods]
     /// impl SubClass {
     ///     #[new]
-    ///     fn new() -> (Self, BaseClass) {
-    ///         (SubClass {}, BaseClass::new())
+    ///     fn new() -> PyClassInitializer<Self> {
+    ///         PyClassInitializer::from(BaseClass::new()).add_subclass(SubClass {})
     ///     }
     ///
     ///     fn method<'py>(self_: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {

@@ -19,6 +19,7 @@ impl Number {
 }
 
 #[pymodule]
+# #[pyo3(name = "example_number_basic_customization")]
 mod my_module {
     #[pymodule_export]
     use super::Number;
@@ -98,8 +99,11 @@ It expands and is passed into the `format!` macro in the following ways:
 - `"{0}"` -> `"{}", self.0`
 - `"{x:?}"` -> `"{:?}", self.x`
 
-*Note: Depending upon the format string you use, this may require implementation of the `Display` or `Debug` traits for the given Rust types.*
-*Note: the pyclass args `name` and `rename_all` are incompatible with the shorthand format string and will raise a compile time error.*
+> [!NOTE]
+> Depending upon the format string you use, this may require implementation of the `Display` or `Debug` traits for the given Rust types.
+
+> [!NOTE]
+> The pyclass args `name` and `rename_all` are incompatible with the shorthand format string and will raise a compile time error.*
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -176,6 +180,7 @@ This option also requires `eq`: According to the [Python docs](https://docs.pyth
 ```rust,no_run
 # use pyo3::prelude::*;
 #
+# #[cfg(wip_feature_std)]
 # #[allow(dead_code)]
 #[pyclass(frozen, eq, hash)]
 #[derive(PartialEq, Hash)]
@@ -189,13 +194,15 @@ struct Number(i32);
 > k1 == k2 -> hash(k1) == hash(k2)
 > ```
 >
-> In other words, if two keys are equal, their hashes must also be equal. In addition you must take
-> care that your classes' hash doesn't change during its lifetime. In this tutorial we do that by not
-> letting Python code change our `Number` class. In other words, it is immutable.
+> In other words, if two keys are equal, their hashes must also be equal.
+> In addition you must take care that your classes' hash doesn't change during its lifetime.
+> In this tutorial we do that by not letting Python code change our `Number` class.
+> In other words, it is immutable.
 >
 > By default, all `#[pyclass]` types have a default hash implementation from Python.
 > Types which should not be hashable can override this by setting `__hash__` to None.
-> This is the same mechanism as for a pure-Python class. This is done like so:
+> This is the same mechanism as for a pure-Python class.
+> This is done like so:
 >
 > ```rust,no_run
 > # use pyo3::prelude::*;
@@ -298,7 +305,8 @@ struct Number(i32);
 ```
 
 To implement `__lt__`, `__le__`, `__gt__`, & `__ge__` using the Rust `PartialOrd` trait implementation, the `ord` option can be used.
-*Note: Requires `eq`.*
+> [!NOTE]
+> Requires `eq`.
 
 ```rust,no_run
 # use pyo3::prelude::*;
@@ -381,6 +389,7 @@ impl Number {
 }
 
 #[pymodule]
+# #[pyo3(name = "example_number_full")]
 mod my_module {
     #[pymodule_export]
     use super::Number;

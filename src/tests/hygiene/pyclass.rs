@@ -1,13 +1,13 @@
 #[crate::pyclass(from_py_object)]
 #[pyo3(crate = "crate")]
-#[derive(::std::clone::Clone)]
+#[derive(::core::clone::Clone)]
 pub struct Foo;
 
 #[crate::pyclass]
 #[pyo3(crate = "crate")]
 pub struct Foo2;
 
-#[cfg_attr(any(Py_3_9, not(Py_LIMITED_API)), crate::pyclass(
+#[crate::pyclass(
     name = "ActuallyBar",
     freelist = 8,
     unsendable,
@@ -16,15 +16,7 @@ pub struct Foo2;
     module = "Spam",
     weakref,
     dict
-))]
-#[cfg_attr(not(any(Py_3_9, not(Py_LIMITED_API))), crate::pyclass(
-    name = "ActuallyBar",
-    freelist = 8,
-    unsendable,
-    subclass,
-    extends = crate::types::PyAny,
-    module = "Spam"
-))]
+)]
 #[pyo3(crate = "crate")]
 pub struct Bar {
     #[pyo3(get, set)]
@@ -32,7 +24,7 @@ pub struct Bar {
     #[pyo3(get, set)]
     b: Foo,
     #[pyo3(set)]
-    c: ::std::option::Option<crate::Py<Foo2>>,
+    c: ::core::option::Option<crate::Py<Foo2>>,
 }
 
 #[crate::pyclass(eq, eq_int)]
@@ -146,9 +138,9 @@ pub struct Point {
     z: i32,
 }
 
-impl ::std::fmt::Display for Point {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::std::write!(f, "({}, {}, {})", self.x, self.y, self.z)
+impl ::core::fmt::Display for Point {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+        ::core::write!(f, "({}, {}, {})", self.x, self.y, self.z)
     }
 }
 

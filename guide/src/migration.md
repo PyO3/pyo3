@@ -7,6 +7,9 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ### Removed implementations of `From<str::Utf8Error>`, `From<string::FromUtf16Error>`, and `From<char::DecodeUtf16Error>` for `PyErr`
 
+<details open>
+<summary><small>Click to expand</small></summary>
+
 Previously the implementations of `From<string::FromUtf8Error>`, `From<ffi::IntoStringError>`, `From<str::Utf8Error>`, `From<string::FromUtf16Error>`, and `From<char::DecodeUtf16Error>` failed to construct the correct Python exception class, as reported in <https://github.com/PyO3/pyo3/issues/5651>.
 The implementations for `string::FromUtf8Error` and `ffi::IntoStringError` were fixed in this release.
 
@@ -36,11 +39,106 @@ fn bytes_to_str<'a>(py: Python<'_>, bytes: &'a [u8]) -> PyResult<&'a str> {
 For `string::FromUtf16Error` and `char::DecodeUtf16Error` the Rust error types do not contain any of the information required to construct a `UnicodeDecodeError`.
 To raise a Python `UnicodeDecodeError` a new error should be manually constructed by calling `PyUnicodeDecodeError::new_err(...)`.
 
+</details>
+
+### `pyo3_build_config` APIs now require a direct dependency on `pyo3` or `pyo3-ffi`
+
+<details open>
+<summary><small>Click to expand</small></summary>
+
+Prior to PyO3 0.29, `pyo3-build-config` would inline part of the build configuration into the crate in its own build script.
+This worked for simple builds but not for cross-compiling; `pyo3-ffi`'s build script would need to re-implement a lot of the same machinery to correctly configure the build for cross-compilation.
+There were also edge cases where `pyo3-build-config` would use this inlined configuration incorrectly and misconfigure the build - e.g. [when cross compiling with `buck` or `bazel` build systems](https://github.com/PyO3/pyo3/issues/4579).
+
+In PyO3 0.29, `pyo3-build-config` no longer inlines any configuration into itself and instead requires a direct dependency on either `pyo3-ffi` or `pyo3` to load the configuration resolved from `pyo3-ffi`'s build script.
+
+This has upside of faster compilation - `pyo3-build-config` no longer has a build script and never recompiles when changing Python version.
+It also guarantees that all builds are based on the single fully-configured build configuration resolved by `pyo3-ffi`.
+
+### Deprecation of super class initialization from tuples
+
+Performing superclass initialitation from a subclass via a tuple is deprecated and will be removed in a future PyO3 version.
+This also includes the `From<(S, B)> for PyClassInitializer<S>` impl which we can't warn against.
+To migrate use `PyClassInitializer` directly:
+
+Before:
+
+```rust
+# #![allow(deprecated)]
+# use pyo3::prelude::*;
+#[pyclass(subclass)]
+struct Base;
+
+#[pyclass(extends=Base)]
+struct Sub;
+
+#[pymethods]
+impl Sub {
+    #[new]
+    fn new() -> (Self, Base) {
+        (Self, Base)
+    }
+}
+```
+
+After:
+
+```rust
+# use pyo3::prelude::*;
+#[pyclass(subclass)]
+struct Base;
+
+#[pyclass(extends=Base)]
+struct Sub;
+
+#[pymethods]
+impl Sub {
+    #[new]
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from(Base)
+            .add_subclass(Self)
+    }
+}
+```
+
+</details>
+
+### Minor API breaks for soundness reasons
+
+<details open>
+<summary><small>Click to expand</small></summary>
+
+Recent development in LLM-assisted security analysis has enhanced the ability to detect flaws, both for maintainers and attackers.
+Such security analysis of PyO3 flagged some APIs with edge cases that could lead to unsoundness.
+The PyO3 maintainers took the decision to make small breaking changes to eliminate these edge cases.
+Users should not be affected by these changes unless they were inadvertently relying on unsound behavior.
+
+The changes were:
+
+- `PyCapsule::new_with_destructor` now requires the destructor to be `'static` to prevent possible use-after-free issues.
+- `PyCFunction::new_closure` now requires the closure to be `Sync` to prevent possible thread unsafety. ⚠️ A security advisory will be issued for this, as the thread unsafety could easily go undetected in testing and lead to exploitable issues downstream in production. ⚠️
+- `PyClassGuardMap` has been split into `PyClassGuardMap` and `PyClassGuardMapMut` to prevent possible lifetime variance issues.
+- `PyClassGuardMut::as_super` now returns `PyClassGuardMutSuper` instead of `&mut PyClassGuardMut<SuperType>` to prevent possible type confusion issues.
+- `with_critical_section_mutex2` now passes an `Option<EnteredCriticalSection>` as the second argument to the closure to avoid possible mutable reference aliasing when both mutexes participating in the critical section are the same address.
+
+</details>
+
+### PyO3 now uses `raw-dylib` linking on Windows
+
+<details open>
+<summary><small>Click to expand</small></summary>
+
+The `raw-dylib` linking mode allows PyO3 to no longer need to have link libraries present when building for Windows targets.
+This removes the need for the `generate-import-lib` feature (which is now a no-op) and generally simplifies building for Windows.
+This is not expected to have negative impact on users, please report if there are issues.
+
+</details>
+
 ## from 0.27.* to 0.28
 
 ### Default to supporting free-threaded Python
 
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 When PyO3 0.23 added support for free-threaded Python, this was as an opt-in feature for modules by annotating with `#[pymodule(gil_used = false)]`.
@@ -51,7 +149,7 @@ Modules now automatically allow use on free-threaded Python, unless they directl
 
 ### Deprecation of automatic `FromPyObject` for `#[pyclass]` types which implement `Clone`
 
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 `#[pyclass]` types which implement `Clone` used to also implement `FromPyObject` automatically.
@@ -75,7 +173,7 @@ struct PyClass {}
 
 After:
 
-```rust
+```rust,ignore
 # use pyo3::prelude::*;
 // If the automatic implementation of `FromPyObject` is desired, opt in:
 #[pyclass(from_py_object)]
@@ -94,7 +192,7 @@ The `#[pyclass(skip_from_py_object)]` option will eventually be deprecated and r
 
 ### Deprecation of `Py<T>` constructors from raw pointer
 
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 The constructors `Py::from_owned_ptr`, `Py::from_owned_ptr_or_opt`, and `Py::from_owned_ptr_or_err` (and similar "borrowed" variants) perform an unchecked cast to the `Py<T>` target type `T`.
@@ -136,7 +234,7 @@ let _: Bound<'_, PyNone> = unsafe { Bound::from_owned_ptr(py, raw_ptr).cast_into
 
 ### Removal of `From<Bound<'_, T>` and `From<Py<T>> for PyClassInitializer<T>`
 
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 As part of refactoring the initialization code these impls were removed and its functionality was moved into the generated code for `#[new]`.
@@ -170,7 +268,7 @@ let obj_2 = existing_bound.clone();
 
 ### Untyped buffer API moved to PyUntypedBuffer
 
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 `PyBuffer<T>` now is a typed wrapper around `PyUntypedBuffer`.
@@ -181,7 +279,7 @@ Users may need to update references to the moved functions.
 
 ### Internal change to use multi-phase initialization
 
-<details open>
+<details>
 <summary><small>Click to expand</small></summary>
 
 [PEP 489](https://peps.python.org/pep-0489/) introduced "multi-phase initialization" for extension modules which provides ways to allocate and clean up per-module state.
@@ -459,11 +557,14 @@ After:
 ```rust
 # use pyo3::prelude::*;
 use pyo3::sync::MutexExt;
+# #[cfg(wip_feature_std)]
 use std::sync::Mutex;
 # fn main() {
 # Python::attach(|py| {
+# #[cfg(wip_feature_std)]
 static NUMBERS: Mutex<Vec<i32>> = Mutex::new(Vec::new());
 Python::attach(|py| {
+    # #[cfg(wip_feature_std)]
     NUMBERS.lock_py_attached(py).expect("no poisoning").push(42);
 });
 # })
@@ -994,7 +1095,8 @@ Instead, variants using `Bound<T>` smart pointers have been introduced, for exam
 The GIL Ref APIs have been deprecated, but to make migration easier it is possible to disable these deprecation warnings by enabling the `gil-refs` feature.
 
 > [!TIP]
-> The one single exception where an existing API was changed in-place is the `pyo3::intern!` macro. Almost all uses of this macro did not need to update code to account it changing to return `&Bound<PyString>` immediately, and adding an `intern_bound!` replacement was perceived as adding more work for users.
+> The one single exception where an existing API was changed in-place is the `pyo3::intern!` macro.
+> Almost all uses of this macro did not need to update code to account it changing to return `&Bound<PyString>` immediately, and adding an `intern_bound!` replacement was perceived as adding more work for users.
 
 It is recommended that users do this as a first step of updating to PyO3 0.21 so that the deprecation warnings do not get in the way of resolving the rest of the migration steps.
 
@@ -1943,8 +2045,6 @@ Attempting to do this will now raise an `ImportError`.
 
 ### Drop support for older technologies
 
-<!-- rumdl-enable MD024 -->
-
 <details>
 <summary><small>Click to expand</small></summary>
 
@@ -2044,7 +2144,6 @@ To explain this in detail, consider the following Python class:
 
 ```python
 class ExampleContainer:
-
     def __len__(self):
         return 5
 

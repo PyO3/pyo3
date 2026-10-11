@@ -18,14 +18,14 @@ PyO3 itself depends on this crate, so by using it you can be sure that you are c
 This allows us to write code like the following
 
 ```rust,ignore
-#[cfg(Py_3_8)]
-fn function_only_supported_on_python_3_8_and_up() {}
+#[cfg(Py_3_9)]
+fn function_only_supported_on_python_3_9_and_up() {}
 
-#[cfg(not(Py_3_8))]
-fn function_only_supported_before_python_3_8() {}
+#[cfg(not(Py_3_9))]
+fn function_only_supported_before_python_3_9() {}
 
 #[cfg(not(Py_LIMITED_API))]
-fn function_incompatible_with_abi3_feature() {}
+fn function_incompatible_with_stable_abi_feature() {}
 ```
 
 The following sections first show how to add these `#[cfg]` flags to your build process, and then cover some common patterns flags in a little more detail.
@@ -36,11 +36,11 @@ To see a full reference of all the `#[cfg]` flags provided, see the [`pyo3-build
 
 You can use the `#[cfg]` flags in just two steps:
 
-1. Add `pyo3-build-config` with the [`resolve-config`](../features.md#resolve-config) feature enabled to your crate's build dependencies in `Cargo.toml`:
+1. Add `pyo3-build-config` to your crate's build dependencies in `Cargo.toml`:
 
    ```toml
    [build-dependencies]
-   pyo3-build-config = { {{#PYO3_CRATE_VERSION}}, features = ["resolve-config"] }
+   pyo3-build-config = {{#PYO3_CRATE_VERSION}}
    ```
 
 2. Add a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) file to your crate with the following contents:
@@ -60,24 +60,31 @@ The `#[cfg]` flags added by `pyo3-build-cfg` can be combined with all of Rust's 
 The following are some common patterns implemented using these flags:
 
 ```text
-#[cfg(Py_3_8)]
+#[cfg(Py_3_9)]
 ```
 
-This `#[cfg]` marks code that will only be present on Python 3.8 and upwards.
-There are similar options `Py_3_9`, `Py_3_10`, `Py_3_11` and so on for each minor version.
+This `#[cfg]` marks code that will only be present on Python 3.9 and upwards.
+There are similar options `Py_3_10`, `Py_3_11`, `Py_3_12` and so on for each minor version.
 
 ```text
-#[cfg(not(Py_3_8))]
+#[cfg(not(Py_3_9))]
 ```
 
-This `#[cfg]` marks code that will only be present on Python versions before (but not including) Python 3.8.
+This `#[cfg]` marks code that will only be present on Python versions before (but not including) Python 3.9.
+
+```text
+#[cfg(Py_GIL_DISABLED)]
+```
+
+This `#[cfg]` marks code that will only be present for free-threaded builds of CPython.
+You might use this in situations where the GIL provides thread safety but the free-threaded build needs extra synchronization logic.
 
 ```text
 #[cfg(not(Py_LIMITED_API))]
 ```
 
-This `#[cfg]` marks code that is only available when building for the unlimited Python API (i.e. PyO3's `abi3` feature is not enabled).
-This might be useful if you want to ship your extension module as an `abi3` wheel and also allow users to compile it from source to make use of optimizations only possible with the unlimited API.
+This `#[cfg]` marks code that is only available when building for the unlimited Python API (i.e. PyO3's `abi3` or `abi3t` features are not enabled).
+This might be useful if you want to ship your extension module as an `abi3` or `abi3t` wheel and also allow users to compile it from source to make use of optimizations only possible with the unlimited API.
 
 ```text
 #[cfg(any(Py_3_9, not(Py_LIMITED_API)))]
@@ -87,6 +94,13 @@ This `#[cfg]` marks code which is available when running Python 3.9 or newer, or
 Patterns like this are commonly seen on Python APIs which were added to the limited Python API in a specific minor version.
 
 ```text
+#[cfg(all(Py_GIL_DISABLED, Py_LIMITED_API))]
+```
+
+This marks code which is available only for the free-threaded `abi3t` stable ABI.
+You might use this if you need some sort of custom locking implementation in code that makes strong assumptions about the GIL providing thread safety.
+
+```text
 #[cfg(PyPy)]
 ```
 
@@ -94,11 +108,11 @@ This `#[cfg]` marks code which is running on PyPy.
 
 ## Checking the Python version at runtime
 
-When building with PyO3's `abi3` feature, your extension module will be compiled against a specific [minimum version](../building-and-distribution.md#minimum-python-version-for-abi3) of Python, but may be running on newer Python versions.
+When building with PyO3's `abi3` or `abi3t` features, your extension module will be compiled against a specific [minimum version](../building-and-distribution.md#minimum-python-version-for-abi3-and-abi3t-builds) of Python, but may be running on newer Python versions.
 
-For example with PyO3's `abi3-py38` feature, your extension module will be compiled as if it were for Python 3.8.
-If you were using `pyo3-build-config`, `#[cfg(Py_3_8)]` would be present.
-Your user could freely install and run your abi3 extension module on Python 3.9.
+For example with PyO3's `abi3-py39` feature, your extension module will be compiled as if it were for Python 3.9.
+If you were using `pyo3-build-config`, `#[cfg(Py_3_9)]` would be present.
+Your user could freely install and run your abi3 extension module on Python 3.10.
 
 There's no way to detect your user doing that at compile time, so instead you need to fall back to runtime checks.
 
@@ -109,9 +123,9 @@ This allows you to do the following, for example:
 use pyo3::Python;
 
 Python::attach(|py| {
-    // PyO3 supports Python 3.8 and up.
-    assert!(py.version_info() >= (3, 8));
-    assert!(py.version_info() >= (3, 8, 0));
+    // PyO3 supports Python 3.9 and up.
+    assert!(py.version_info() >= (3, 9));
+    assert!(py.version_info() >= (3, 9, 0));
 });
 ```
 

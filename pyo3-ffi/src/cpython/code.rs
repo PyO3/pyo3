@@ -4,8 +4,8 @@ use crate::pyport::Py_ssize_t;
 #[cfg(not(GraalPy))]
 use crate::PyCodeObject;
 #[cfg(not(GraalPy))]
-use std::ffi::c_char;
-use std::ffi::{c_int, c_void};
+use core::ffi::c_char;
+use core::ffi::{c_int, c_void};
 
 // skipped private _PY_MONITORING_LOCAL_EVENTS
 // skipped private _PY_MONITORING_UNGROUPED_EVENTS
@@ -130,6 +130,7 @@ extern_libpython! {
         firstlineno: c_int,
     ) -> *mut PyCodeObject;
     #[cfg(not(GraalPy))]
+    #[cfg_attr(PyPy, link_name = "PyPyCode_Addr2Line")]
     pub fn PyCode_Addr2Line(arg1: *mut PyCodeObject, arg2: c_int) -> c_int;
     // skipped PyCodeAddressRange "for internal use only"
     // skipped _PyCode_CheckLineNumber
@@ -140,10 +141,38 @@ extern_libpython! {
         names: *mut PyObject,
         lnotab: *mut PyObject,
     ) -> *mut PyObject;
-    pub fn _PyCode_GetExtra(
+
+    #[cfg_attr(not(Py_3_12), link_name = "_PyCode_GetExtra")]
+    pub fn PyUnstable_Code_GetExtra(
         code: *mut PyObject,
         index: Py_ssize_t,
-        extra: *const *mut c_void,
+        extra: *mut *mut c_void,
     ) -> c_int;
-    pub fn _PyCode_SetExtra(code: *mut PyObject, index: Py_ssize_t, extra: *mut c_void) -> c_int;
+
+    #[cfg_attr(not(Py_3_12), link_name = "_PyCode_SetExtra")]
+    pub fn PyUnstable_Code_SetExtra(
+        code: *mut PyObject,
+        index: Py_ssize_t,
+        extra: *mut c_void,
+    ) -> c_int;
+}
+
+#[deprecated(since = "0.29.0", note = "renamed to PyUnstable_Code_GetExtra")]
+#[inline]
+pub unsafe extern "C" fn _PyCode_GetExtra(
+    code: *mut PyObject,
+    index: Py_ssize_t,
+    extra: *mut *mut c_void,
+) -> c_int {
+    PyUnstable_Code_GetExtra(code, index, extra)
+}
+
+#[deprecated(since = "0.29.0", note = "renamed to PyUnstable_Code_SetExtra")]
+#[inline]
+pub unsafe extern "C" fn _PyCode_SetExtra(
+    code: *mut PyObject,
+    index: Py_ssize_t,
+    extra: *mut c_void,
+) -> c_int {
+    PyUnstable_Code_SetExtra(code, index, extra)
 }

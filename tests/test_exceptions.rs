@@ -4,11 +4,13 @@ use pyo3::prelude::*;
 use pyo3::{exceptions, py_run};
 use std::error::Error;
 use std::fmt;
+#[cfg(wip_feature_std)]
 #[cfg(not(target_os = "windows"))]
 use std::fs::File;
 
 mod test_utils;
 
+#[cfg(wip_feature_std)]
 #[pyfunction]
 #[cfg(not(target_os = "windows"))]
 fn fail_to_open_file() -> PyResult<()> {
@@ -17,6 +19,7 @@ fn fail_to_open_file() -> PyResult<()> {
 }
 
 #[test]
+#[cfg(wip_feature_std)]
 #[cfg_attr(target_arch = "wasm32", ignore)] // Not sure why this fails.
 #[cfg(not(target_os = "windows"))]
 fn test_filenotfounderror() {
@@ -84,7 +87,9 @@ fn test_custom_error() {
 
 #[test]
 fn test_exception_nosegfault() {
+    #[cfg(wip_feature_std)]
     use std::net::TcpListener;
+    #[cfg(wip_feature_std)]
     fn io_err() -> PyResult<()> {
         TcpListener::bind("no:address")?;
         Ok(())
@@ -93,6 +98,7 @@ fn test_exception_nosegfault() {
         "@_@".parse::<i64>()?;
         Ok(())
     }
+    #[cfg(wip_feature_std)]
     assert!(io_err().is_err());
     assert!(parse_int().is_err());
 }

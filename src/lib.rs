@@ -1,3 +1,9 @@
+#![no_std]
+#![warn(
+    clippy::alloc_instead_of_core,
+    clippy::std_instead_of_alloc,
+    clippy::std_instead_of_core
+)]
 #![warn(missing_docs)]
 #![cfg_attr(
     feature = "nightly",
@@ -5,7 +11,6 @@
 )]
 #![cfg_attr(all(feature = "nightly", Py_GIL_DISABLED), feature(try_trait_v2))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![warn(unsafe_op_in_unsafe_fn)]
 // Deny some lints in doctests.
 // Use `#[allow(...)]` locally to override.
 #![doc(test(attr(
@@ -124,7 +129,7 @@
 //! - `nightly`: Uses  `#![feature(auto_traits, negative_impls)]` to define [`Ungil`] as an auto trait.
 //
 //! ## `rustc` environment flags
-//! - `Py_3_8`, `Py_3_9`, `Py_3_10`, `Py_3_11`, `Py_3_12`, `Py_3_13`, `Py_3_14`: Marks code that is
+//! - `Py_3_9`, `Py_3_10`, `Py_3_11`, `Py_3_12`, `Py_3_13`, `Py_3_14`: Marks code that is
 //!    only enabled when compiling for a given minimum Python version.
 //! - `Py_LIMITED_API`: Marks code enabled when the `abi3` feature flag is enabled.
 //! - `Py_GIL_DISABLED`: Marks code that runs only in the free-threaded build of CPython.
@@ -146,10 +151,10 @@
 //!
 //! # Minimum supported Rust and Python versions
 //!
-//! Requires Rust 1.63 or greater.
+//! Requires Rust 1.85 or greater.
 //!
 //! PyO3 supports the following Python distributions:
-//!   - CPython 3.8 or greater
+//!   - CPython 3.9 or greater
 //!   - PyPy 7.3 (Python 3.11+)
 //!   - GraalPy 24.0 or greater (Python 3.10+)
 //!
@@ -168,7 +173,7 @@
 //! [package]
 //! name = "string-sum"
 //! version = "0.1.0"
-//! edition = "2021"
+//! edition = "2024"
 //!
 //! [lib]
 //! name = "string_sum"
@@ -195,6 +200,7 @@
 //!
 //! /// A Python module implemented in Rust.
 //! #[pymodule]
+//! # #[pyo3(name = "example_string_sum_lib_rs")]
 //! fn string_sum(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
 //!
@@ -336,11 +342,14 @@
 //! [Rust from Python]: https://github.com/PyO3/pyo3#using-rust-from-python
 #![doc = concat!("[Features chapter of the guide]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/features.html#features-reference \"Features Reference - PyO3 user guide\"")]
 //! [`Ungil`]: crate::marker::Ungil
+
+#[macro_use]
+extern crate alloc;
+extern crate std;
+
 pub use crate::class::*;
 pub use crate::conversion::{FromPyObject, IntoPyObject, IntoPyObjectExt};
 pub use crate::err::{CastError, CastIntoError, PyErr, PyErrArguments, PyResult, ToPyErr};
-#[allow(deprecated)]
-pub use crate::err::{DowncastError, DowncastIntoError};
 pub use crate::instance::{Borrowed, Bound, BoundObject, Py};
 #[cfg(not(any(PyPy, GraalPy)))]
 pub use crate::interpreter_lifecycle::with_embedded_python_interpreter;
@@ -400,14 +409,17 @@ mod test_utils;
 #[cfg(test)]
 mod tests;
 
+#[macro_use]
+mod internal;
+#[macro_use]
+mod internal_tricks;
+
+mod platform;
+
 // Macro dependencies, also contains macros exported for use across the codebase and
 // in expanded macros.
 #[doc(hidden)]
 pub mod impl_;
-
-#[macro_use]
-mod internal_tricks;
-mod internal;
 
 pub mod buffer;
 pub mod call;
@@ -425,7 +437,7 @@ pub mod marker;
 pub mod marshal;
 #[macro_use]
 pub mod sync;
-pub(crate) mod byteswriter;
+#[cfg(wip_feature_std)]
 pub mod panic;
 pub mod pybacked;
 pub mod pycell;
@@ -444,7 +456,7 @@ pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{
-    pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef,
+    FromPyObject, IntoPyObject, IntoPyObjectRef, pyfunction, pymethods, pymodule,
 };
 
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.

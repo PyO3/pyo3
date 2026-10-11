@@ -1,12 +1,14 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
-    conversion::IntoPyObject, instance::Bound, types::PyString, Borrowed, FromPyObject, PyAny,
-    PyErr, Python,
+    Borrowed, FromPyObject, PyAny, PyErr, Python, conversion::IntoPyObject, instance::Bound,
+    types::PyString,
 };
-use std::{borrow::Cow, convert::Infallible};
+use alloc::borrow::Cow;
+use core::convert::Infallible;
 
 impl<'py> IntoPyObject<'py> for &str {
     type Target = PyString;
@@ -176,9 +178,10 @@ impl FromPyObject<'_, '_> for char {
 
 #[cfg(test)]
 mod tests {
+    use crate::platform::prelude::*;
     use crate::types::any::PyAnyMethods;
     use crate::{IntoPyObject, Python};
-    use std::borrow::Cow;
+    use alloc::borrow::Cow;
 
     #[test]
     fn test_cow_into_pyobject() {
@@ -212,6 +215,22 @@ mod tests {
     }
 
     #[test]
+    fn test_extract_str_surrogate() {
+        use crate::exceptions::PyUnicodeEncodeError;
+
+        Python::attach(|py| {
+            let value = py.eval(cr"'\ud800'", None, None).unwrap();
+            let err = value.extract::<String>().unwrap_err();
+
+            assert!(err.is_instance_of::<PyUnicodeEncodeError>(py));
+            assert_eq!(
+                err.value(py).to_string(),
+                "'utf-8' codec can't encode character '\\ud800' in position 0: surrogates not allowed"
+            );
+        });
+    }
+
+    #[test]
     fn test_extract_char() {
         Python::attach(|py| {
             let ch = '😃';
@@ -227,10 +246,11 @@ mod tests {
             let s = "Hello Python";
             let py_string = s.into_pyobject(py).unwrap();
             let err: crate::PyResult<char> = py_string.extract();
-            assert!(err
-                .unwrap_err()
-                .to_string()
-                .contains("expected a string of length 1"));
+            assert!(
+                err.unwrap_err()
+                    .to_string()
+                    .contains("expected a string of length 1")
+            );
         })
     }
 

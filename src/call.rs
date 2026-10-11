@@ -2,7 +2,7 @@
 
 use crate::ffi_ptr_ext::FfiPtrExt as _;
 use crate::types::{PyAnyMethods as _, PyDict, PyString, PyTuple};
-use crate::{ffi, Borrowed, Bound, IntoPyObjectExt as _, Py, PyAny, PyResult};
+use crate::{Borrowed, Bound, IntoPyObjectExt as _, Py, PyAny, PyResult, ffi};
 
 pub(crate) mod private {
     use super::*;
@@ -194,6 +194,10 @@ impl<'py> PyCallArgs<'py> for Borrowed<'_, 'py, PyTuple> {
         kwargs: Borrowed<'_, 'py, PyDict>,
         _: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
+        // SAFETY: `function`, `self` and `kwargs` are valid pointers to a
+        // callable, a tuple and a dict, and `PyObject_Call` returns a new
+        // owned reference on success, or NULL with an exception set on
+        // failure.
         unsafe {
             ffi::PyObject_Call(function.as_ptr(), self.as_ptr(), kwargs.as_ptr())
                 .assume_owned_or_err(function.py())
@@ -206,8 +210,12 @@ impl<'py> PyCallArgs<'py> for Borrowed<'_, 'py, PyTuple> {
         function: Borrowed<'_, 'py, PyAny>,
         _: private::Token,
     ) -> PyResult<Bound<'py, PyAny>> {
+        // SAFETY: `function` and `self` are valid pointers to a callable and
+        // a tuple, NULL is documented as a valid value for kwargs, and
+        // `PyObject_Call` returns a new owned reference on success, or NULL
+        // with an exception set on failure.
         unsafe {
-            ffi::PyObject_Call(function.as_ptr(), self.as_ptr(), std::ptr::null_mut())
+            ffi::PyObject_Call(function.as_ptr(), self.as_ptr(), core::ptr::null_mut())
                 .assume_owned_or_err(function.py())
         }
     }
@@ -217,9 +225,8 @@ impl<'py> PyCallArgs<'py> for Borrowed<'_, 'py, PyTuple> {
 #[cfg(feature = "macros")]
 mod tests {
     use crate::{
-        pyfunction,
+        Py, pyfunction,
         types::{PyDict, PyTuple},
-        Py,
     };
 
     #[pyfunction(signature = (*args, **kwargs), crate = "crate")]
@@ -233,8 +240,9 @@ mod tests {
     #[test]
     fn test_call() {
         use crate::{
+            Py, Python,
             types::{IntoPyDict, PyAnyMethods, PyDict, PyTuple},
-            wrap_pyfunction, Py, Python,
+            wrap_pyfunction,
         };
 
         Python::attach(|py| {
@@ -275,8 +283,9 @@ mod tests {
     #[test]
     fn test_call_positional() {
         use crate::{
+            Py, Python,
             types::{PyAnyMethods, PyNone, PyTuple},
-            wrap_pyfunction, Py, Python,
+            wrap_pyfunction,
         };
 
         Python::attach(|py| {

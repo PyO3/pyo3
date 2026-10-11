@@ -46,24 +46,23 @@ use crate::exceptions::{PyTypeError, PyUserWarning, PyValueError};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 use crate::intern;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyNone;
+use crate::types::any::PyAnyMethods;
 use crate::types::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
-#[cfg(not(Py_LIMITED_API))]
 use crate::types::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
+use crate::{Borrowed, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python};
 #[cfg(feature = "chrono-local")]
 use crate::{
+    Py,
     exceptions::PyRuntimeError,
     sync::PyOnceLock,
     types::{PyString, PyStringMethods},
-    Py,
 };
 #[cfg(feature = "experimental-inspect")]
-use crate::{type_hint_identifier, PyTypeInfo};
-use crate::{Borrowed, Bound, FromPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python};
-use chrono::offset::{FixedOffset, Utc};
+use crate::{PyTypeInfo, type_hint_identifier};
 #[cfg(feature = "chrono-local")]
 use chrono::Local;
+use chrono::offset::{FixedOffset, Utc};
 use chrono::{
     DateTime, Datelike, Duration, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, Offset,
     TimeZone, Timelike,
@@ -130,28 +129,9 @@ impl FromPyObject<'_, '_> for Duration {
         // 0 <= microseconds < 1000000
         // 0 <= seconds < 3600*24
         // -999999999 <= days <= 999999999
-        #[cfg(not(Py_LIMITED_API))]
-        let (days, seconds, microseconds) = {
-            (
-                delta.get_days().into(),
-                delta.get_seconds().into(),
-                delta.get_microseconds().into(),
-            )
-        };
-        #[cfg(Py_LIMITED_API)]
-        let (days, seconds, microseconds) = {
-            let py = delta.py();
-            (
-                delta.getattr(intern!(py, "days"))?.extract()?,
-                delta.getattr(intern!(py, "seconds"))?.extract()?,
-                delta.getattr(intern!(py, "microseconds"))?.extract()?,
-            )
-        };
-        Ok(
-            Duration::days(days)
-                + Duration::seconds(seconds)
-                + Duration::microseconds(microseconds),
-        )
+        Ok(Duration::days(delta.get_days().into())
+            + Duration::seconds(delta.get_seconds().into())
+            + Duration::microseconds(delta.get_microseconds().into()))
     }
 }
 
@@ -520,11 +500,8 @@ impl<'py> IntoPyObject<'py> for Local {
     type Output = Borrowed<'static, 'py, Self::Target>;
     type Error = PyErr;
 
-    #[cfg(all(feature = "experimental-inspect", Py_3_9))]
+    #[cfg(feature = "experimental-inspect")]
     const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("zoneinfo", "ZoneInfo");
-
-    #[cfg(all(feature = "experimental-inspect", not(Py_3_9)))]
-    const OUTPUT_TYPE: PyStaticExpr = PyTzInfo::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         static LOCAL_TZ: PyOnceLock<Py<PyTzInfo>> = PyOnceLock::new();
@@ -633,9 +610,8 @@ fn warn_truncated_leap_second(obj: &Bound<'_, PyAny>) {
     };
 }
 
-#[cfg(not(Py_LIMITED_API))]
 fn py_date_to_naive_date(
-    py_date: impl std::ops::Deref<Target = impl PyDateAccess>,
+    py_date: impl core::ops::Deref<Target = impl PyDateAccess>,
 ) -> PyResult<NaiveDate> {
     NaiveDate::from_ymd_opt(
         py_date.get_year(),
@@ -645,42 +621,14 @@ fn py_date_to_naive_date(
     .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))
 }
 
-#[cfg(Py_LIMITED_API)]
-fn py_date_to_naive_date(py_date: &Bound<'_, PyAny>) -> PyResult<NaiveDate> {
-    NaiveDate::from_ymd_opt(
-        py_date.getattr(intern!(py_date.py(), "year"))?.extract()?,
-        py_date.getattr(intern!(py_date.py(), "month"))?.extract()?,
-        py_date.getattr(intern!(py_date.py(), "day"))?.extract()?,
-    )
-    .ok_or_else(|| PyValueError::new_err("invalid or out-of-range date"))
-}
-
-#[cfg(not(Py_LIMITED_API))]
 fn py_time_to_naive_time(
-    py_time: impl std::ops::Deref<Target = impl PyTimeAccess>,
+    py_time: impl core::ops::Deref<Target = impl PyTimeAccess>,
 ) -> PyResult<NaiveTime> {
     NaiveTime::from_hms_micro_opt(
         py_time.get_hour().into(),
         py_time.get_minute().into(),
         py_time.get_second().into(),
         py_time.get_microsecond(),
-    )
-    .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))
-}
-
-#[cfg(Py_LIMITED_API)]
-fn py_time_to_naive_time(py_time: &Bound<'_, PyAny>) -> PyResult<NaiveTime> {
-    NaiveTime::from_hms_micro_opt(
-        py_time.getattr(intern!(py_time.py(), "hour"))?.extract()?,
-        py_time
-            .getattr(intern!(py_time.py(), "minute"))?
-            .extract()?,
-        py_time
-            .getattr(intern!(py_time.py(), "second"))?
-            .extract()?,
-        py_time
-            .getattr(intern!(py_time.py(), "microsecond"))?
-            .extract()?,
     )
     .ok_or_else(|| PyValueError::new_err("invalid or out-of-range time"))
 }
@@ -693,13 +641,7 @@ fn py_datetime_to_datetime_with_timezone<Tz: TimeZone>(
     match naive_dt.and_local_timezone(tz) {
         LocalResult::Single(value) => Ok(value),
         LocalResult::Ambiguous(earliest, latest) => {
-            #[cfg(not(Py_LIMITED_API))]
-            let fold = dt.get_fold();
-
-            #[cfg(Py_LIMITED_API)]
-            let fold = dt.getattr(intern!(dt.py(), "fold"))?.extract::<usize>()? > 0;
-
-            if fold {
+            if dt.get_fold() {
                 Ok(latest)
             } else {
                 Ok(earliest)
@@ -714,14 +656,15 @@ fn py_datetime_to_datetime_with_timezone<Tz: TimeZone>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{test_utils::assert_warnings, types::PyTuple, BoundObject};
-    use std::{cmp::Ordering, panic};
+    use crate::platform::prelude::*;
+    use crate::{BoundObject, test_utils::assert_warnings, types::PyTuple};
+    use core::cmp::Ordering;
 
     #[test]
     // Only Python>=3.9 has the zoneinfo package
     // We skip the test on windows too since we'd need to install
     // tzdata there to make this work.
-    #[cfg(all(Py_3_9, not(target_os = "windows")))]
+    #[cfg(not(target_os = "windows"))]
     fn test_zoneinfo_is_not_fixed_offset() {
         use crate::types::any::PyAnyMethods;
         use crate::types::dict::PyDictMethods;
@@ -739,7 +682,10 @@ mod tests {
             let res = result.err().unwrap();
             // Also check the error message is what we expect
             let msg = res.value(py).repr().unwrap().to_string();
-            assert_eq!(msg, "TypeError(\"zoneinfo.ZoneInfo(key='Europe/London') is not a fixed offset timezone\")");
+            assert_eq!(
+                msg,
+                "TypeError(\"zoneinfo.ZoneInfo(key='Europe/London') is not a fixed offset timezone\")"
+            );
         });
     }
 
@@ -897,27 +843,31 @@ mod tests {
         Python::attach(|py| {
             let low_days: i32 = -1000000000;
             // This is possible
-            assert!(panic::catch_unwind(|| Duration::days(low_days as i64)).is_ok());
+            assert!(std::panic::catch_unwind(|| Duration::days(low_days as i64)).is_ok());
             // This panics on PyDelta::new
-            assert!(panic::catch_unwind(|| {
-                let py_delta = new_py_datetime_ob(py, "timedelta", (low_days, 0, 0));
-                if let Ok(_duration) = py_delta.extract::<Duration>() {
-                    // So we should never get here
-                }
-            })
-            .is_err());
+            assert!(
+                std::panic::catch_unwind(|| {
+                    let py_delta = new_py_datetime_ob(py, "timedelta", (low_days, 0, 0));
+                    if let Ok(_duration) = py_delta.extract::<Duration>() {
+                        // So we should never get here
+                    }
+                })
+                .is_err()
+            );
 
             let high_days: i32 = 1000000000;
             // This is possible
-            assert!(panic::catch_unwind(|| Duration::days(high_days as i64)).is_ok());
+            assert!(std::panic::catch_unwind(|| Duration::days(high_days as i64)).is_ok());
             // This panics on PyDelta::new
-            assert!(panic::catch_unwind(|| {
-                let py_delta = new_py_datetime_ob(py, "timedelta", (high_days, 0, 0));
-                if let Ok(_duration) = py_delta.extract::<Duration>() {
-                    // So we should never get here
-                }
-            })
-            .is_err());
+            assert!(
+                std::panic::catch_unwind(|| {
+                    let py_delta = new_py_datetime_ob(py, "timedelta", (high_days, 0, 0));
+                    if let Ok(_duration) = py_delta.extract::<Duration>() {
+                        // So we should never get here
+                    }
+                })
+                .is_err()
+            );
         });
     }
 
@@ -1046,7 +996,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(Py_3_9, feature = "chrono-tz", not(windows)))]
+    #[cfg(all(feature = "chrono-tz", not(windows)))]
     fn test_pyo3_datetime_into_pyobject_tz() {
         Python::attach(|py| {
             let datetime = NaiveDate::from_ymd_opt(2024, 12, 11)
@@ -1297,7 +1247,7 @@ mod tests {
             .unwrap()
     }
 
-    #[cfg(all(Py_3_9, feature = "chrono-tz", not(windows)))]
+    #[cfg(all(feature = "chrono-tz", not(windows)))]
     fn python_zoneinfo<'py>(py: Python<'py>, timezone: &str) -> Bound<'py, PyAny> {
         py.import("zoneinfo")
             .unwrap()
@@ -1312,8 +1262,8 @@ mod tests {
         use super::*;
         use crate::test_utils::CatchWarnings;
         use crate::types::IntoPyDict;
+        use alloc::ffi::CString;
         use proptest::prelude::*;
-        use std::ffi::CString;
 
         proptest! {
 

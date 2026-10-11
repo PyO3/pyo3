@@ -1,5 +1,5 @@
 use crate::object::*;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 #[cfg(all(not(PyPy), Py_LIMITED_API, not(GraalPy)))]
 opaque_struct!(pub PyWeakReference);
@@ -10,37 +10,40 @@ pub use crate::_PyWeakReference as PyWeakReference;
 extern_libpython! {
     // TODO: PyO3 is depending on this symbol in `reference.rs`, we should change this and
     // remove the export as this is a private symbol.
+    #[cfg(not(RustPython))]
     pub static mut _PyWeakref_RefType: PyTypeObject;
+    #[cfg(not(RustPython))]
     static mut _PyWeakref_ProxyType: PyTypeObject;
+    #[cfg(not(RustPython))]
     static mut _PyWeakref_CallableProxyType: PyTypeObject;
 
-    #[cfg(PyPy)]
-    #[link_name = "PyPyWeakref_CheckRef"]
+    #[cfg(any(all(PyPy, not(Py_3_12)), RustPython))]
+    #[cfg_attr(PyPy, link_name = "PyPyWeakref_CheckRef")]
     pub fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int;
 
-    #[cfg(PyPy)]
-    #[link_name = "PyPyWeakref_CheckRefExact"]
+    #[cfg(any(all(PyPy, not(Py_3_12)), RustPython))]
+    #[cfg_attr(PyPy, link_name = "PyPyWeakref_CheckRefExact")]
     pub fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int;
 
-    #[cfg(PyPy)]
-    #[link_name = "PyPyWeakref_CheckProxy"]
+    #[cfg(any(all(PyPy, not(Py_3_12)), RustPython))]
+    #[cfg_attr(PyPy, link_name = "PyPyWeakref_CheckProxy")]
     pub fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int;
 }
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(not(any(all(PyPy, not(Py_3_12)), RustPython)))]
 pub unsafe fn PyWeakref_CheckRef(op: *mut PyObject) -> c_int {
     PyObject_TypeCheck(op, &raw mut _PyWeakref_RefType)
 }
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(not(any(all(PyPy, not(Py_3_12)), RustPython)))]
 pub unsafe fn PyWeakref_CheckRefExact(op: *mut PyObject) -> c_int {
     Py_IS_TYPE(op, &raw mut _PyWeakref_RefType)
 }
 
 #[inline]
-#[cfg(not(PyPy))]
+#[cfg(not(any(all(PyPy, not(Py_3_12)), RustPython)))]
 pub unsafe fn PyWeakref_CheckProxy(op: *mut PyObject) -> c_int {
     (Py_IS_TYPE(op, &raw mut _PyWeakref_ProxyType) > 0
         || Py_IS_TYPE(op, &raw mut _PyWeakref_CallableProxyType) > 0) as c_int
@@ -52,11 +55,12 @@ pub unsafe fn PyWeakref_Check(op: *mut PyObject) -> c_int {
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyWeakref_NewRef")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyWeakref_NewRef")]
     pub fn PyWeakref_NewRef(ob: *mut PyObject, callback: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyWeakref_NewProxy")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyWeakref_NewProxy")]
     pub fn PyWeakref_NewProxy(ob: *mut PyObject, callback: *mut PyObject) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyWeakref_GetObject")]
+    #[cfg(not(Py_3_15))]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyWeakref_GetObject")]
     #[cfg_attr(
         Py_3_13,
         deprecated(note = "deprecated since Python 3.13. Use `PyWeakref_GetRef` instead.")

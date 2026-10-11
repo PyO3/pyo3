@@ -4,10 +4,10 @@ use crate::derive_attributes::{ContainerAttributes, FieldAttributes};
 use crate::py_expr::PyExpr;
 use crate::utils::{self, Ctx};
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::spanned::Spanned as _;
-use syn::{parse_quote, DataEnum, DeriveInput, Fields, Ident, Index, Result};
+use syn::{DataEnum, DeriveInput, Fields, Ident, Index, Result, parse_quote};
 
 struct ItemOption(Option<syn::Lit>);
 
@@ -261,25 +261,28 @@ impl<'a, const REF: bool> Container<'a, REF> {
             .iter()
             .enumerate()
             .map(|(i, f)| {
-                let key = f
-                    .item
-                    .as_ref()
-                    .and_then(|item| item.0.as_ref())
-                    .map(|item| item.into_token_stream())
-                    .unwrap_or_else(|| {
+                let key = match f.item.as_ref().and_then(|item| item.0.as_ref()) {
+                    Some(syn::Lit::Str(key)) => quote!(#pyo3_path::intern!(py, #key)),
+                    Some(key) => quote!(#key),
+                    None => {
                         let name = f.ident.unraw().to_string();
-                        self.rename_rule.map(|rule| utils::apply_renaming_rule(rule, &name)).unwrap_or(name).into_token_stream()
-                    });
+                        let name = self
+                            .rename_rule
+                            .map(|rule| utils::apply_renaming_rule(rule, &name))
+                            .unwrap_or(name);
+                        quote!(#pyo3_path::intern!(py, #name))
+                    }
+                };
                 let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
 
                 if let Some(expr_path) = f.into_py_with.as_ref().map(|i|&i.value) {
                     let cow = if REF {
-                        quote!(::std::borrow::Cow::Borrowed(#value))
+                        quote!(#pyo3_path::impl_::alloc::borrow::Cow::Borrowed(#value))
                     } else {
-                        quote!(::std::borrow::Cow::Owned(#value))
+                        quote!(#pyo3_path::impl_::alloc::borrow::Cow::Owned(#value))
                     };
                     quote! {
-                        let into_py_with: fn(::std::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
+                        let into_py_with: fn(#pyo3_path::impl_::alloc::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
                         #pyo3_path::types::PyDictMethods::set_item(&dict, #key, into_py_with(#cow, py)?)?;
                     }
                 } else {
@@ -300,7 +303,7 @@ impl<'a, const REF: bool> Container<'a, REF> {
                 #unpack
                 let dict = #pyo3_path::types::PyDict::new(py);
                 #setter
-                ::std::result::Result::Ok::<_, Self::Error>(dict)
+                ::core::result::Result::Ok::<_, Self::Error>(dict)
             },
         }
     }
@@ -326,13 +329,13 @@ impl<'a, const REF: bool> Container<'a, REF> {
 
                 if let Some(expr_path) = f.into_py_with.as_ref().map(|i|&i.value) {
                     let cow = if REF {
-                        quote!(::std::borrow::Cow::Borrowed(#value))
+                        quote!(#pyo3_path::impl_::alloc::borrow::Cow::Borrowed(#value))
                     } else {
-                        quote!(::std::borrow::Cow::Owned(#value))
+                        quote!(#pyo3_path::impl_::alloc::borrow::Cow::Owned(#value))
                     };
                     quote_spanned! { ty.span() =>
                         {
-                            let into_py_with: fn(::std::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
+                            let into_py_with: fn(#pyo3_path::impl_::alloc::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
                             into_py_with(#cow, py)?
                         },
                     }
@@ -446,7 +449,7 @@ impl<'a, const REF: bool> Enum<'a, REF> {
                         {#body}
                             .map(#pyo3_path::BoundObject::into_any)
                             .map(#pyo3_path::BoundObject::into_bound)
-                            .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
+                            .map_err(::core::convert::Into::<#pyo3_path::PyErr>::into)
                     }
                 }
             })
@@ -611,7 +614,7 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
             type Error = #error;
             #output_type
 
-            fn into_pyobject(self, py: #pyo3_path::Python<#lt_param>) -> ::std::result::Result<
+            fn into_pyobject(self, py: #pyo3_path::Python<#lt_param>) -> ::core::result::Result<
                 <Self as #pyo3_path::conversion::IntoPyObject<#lt_param>>::Output,
                 <Self as #pyo3_path::conversion::IntoPyObject<#lt_param>>::Error,
             > {

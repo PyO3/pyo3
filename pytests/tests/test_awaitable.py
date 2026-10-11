@@ -1,7 +1,7 @@
-import pytest
 import sys
 
-from pyo3_pytests.awaitable import IterAwaitable, FutureAwaitable
+import pytest
+from pyo3_pytests.awaitable import FutureAwaitable, IterAwaitable
 
 
 @pytest.mark.skipif(
