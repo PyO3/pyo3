@@ -31,7 +31,7 @@ jobs:
           args: --release --out dist --compatibility pypi
           manylinux: auto
           working-directory: pyo3-introspection
-      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: ${{ !startsWith(github.ref, 'refs/tags/') }} # zizmor: ignore[cache-poisoning] Tag builds never restore caches; only tag builds are published.
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -62,7 +62,7 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --compatibility pypi
           working-directory: pyo3-introspection
-      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: ${{ !startsWith(github.ref, 'refs/tags/') }} # zizmor: ignore[cache-poisoning] Tag builds never restore caches; only tag builds are published.
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -90,7 +90,7 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --compatibility pypi
           working-directory: pyo3-introspection
-      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: ${{ !startsWith(github.ref, 'refs/tags/') }} # zizmor: ignore[cache-poisoning] Tag builds never restore caches; only tag builds are published.
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -111,7 +111,7 @@ jobs:
           command: sdist
           args: --out dist
           working-directory: pyo3-introspection
-      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: ${{ !startsWith(github.ref, 'refs/tags/') }} # zizmor: ignore[cache-poisoning] Tag builds never restore caches; only tag builds are published.
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -135,7 +135,7 @@ jobs:
           pattern: wheels-*
           path: pyo3-introspection/dist
           merge-multiple: true
-      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: false
       - name: Generate attestations
