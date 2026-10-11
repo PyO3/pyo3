@@ -1580,7 +1580,6 @@ class SimpleClass:
 
     #[cfg(feature = "macros")]
     #[test]
-    #[allow(unknown_lints, non_local_definitions)]
     fn test_hasattr_error() {
         use crate::exceptions::PyValueError;
         use crate::prelude::*;
@@ -1824,7 +1823,6 @@ class SimpleClass:
 
     #[cfg(feature = "macros")]
     #[test]
-    #[allow(unknown_lints, non_local_definitions)]
     fn test_fallible_dir() {
         use crate::exceptions::PyValueError;
         use crate::prelude::*;
