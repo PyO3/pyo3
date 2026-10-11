@@ -471,6 +471,7 @@ For this reason, we chose to rename these to more modern terminology introduced 
   In GIL enabled builds there can only be 1 thread attached to the interpreter, in free-threading there can be more.
 - `Python::allow_threads` is now called `Python::detach`, it detaches a previously attached thread-state.
 - `pyo3::prepare_freethreaded_python` is now called `Python::initialize`.
+
 </details>
 
 ### Deprecation of `PyObject` type alias
@@ -1521,7 +1522,8 @@ This enables use of newer language features and simplifies maintenance of the pr
 `PyDict::get_item` in PyO3 0.19 and older was implemented using a Python API which would suppress all exceptions and return `None` in those cases.
 This included errors in `__hash__` and `__eq__` implementations of the key being looked up.
 
-Newer recommendations by the Python core developers advise against using these APIs which suppress exceptions, instead allowing exceptions to bubble upwards. `PyDict::get_item_with_error` already implemented this recommended behavior, so that API has been renamed to `PyDict::get_item`.
+Newer recommendations by the Python core developers advise against using these APIs which suppress exceptions, instead allowing exceptions to bubble upwards.
+`PyDict::get_item_with_error` already implemented this recommended behavior, so that API has been renamed to `PyDict::get_item`.
 
 Before:
 
@@ -1646,7 +1648,8 @@ fn add(a: u64, b: u64) -> u64 {
 <details>
 <summary><small>Click to expand</small></summary>
 
-The trait `IntoPyPointer`, which provided the `into_ptr` method on many types, has been removed. `into_ptr` is now available as an inherent method on all types that previously implemented this trait.
+The trait `IntoPyPointer`, which provided the `into_ptr` method on many types, has been removed.
+`into_ptr` is now available as an inherent method on all types that previously implemented this trait.
 </details>
 
 ### `AsPyPointer` now `unsafe` trait
@@ -2342,6 +2345,7 @@ The specific implications of this are:
 - If you wish to subclass one of these types _from Rust_ you must mark it `#[pyclass(subclass)]`, as you would if you wished to allow subclassing it from Python code.
 - Type objects are now mutable - Python code can set attributes on them.
 - `__module__` on types without `#[pyclass(module="mymodule")]` no longer returns `builtins`, it now raises `AttributeError`.
+
 </details>
 
 ## from 0.11.* to 0.12
