@@ -8,7 +8,7 @@
 name: netlify-deploy
 
 on:
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers] Deploys artifacts as static files using trusted code; see safety note above.
     workflows: ["netlify-build"]
     types:
       - completed

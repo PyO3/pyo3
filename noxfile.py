@@ -289,6 +289,11 @@ def typos(session: nox.Session):
     _run(session, "uv", "run", "typos", *session.posargs, external=True)
 
 
+@nox.session(name="zizmor", venv_backend="none")
+def zizmor(session: nox.Session):
+    _run(session, "uv", "run", "zizmor", *session.posargs, ".", external=True)
+
+
 @nox.session(name="clippy", venv_backend="none")
 def clippy(session: nox.Session) -> bool:
     if not (_clippy(session) and _clippy_additional_workspaces(session)):
