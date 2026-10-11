@@ -2,8 +2,6 @@
 use crate::Py_NewRef;
 use crate::pyport::{Py_hash_t, Py_ssize_t};
 use libc::{c_char, c_int, c_uint, c_ulong, c_void};
-#[cfg(Py_GIL_DISABLED)]
-use std::sync::atomic::{AtomicIsize, AtomicU32};
 
 // these re-exports are pub because it would be awkward to
 // thread the different origins for these types on this build
