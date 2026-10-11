@@ -36,7 +36,7 @@ jobs:
           enable-cache: ${{ !startsWith(github.ref, 'refs/tags/') }} # zizmor: ignore[cache-poisoning] Tag builds never restore caches; only tag builds are published.
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx twine check pyo3-introspection/dist/*
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheels-linux-${{ matrix.target }}
           path: pyo3-introspection/dist
@@ -67,7 +67,7 @@ jobs:
           enable-cache: ${{ !startsWith(github.ref, 'refs/tags/') }} # zizmor: ignore[cache-poisoning] Tag builds never restore caches; only tag builds are published.
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx twine check pyo3-introspection/dist/*
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheels-windows-${{ matrix.platform.target }}
           path: pyo3-introspection/dist
@@ -95,7 +95,7 @@ jobs:
           enable-cache: ${{ !startsWith(github.ref, 'refs/tags/') }} # zizmor: ignore[cache-poisoning] Tag builds never restore caches; only tag builds are published.
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx twine check pyo3-introspection/dist/*
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheels-macos-${{ matrix.platform.target }}
           path: pyo3-introspection/dist
@@ -116,7 +116,7 @@ jobs:
           enable-cache: ${{ !startsWith(github.ref, 'refs/tags/') }} # zizmor: ignore[cache-poisoning] Tag builds never restore caches; only tag builds are published.
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
       - run: uvx twine check pyo3-introspection/dist/*
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheels-sdist
           path: pyo3-introspection/dist
