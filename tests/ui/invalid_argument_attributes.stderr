@@ -5,25 +5,27 @@ error: expected `cancel_handle` or `from_py_with`
   |                             ^^^
 
 error: expected `=`
- --> tests/ui/invalid_argument_attributes.rs:7:45
+ --> tests/ui/invalid_argument_attributes.rs:8:45
   |
-7 | fn from_py_with_no_value(#[pyo3(from_py_with)] _param: String) {}
+8 | fn from_py_with_no_value(#[pyo3(from_py_with)] _param: String) {}
   |                                             ^
 
 error: expected `cancel_handle` or `from_py_with`
-  --> tests/ui/invalid_argument_attributes.rs:10:31
+  --> tests/ui/invalid_argument_attributes.rs:12:31
    |
-10 | fn from_py_with_string(#[pyo3("from_py_with")] _param: String) {}
+12 | fn from_py_with_string(#[pyo3("from_py_with")] _param: String) {}
    |                               ^^^^^^^^^^^^^^
 
 error: `from_py_with` may only be specified once per argument
-  --> tests/ui/invalid_argument_attributes.rs:16:54
+  --> tests/ui/invalid_argument_attributes.rs:19:54
    |
-16 | fn from_py_with_repeated(#[pyo3(from_py_with = func, from_py_with = func)] _param: String) {}
+19 | fn from_py_with_repeated(#[pyo3(from_py_with = func, from_py_with = func)] _param: String) {}
    |                                                      ^^^^^^^^^^^^
 
 error: expected identifier
-  --> tests/ui/invalid_argument_attributes.rs:23:28
+  --> tests/ui/invalid_argument_attributes.rs:27:28
    |
-23 | fn f(#[pyo3(from_py_with = "bytes_from_py")] _bytes: Vec<u8>) {}
+27 | fn f(#[pyo3(from_py_with = "bytes_from_py")] _bytes: Vec<u8>) {}
    |                            ^^^^^^^^^^^^^^^
+
+error: aborting due to 5 previous errors

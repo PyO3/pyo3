@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use pyo3::{
     prelude::*,
     types::{PyDict, PyString},
@@ -31,6 +33,38 @@ fn hammer_attaching_in_thread() -> LockHolder {
     LockHolder { sender }
 }
 
+#[pyclass]
+struct MustDropWhileAttached;
+
+impl Drop for MustDropWhileAttached {
+    fn drop(&mut self) {
+        // SAFETY: always callable; fatal error (abort) if the thread is not attached.
+        unsafe { pyo3::ffi::PyThreadState_Get() };
+    }
+}
+
+thread_local! {
+    // Dropped when the thread exits, which on older CPython happens inside
+    // PyEval_RestoreThread when reattaching during finalization.
+    static DROPPED_ON_THREAD_EXIT: Cell<Option<Py<MustDropWhileAttached>>> = const { Cell::new(None) };
+}
+
+#[pyfunction]
+fn detach_during_finalization(py: Python<'_>) -> LockHolder {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let (ready_sender, ready_receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        Python::attach(|py| {
+            DROPPED_ON_THREAD_EXIT.set(Some(Py::new(py, MustDropWhileAttached).unwrap()));
+            ready_sender.send(()).unwrap();
+            py.detach(move || receiver.recv().ok());
+            // Interpreter is finalizing while we try to reattach after returning
+        });
+    });
+    py.detach(move || ready_receiver.recv()).unwrap();
+    LockHolder { sender }
+}
+
 #[pyfunction]
 fn get_type_fully_qualified_name<'py>(obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyString>> {
     obj.get_type().fully_qualified_name()
@@ -58,7 +92,7 @@ fn get_item_and_run_callback(dict: Bound<'_, PyDict>, callback: Bound<'_, PyAny>
 pub mod misc {
     #[pymodule_export]
     use super::{
-        accepts_bool, get_item_and_run_callback, get_type_fully_qualified_name,
-        hammer_attaching_in_thread, issue_219,
+        accepts_bool, detach_during_finalization, get_item_and_run_callback,
+        get_type_fully_qualified_name, hammer_attaching_in_thread, issue_219,
     };
 }

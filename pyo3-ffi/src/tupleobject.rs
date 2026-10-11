@@ -1,40 +1,48 @@
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use std::ffi::c_int;
+use core::ffi::c_int;
 
+#[cfg(not(RustPython))]
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_Type")]
     pub static mut PyTuple_Type: PyTypeObject;
     pub static mut PyTupleIter_Type: PyTypeObject;
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyTuple_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TUPLE_SUBCLASS)
 }
 
 #[inline]
+#[cfg(not(RustPython))]
 pub unsafe fn PyTuple_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyTuple_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyTuple_Type)
 }
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_New")]
+    #[cfg(RustPython)]
+    pub fn PyTuple_Check(op: *mut PyObject) -> c_int;
+    #[cfg(RustPython)]
+    pub fn PyTuple_CheckExact(op: *mut PyObject) -> c_int;
+
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_New")]
     pub fn PyTuple_New(size: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_Size")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_Size")]
     pub fn PyTuple_Size(arg1: *mut PyObject) -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_GetItem")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_GetItem")]
     pub fn PyTuple_GetItem(arg1: *mut PyObject, arg2: Py_ssize_t) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_SetItem")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_SetItem")]
     pub fn PyTuple_SetItem(arg1: *mut PyObject, arg2: Py_ssize_t, arg3: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_GetSlice")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_GetSlice")]
     pub fn PyTuple_GetSlice(
         arg1: *mut PyObject,
         arg2: Py_ssize_t,
         arg3: Py_ssize_t,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyTuple_Pack")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyTuple_Pack")]
     pub fn PyTuple_Pack(arg1: Py_ssize_t, ...) -> *mut PyObject;
-    #[cfg(not(Py_3_9))]
-    pub fn PyTuple_ClearFreeList() -> c_int;
+    #[cfg(any(all(Py_3_15, not(Py_LIMITED_API)), RustPython))]
+    pub fn PyTuple_FromArray(array: *const *mut PyObject, size: Py_ssize_t) -> *mut PyObject;
 }

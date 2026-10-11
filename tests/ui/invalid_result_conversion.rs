@@ -1,3 +1,7 @@
+//@revisions: default nostd
+//@[default] with-std
+//@[nostd] no-std
+
 //! Testing https://github.com/PyO3/pyo3/issues/1106. A result type that
 //! *doesn't* implement `From<MyError> for PyErr` won't be automatically
 //! converted when using `#[pyfunction]`.
@@ -20,6 +24,7 @@ impl fmt::Display for MyError {
 
 #[pyfunction]
 fn should_not_work() -> Result<(), MyError> {
+//~^ ERROR: the trait bound `PyErr: From<MyError>` is not satisfied
     Err(MyError {
         descr: "something went wrong",
     })

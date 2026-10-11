@@ -1,7 +1,7 @@
-use crate::PyObject;
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::Py_ssize_t;
 use std::ffi::c_int;
+use crate::PyObject;
 
 #[repr(C)]
 #[derive(Debug)]

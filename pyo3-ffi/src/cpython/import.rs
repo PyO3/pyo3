@@ -1,9 +1,9 @@
 #[cfg(any(not(PyPy), Py_3_14))]
 use crate::PyObject;
 #[cfg(any(not(PyPy), Py_3_14))]
-use std::ffi::c_char;
+use core::ffi::c_char;
 #[cfg(not(PyPy))]
-use std::ffi::{c_int, c_uchar};
+use core::ffi::{c_int, c_uchar};
 
 #[cfg(not(PyPy))]
 #[repr(C)]

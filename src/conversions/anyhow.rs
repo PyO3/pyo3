@@ -31,17 +31,23 @@
 //! # Example: Propagating a `PyErr` into [`anyhow::Error`]
 //!
 //! ```rust
+//! # #[cfg(wip_feature_std)]
 //! use pyo3::prelude::*;
+//! # #[cfg(wip_feature_std)]
 //! use std::path::PathBuf;
 //!
 //! // A wrapper around a Rust function.
 //! // The pyfunction macro performs the conversion to a PyErr
+//! # #[cfg(wip_feature_std)]
 //! #[pyfunction]
 //! fn py_open(filename: PathBuf) -> anyhow::Result<Vec<u8>> {
 //!     let data = std::fs::read(filename)?;
 //!     Ok(data)
 //! }
 //!
+//! # #[cfg(not(wip_feature_std))]
+//! # fn main() {}
+//! # #[cfg(wip_feature_std)]
 //! fn main() {
 //!     let error = Python::attach(|py| -> PyResult<Vec<u8>> {
 //!         let fun = wrap_pyfunction!(py_open, py)?;
@@ -56,7 +62,7 @@
 //! # Example: Using `anyhow` in general
 //!
 //! Note that you don't need this feature to convert a [`PyErr`] into an [`anyhow::Error`], because
-//! it can already convert anything that implements [`Error`](std::error::Error):
+//! it can already convert anything that implements [`Error`](core::error::Error):
 //!
 //! ```rust
 //! use pyo3::prelude::*;
@@ -101,8 +107,8 @@
 //! [`RuntimeError`]: https://docs.python.org/3/library/exceptions.html#RuntimeError "Built-in Exceptions — Python documentation"
 //! [Error handling]: https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html "Recoverable Errors with Result - The Rust Programming Language"
 
-use crate::exceptions::PyRuntimeError;
 use crate::PyErr;
+use crate::exceptions::PyRuntimeError;
 
 impl From<anyhow::Error> for PyErr {
     fn from(mut error: anyhow::Error) -> Self {
@@ -120,10 +126,11 @@ impl From<anyhow::Error> for PyErr {
 #[cfg(test)]
 mod test_anyhow {
     use crate::exceptions::{PyRuntimeError, PyValueError};
+    use crate::platform::prelude::*;
     use crate::prelude::*;
     use crate::types::IntoPyDict;
 
-    use anyhow::{anyhow, bail, Context, Result};
+    use anyhow::{Context, Result, anyhow, bail};
 
     fn f() -> Result<()> {
         use std::io;

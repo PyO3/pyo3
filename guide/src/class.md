@@ -197,7 +197,7 @@ For arguments, see the [`Method arguments`](#method-arguments) section below.
 
 An initializer implements Python's `__init__` method.
 
-It may be required when it's needed to control an object initalization flow on the Rust code.
+It may be required when it's needed to control an object initialization flow on the Rust code.
 If possible handling this in `__new__` should be preferred, but in some cases, like subclassing native types, overwriting `__init__` might be necessary.
 For example, you define a class that extends `PyDict` and don't want that the original `__init__` method of `PyDict` been called.
 In this case by defining an own `__init__` method it's possible to stop initialization flow.
@@ -214,7 +214,7 @@ It can either return `()` or `PyResult<()>`.
 # #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 use pyo3::types::{PyDict, PyTuple, PySuper};
 # #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
-use crate::pyo3::PyTypeInfo;
+use pyo3::PyTypeInfo;
 
 # #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 #[pyclass(extends = PyDict)]
@@ -242,9 +242,10 @@ impl MyDict {
         // call the super types __init__
         PySuper::new(&PyDict::type_object(slf.py()), slf)?
             .call_method("__init__", args.to_owned(), kwargs)?;
-        // Note: if `MyDict` allows further subclassing, and this is called from such a subclass,
-        // then this will not that any overrides into account that such a subclass may have defined.
-        // In such a case it may be preferred to just call `slf.set_item` and let Python figure it out.
+        // Note: if `MyDict` allows further subclassing (i.e. uses the `#[pyclass(subclass)]` option), and
+        // this is called from such a subclass, then this will not respect any overrides that subclass may
+        // have defined. Accordingly if `MyDict` allows subclassing it may be preferred to just call
+        // `slf.set_item` and let Python resolve the correct subclass method.
         slf.as_super().set_item("my_key", "always insert this key")?;
         Ok(())
     }
@@ -275,6 +276,7 @@ The next step is to create the Python module and add our class to it:
 # struct Number(i32);
 #
 #[pymodule]
+# #[pyo3(name = "example_class_module")]
 mod my_module {
     #[pymodule_export]
     use super::Number;
@@ -404,8 +406,7 @@ Consult the table below to determine which type your constructor should return:
 |                             | **Cannot fail**           | **May fail**                      |
 |-----------------------------|---------------------------|-----------------------------------|
 |**No inheritance**           | `T`                       | `PyResult<T>`                     |
-|**Inheritance(T Inherits U)**| `(T, U)`                  | `PyResult<(T, U)>`                |
-|**Inheritance(General Case)**| [`PyClassInitializer<T>`] | `PyResult<PyClassInitializer<T>>` |
+|**Inheritance**              | [`PyClassInitializer<T>`] | `PyResult<PyClassInitializer<T>>` |
 
 ## Inheritance
 
@@ -413,8 +414,7 @@ By default, `object`, i.e. `PyAny` is used as the base class.
 To override this default, use the `extends` parameter for `pyclass` with the full path to the base class.
 Currently, only classes defined in Rust and builtins provided by PyO3 can be inherited from; inheriting from other classes defined in Python is not yet supported ([#991](https://github.com/PyO3/pyo3/issues/991)).
 
-For convenience, `(T, U)` implements `Into<PyClassInitializer<T>>` where `U` is the base class of `T`.
-But for a more deeply nested inheritance, you have to return `PyClassInitializer<T>` explicitly.
+To initialize a class, which inherits from another class, use the `PyClassInitializer` API.
 
 To get a parent class from a child, use [`PyRef`] instead of `&self` for methods, or [`PyRefMut`] instead of `&mut self`.
 Then you can access a parent class by `self_.as_super()` as `&PyRef<Self::BaseClass>`, or by `self_.into_super()` as `PyRef<Self::BaseClass>` (and similar for the `PyRefMut` case).
@@ -448,8 +448,9 @@ struct SubClass {
 #[pymethods]
 impl SubClass {
     #[new]
-    fn new() -> (Self, BaseClass) {
-        (SubClass { val2: 15 }, BaseClass::new())
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from(BaseClass::new())
+            .add_subclass(SubClass { val2: 15 })
     }
 
     fn method2(self_: PyRef<'_, Self>) -> PyResult<usize> {
@@ -928,8 +929,7 @@ impl MyClass {
 ```
 
 > [!NOTE]
-> If the method has a `Result` return type and returns an `Err`, PyO3 will panic during
-class creation.
+> If the method has a `Result` return type and returns an `Err`, PyO3 will panic during class creation.
 
 > [!NOTE]
 > `#[classattr]` does not work with [`#[pyo3(warn(...))]`](./function.md#warn) attribute.
@@ -1317,8 +1317,9 @@ Python::attach(|py| {
 ```
 
 Ordering of enum variants is optionally added using `#[pyo3(ord)]`.
-*Note: Implementation of the `PartialOrd` trait is required when passing the `ord` argument.*
-*If not implemented, a compile time error is raised.*
+> [!NOTE]
+> Implementation of the `PartialOrd` trait is required when passing the `ord` argument.
+> If not implemented, a compile time error is raised.
 
 ```rust
 # use pyo3::prelude::*;
@@ -1560,6 +1561,10 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         use pyo3::impl_::pyclass::LazyTypeObject;
         static TYPE_OBJECT: LazyTypeObject<MyClass> = LazyTypeObject::new();
         &TYPE_OBJECT
+    }
+
+    fn __traverse__(&self, _visit: pyo3::pyclass::PyVisit<'_>) -> Result<(), pyo3::pyclass::PyTraverseError> {
+        Ok(())
     }
 }
 

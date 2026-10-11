@@ -3,7 +3,7 @@
 //! Tracking issue: <https://github.com/PyO3/pyo3/issues/2454>.
 
 use crate::impl_::introspection::{escape_json_string, escaped_json_string_len};
-use std::fmt::{self, Display, Write};
+use core::fmt::{self, Display, Write};
 
 /// Builds a type hint from a module name and a member name in the module
 ///
@@ -267,7 +267,23 @@ impl fmt::Display for PyStaticExpr {
                     }
                     Ok(())
                 }
-                PyStaticConstant::Str(value) => write!(f, "{value:?}"),
+                PyStaticConstant::Str(value) => {
+                    // Not `{value:?}`: Rust escapes as `\u{1b}`, which Python cannot parse.
+                    f.write_char('"')?;
+                    for c in value.chars() {
+                        match c {
+                            '"' => f.write_str("\\\"")?,
+                            '\n' => f.write_str("\\n")?,
+                            '\r' => f.write_str("\\r")?,
+                            '\t' => f.write_str("\\t")?,
+                            '\\' => f.write_str("\\\\")?,
+                            '\0' => f.write_str("\\0")?,
+                            c @ '\x00'..'\x20' => write!(f, "\\x{:02x}", u32::from(c))?,
+                            c => f.write_char(c)?,
+                        }
+                    }
+                    f.write_char('"')
+                }
                 PyStaticConstant::Ellipsis => f.write_str("..."),
             },
             Self::Name { id, .. } => f.write_str(id),
@@ -302,8 +318,12 @@ impl fmt::Display for PyStaticExpr {
                 value.fmt(f)?;
                 f.write_char('[')?;
                 if let PyStaticExpr::Tuple { elts } = slice {
-                    // We don't display the tuple parentheses
-                    fmt_elements(elts, f)?;
+                    if elts.is_empty() {
+                        // Empty tuples need parentheses to avoid invalid syntax like `tuple[]`
+                        f.write_str("()")?;
+                    } else {
+                        fmt_elements(elts, f)?;
+                    }
                 } else {
                     slice.fmt(f)?;
                 }
@@ -449,6 +469,7 @@ impl AsRef<PyStaticExpr> for PyClassNameStaticExpr {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::prelude::*;
 
     #[test]
     fn test_to_string() {
@@ -472,11 +493,43 @@ mod tests {
     }
 
     #[test]
+    fn test_control_characters_in_str_constants() {
+        // Rust's `{:?}` renders these as `\u{1b}`, which is not valid Python.
+        for (value, expected) in [
+            ("\u{1b}", r#""\x1b""#),
+            ("\u{7}", r#""\x07""#),
+            ("\u{b}\u{c}", r#""\x0b\x0c""#),
+            ("a\nb\r\u{1b}", r#""a\nb\r\x1b""#),
+        ] {
+            let expr = PyStaticExpr::Constant {
+                value: PyStaticConstant::Str(value),
+            };
+            assert_eq!(expr.to_string(), expected);
+        }
+    }
+
+    #[test]
+    fn test_empty_tuple_type_hints() {
+        use crate::IntoPyObject;
+
+        for (expr, expected) in [
+            (<()>::OUTPUT_TYPE, "builtins.tuple[()]"),
+            (<((),)>::OUTPUT_TYPE, "builtins.tuple[builtins.tuple[()]]"),
+            (
+                <(i32, ())>::OUTPUT_TYPE,
+                "builtins.tuple[builtins.int, builtins.tuple[()]]",
+            ),
+        ] {
+            assert_eq!(expr.to_string(), expected);
+        }
+    }
+
+    #[test]
     fn test_serialize_for_introspection() {
         fn check_serialization(expr: PyStaticExpr, expected: &str) {
             let mut out = vec![0; serialized_len_for_introspection(&expr)];
             serialize_for_introspection(&expr, &mut out);
-            assert_eq!(std::str::from_utf8(&out).unwrap(), expected)
+            assert_eq!(core::str::from_utf8(&out).unwrap(), expected)
         }
 
         check_serialization(

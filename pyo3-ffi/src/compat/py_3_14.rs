@@ -3,7 +3,7 @@ compat_function!(
 
     #[inline]
     pub unsafe fn Py_HashBuffer(
-        ptr: *const std::ffi::c_void,
+        ptr: *const core::ffi::c_void,
         len: crate::Py_ssize_t,
     ) -> crate::Py_hash_t {
         #[cfg(not(any(Py_LIMITED_API, PyPy)))]
@@ -13,7 +13,7 @@ compat_function!(
 
         #[cfg(any(Py_LIMITED_API, PyPy))]
         {
-            let bytes = crate::PyBytes_FromStringAndSize(ptr as *const std::ffi::c_char, len);
+            let bytes = crate::PyBytes_FromStringAndSize(ptr as *const core::ffi::c_char, len);
             if bytes.is_null() {
                 -1
             } else {
@@ -32,7 +32,7 @@ compat_function!(
     pub unsafe fn PyIter_NextItem(
         iter: *mut crate::PyObject,
         item: *mut *mut crate::PyObject,
-    ) -> std::ffi::c_int {
+    ) -> core::ffi::c_int {
         *item = crate::PyIter_Next(iter);
         if !(*item).is_null() {
             1

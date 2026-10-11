@@ -2,10 +2,10 @@
 
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::types::{PyAny, PyType};
-use crate::{ffi, Bound, Python};
-use std::ptr;
+use crate::{Bound, Python, ffi};
+use core::ptr;
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
 /// E.g., `PyClassObject` is a concrete representation of all `pyclass`es, and `ffi::PyObject`
@@ -71,30 +71,27 @@ pub unsafe trait PyTypeInfo: Sized {
         // the type object to be freed.
         //
         // By making `Bound` we assume ownership which is then safe against races.
-        unsafe {
-            Self::type_object_raw(py)
-                .cast::<ffi::PyObject>()
-                .assume_borrowed_unchecked(py)
-                .to_owned()
-                .cast_into_unchecked()
-        }
+        let tp = Self::type_object_raw(py).cast::<ffi::PyObject>();
+        // SAFETY: the pointer is known to be a borrowed type object and we immediately make a new reference
+        unsafe { tp.assume_borrowed_unchecked(py).cast_unchecked() }.to_owned()
     }
 
     /// Checks if `object` is an instance of this type or a subclass of this type.
     #[inline]
     fn is_type_of(object: &Bound<'_, PyAny>) -> bool {
-        unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), Self::type_object_raw(object.py())) != 0 }
+        let tp = Self::type_object_raw(object.py());
+        // SAFETY: pointers are known to be correct types and borrowed
+        (unsafe { ffi::PyObject_TypeCheck(object.as_ptr(), tp) }) != 0
     }
 
     /// Checks if `object` is an instance of this type.
     #[inline]
     fn is_exact_type_of(object: &Bound<'_, PyAny>) -> bool {
-        unsafe {
-            ptr::eq(
-                ffi::Py_TYPE(object.as_ptr()),
-                Self::type_object_raw(object.py()),
-            )
-        }
+        ptr::eq(
+            // SAFETY: no additional requirements
+            unsafe { ffi::Py_TYPE(object.as_ptr()) },
+            Self::type_object_raw(object.py()),
+        )
     }
 }
 
@@ -106,13 +103,6 @@ pub unsafe trait PyTypeInfo: Sized {
 /// to a concrete type. The implementor is responsible for ensuring that `type_check` only returns
 /// true for objects which can safely be treated as Python instances of `Self`.
 pub unsafe trait PyTypeCheck {
-    /// Name of self. This is used in error messages, for example.
-    #[deprecated(
-        since = "0.27.0",
-        note = "Use ::classinfo_object() instead and format the type name at runtime. Note that using built-in cast features is often better than manual PyTypeCheck usage."
-    )]
-    const NAME: &'static str;
-
     /// Provides the full python type of the allowed values as a Python type hint.
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr;
@@ -128,13 +118,11 @@ pub unsafe trait PyTypeCheck {
     fn classinfo_object(py: Python<'_>) -> Bound<'_, PyAny>;
 }
 
+// SAFETY: requirements upheld by impl of PyTypeInfo
 unsafe impl<T> PyTypeCheck for T
 where
     T: PyTypeInfo,
 {
-    #[allow(deprecated)]
-    const NAME: &'static str = T::NAME;
-
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = <T as PyTypeInfo>::TYPE_HINT;
 

@@ -1,15 +1,26 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
 
+//! Python capsules and related types.
+
+use crate::exceptions::PySystemError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::internal_tricks::box_into_non_null;
+use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
-use crate::{ffi, PyAny};
 use crate::{Bound, Python};
+#[cfg(RustPython)]
+use crate::{
+    Py,
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+};
+use crate::{PyAny, ffi};
 use crate::{PyErr, PyResult};
-use std::ffi::{c_char, c_int, c_void};
-use std::ffi::{CStr, CString};
-use std::mem::offset_of;
-use std::ptr::{self, NonNull};
+use alloc::ffi::CString;
+use core::ffi::CStr;
+use core::ffi::{c_char, c_int, c_void};
+use core::mem::offset_of;
+use core::ptr::{self, NonNull};
 
 /// Represents a Python Capsule
 /// as described in [Capsules](https://docs.python.org/3/c-api/capsule.html#capsules):
@@ -24,6 +35,27 @@ use std::ptr::{self, NonNull};
 ///
 /// For APIs available on capsule objects, see the [`PyCapsuleMethods`] trait which is implemented for
 /// [`Bound<'py, PyCapsule>`][Bound].
+///
+/// # Safety
+///
+/// `capsule` objects are designed to share data opaque to Python code between multiple compiled extensions.
+/// This comes with a loss of type safety, and the best defense against invalid casts is to use the
+/// [capsule name][CapsuleName] to hint at the expected type of capsule contents.
+///
+/// Once the capsule name is verified, it is also crucial that the data stored within has a stable layout
+/// guaranteed between the producer and consumer of the capsule. Practically speaking, this means that:
+/// - any structs stored in capsules should be [`#[repr(C)]`][repr-c],
+/// - any enums stored within should either be [`#[repr(C)]`][enum-repr-c] or have a [fixed primitive representation], and
+/// - any function pointers stored within should have a fixed ABI (e.g. `extern "C"`) and only use arguments and return values
+///   which themselves have a stable layout.
+///
+/// In particular, note that Rust's default `#[repr(Rust)]` and `extern "Rust"` functions have no stability
+/// guarantees, so storing and dereferencing a pointer to a Rust function in a capsule which was produced
+/// by a separate compiled extension is UB.
+///
+/// If the data opaque to Python needs to be only accessed within a single extension, it is recommended to
+/// use a `#[pyclass]` with no public getters/setters. PyO3 can guarantee the type safety of the contents
+/// and provide a safe API for accessing it (e.g. via [`Bound::borrow`] and [`Bound::get`]).
 ///
 /// # Example
 /// ```
@@ -47,10 +79,27 @@ use std::ptr::{self, NonNull};
 /// });
 /// assert!(r.is_ok());
 /// ```
+///
+/// [repr-c]: <https://doc.rust-lang.org/reference/type-layout.html#the-c-representation>
+/// [enum-repr-c]: <https://doc.rust-lang.org/reference/type-layout.html#reprc-enums-with-fields>
+/// [fixed primitive representation]: <https://doc.rust-lang.org/reference/type-layout.html#primitive-representation-of-enums-with-fields>
 #[repr(transparent)]
 pub struct PyCapsule(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyCapsule, pyobject_native_static_type_object!(ffi::PyCapsule_Type), "types", "CapsuleType", #checkfunction=ffi::PyCapsule_CheckExact);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyCapsule,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "CapsuleType").unwrap().as_type_ptr()
+    },
+    "types",
+    "CapsuleType",
+    #checkfunction=ffi::PyCapsule_CheckExact
+);
 
 impl PyCapsule {
     /// Constructs a new capsule whose contents are `value`, associated with `name`.
@@ -64,8 +113,8 @@ impl PyCapsule {
     ///
     /// ```
     /// use pyo3::{prelude::*, types::PyCapsule, ffi::c_str};
-    /// use std::ffi::CStr;
-    /// use std::ptr::NonNull;
+    /// use core::ffi::CStr;
+    /// use core::ptr::NonNull;
     ///
     /// // this can be c"foo" on Rust 1.77+
     /// const NAME: &CStr = c"foo";
@@ -151,7 +200,7 @@ impl PyCapsule {
     ) -> PyResult<Bound<'py, Self>>
     where
         T: 'static + Send,
-        F: FnOnce(T, *mut c_void) + Send,
+        F: FnOnce(T, *mut c_void) + Send + 'static,
     {
         // Sanity check for capsule layout
         debug_assert_eq!(offset_of!(CapsuleContents::<T, F>, value), 0);
@@ -184,7 +233,7 @@ impl PyCapsule {
         since = "0.29.0",
         note = "use `PyCapsule::new_with_value_and_destructor` instead"
     )]
-    pub fn new_with_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send>(
+    pub fn new_with_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send + 'static>(
         py: Python<'_>,
         value: T,
         name: Option<CString>,
@@ -193,7 +242,9 @@ impl PyCapsule {
         // Sanity check for capsule layout
         debug_assert_eq!(offset_of!(CapsuleContents::<T, F>, value), 0);
 
-        let name_ptr = name.as_ref().map_or(std::ptr::null(), |name| name.as_ptr());
+        let name_ptr = name
+            .as_ref()
+            .map_or(core::ptr::null(), |name| name.as_ptr());
         let val = Box::into_raw(Box::new(CapsuleContents {
             value,
             destructor,
@@ -234,11 +285,11 @@ impl PyCapsule {
     ///
     /// ```
     /// use pyo3::{prelude::*, types::PyCapsule};
-    /// use std::ffi::c_void;
-    /// use std::ptr::NonNull;
+    /// use core::ffi::c_void;
+    /// use core::ptr::NonNull;
     ///
     /// extern "C" fn my_ffi_handler(_: *mut c_void) -> *mut c_void {
-    ///     std::ptr::null_mut()
+    ///     core::ptr::null_mut()
     /// }
     ///
     /// Python::attach(|py| {
@@ -286,13 +337,13 @@ impl PyCapsule {
     ///
     /// ```
     /// use pyo3::{prelude::*, types::PyCapsule};
-    /// use std::ffi::c_void;
-    /// use std::ptr::NonNull;
+    /// use core::ffi::c_void;
+    /// use core::ptr::NonNull;
     ///
     /// unsafe extern "C" fn free_data(capsule: *mut pyo3::ffi::PyObject) {
-    ///     let ptr = pyo3::ffi::PyCapsule_GetPointer(capsule, c"my_module.data".as_ptr());
+    ///     let ptr = unsafe { pyo3::ffi::PyCapsule_GetPointer(capsule, c"my_module.data".as_ptr()) };
     ///     if !ptr.is_null() {
-    ///         drop(Box::from_raw(ptr as *mut u32));
+    ///         unsafe { drop(Box::from_raw(ptr as *mut u32)) };
     ///     }
     /// }
     ///
@@ -338,16 +389,37 @@ impl PyCapsule {
     ///
     /// # Safety
     ///
-    /// It must be known that the capsule imported by `name` contains an item of type `T`.
+    /// - It must be known that the capsule imported by `name` contains an item of type `T`.
+    /// - The contents of the capsule must not be mutated by any third-party code while the reference is alive.
+    ///   The python interpreter does _NOT_ provide any synchronization guarantees for capsules.
     pub unsafe fn import<'py, T>(py: Python<'py>, name: &CStr) -> PyResult<&'py T> {
+        let ptr = Self::import_pointer(py, name)?.cast();
+
+        if !ptr.is_aligned() {
+            return Err(PySystemError::new_err(format!(
+                "The pointer from the `{}` capsule is not aligned to rust type {}",
+                name.to_string_lossy(),
+                core::any::type_name::<T>()
+            )));
+        }
+
+        // SAFETY: caller has upheld the safety contract and we just checked pointer alignment
+        Ok(unsafe { ptr.as_ref() })
+    }
+
+    /// Imports an existing capsule as a pointer.
+    ///
+    /// The `name` should match the path to the module attribute exactly in the form
+    /// of `"module.attribute"`, which should be the same as the name within the capsule.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe to call, but the pointer it returns is not safe to use.
+    /// The python interpreter does _NOT_ provide any synchronization guarantees for capsules.
+    pub fn import_pointer(py: Python<'_>, name: &CStr) -> PyResult<NonNull<c_void>> {
         // SAFETY: `name` is a valid C string, thread is attached to the Python interpreter
         let ptr = unsafe { ffi::PyCapsule_Import(name.as_ptr(), false as c_int) };
-        if ptr.is_null() {
-            Err(PyErr::fetch(py))
-        } else {
-            // SAFETY: caller has upheld the safety contract
-            Ok(unsafe { &*ptr.cast::<T>() })
-        }
+        NonNull::new(ptr).ok_or_else(|| PyErr::fetch(py))
     }
 }
 
@@ -383,7 +455,7 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// # Example
     ///
     /// ```
-    /// use std::ffi::c_void;
+    /// use core::ffi::c_void;
     /// use std::sync::mpsc::{channel, Sender};
     /// use pyo3::{prelude::*, types::PyCapsule};
     ///
@@ -420,24 +492,6 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// Returns an error if this capsule is not valid.
     fn context(&self) -> PyResult<*mut c_void>;
 
-    /// Obtains a reference dereferenced from the pointer of this capsule, without checking its name.
-    ///
-    /// Because this method encourages dereferencing the pointer for longer than necessary, it
-    /// is deprecated. Prefer to use [`pointer_checked()`][PyCapsuleMethods::pointer_checked]
-    /// and dereference the pointer only for as short a time as possible.
-    ///
-    /// # Safety
-    ///
-    /// This performs a dereference of the pointer returned from [`pointer()`][PyCapsuleMethods::pointer].
-    ///
-    /// See the safety notes on [`pointer_checked()`][PyCapsuleMethods::pointer_checked].
-    #[deprecated(since = "0.27.0", note = "to be removed, see `pointer_checked()`")]
-    unsafe fn reference<T>(&self) -> &T;
-
-    /// Gets the raw pointer stored in this capsule, without checking its name.
-    #[deprecated(since = "0.27.0", note = "use `pointer_checked()` instead")]
-    fn pointer(&self) -> *mut c_void;
-
     /// Gets the raw pointer stored in this capsule.
     ///
     /// Returns an error if the capsule is not [valid][`PyCapsuleMethods::is_valid_checked`] with the given `name`.
@@ -456,14 +510,6 @@ pub trait PyCapsuleMethods<'py>: crate::sealed::Sealed {
     /// Users should take care to cast to the correct type and consume the pointer for as little
     /// duration as possible.
     fn pointer_checked(&self, name: Option<&CStr>) -> PyResult<NonNull<c_void>>;
-
-    /// Checks if the capsule pointer is not null.
-    ///
-    /// This does not perform any check on the name of the capsule, which is the only mechanism
-    /// that Python provides to make sure that the pointer has the expected type. Prefer to use
-    /// [`is_valid_checked()`][Self::is_valid_checked()] instead.
-    #[deprecated(since = "0.27.0", note = "use `is_valid_checked()` instead")]
-    fn is_valid(&self) -> bool;
 
     /// Checks that the capsule name matches `name` and that the pointer is not null.
     fn is_valid_checked(&self, name: Option<&CStr>) -> bool;
@@ -502,25 +548,6 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
         Ok(ctx)
     }
 
-    #[allow(deprecated)]
-    unsafe fn reference<T>(&self) -> &T {
-        // SAFETY:
-        // - caller has upheld the safety contract
-        // - thread is attached to the Python interpreter
-        unsafe { &*self.pointer().cast() }
-    }
-
-    fn pointer(&self) -> *mut c_void {
-        // SAFETY: arguments to `PyCapsule_GetPointer` are valid, errors are handled properly
-        unsafe {
-            let ptr = ffi::PyCapsule_GetPointer(self.as_ptr(), name_ptr_ignore_error(self));
-            if ptr.is_null() {
-                ffi::PyErr_Clear();
-            }
-            ptr
-        }
-    }
-
     fn pointer_checked(&self, name: Option<&CStr>) -> PyResult<NonNull<c_void>> {
         // SAFETY:
         // - `self.as_ptr()` is a valid object pointer
@@ -528,14 +555,6 @@ impl<'py> PyCapsuleMethods<'py> for Bound<'py, PyCapsule> {
         // - thread is attached to the Python interpreter
         let ptr = unsafe { ffi::PyCapsule_GetPointer(self.as_ptr(), name_ptr(name)) };
         NonNull::new(ptr).ok_or_else(|| PyErr::fetch(self.py()))
-    }
-
-    fn is_valid(&self) -> bool {
-        // SAFETY: As well as if the stored pointer is null, PyCapsule_IsValid also returns false if
-        // self.as_ptr() is null or not a ptr to a PyCapsule object. Both of these are guaranteed
-        // to not be the case thanks to invariants of this PyCapsule struct.
-        let r = unsafe { ffi::PyCapsule_IsValid(self.as_ptr(), name_ptr_ignore_error(self)) };
-        r != 0
     }
 
     fn is_valid_checked(&self, name: Option<&CStr>) -> bool {
@@ -605,7 +624,7 @@ impl CapsuleName {
 
 // C layout, as casting the capsule pointer to `T` depends on `T` being first.
 #[repr(C)]
-struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void) + Send> {
+struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void) + Send + 'static> {
     /// Value of the capsule
     value: T,
     /// Destructor to be used by the capsule
@@ -616,7 +635,10 @@ struct CapsuleContents<T: 'static + Send, D: FnOnce(T, *mut c_void) + Send> {
 }
 
 // Wrapping ffi::PyCapsule_Destructor for a user supplied FnOnce(T) for capsule destructor
-unsafe extern "C" fn capsule_destructor<T: 'static + Send, F: FnOnce(T, *mut c_void) + Send>(
+unsafe extern "C" fn capsule_destructor<
+    T: 'static + Send,
+    F: FnOnce(T, *mut c_void) + Send + 'static,
+>(
     capsule: *mut ffi::PyObject,
 ) {
     /// Gets the pointer and context from the capsule.
@@ -660,18 +682,6 @@ fn ensure_no_error(py: Python<'_>) -> PyResult<()> {
     }
 }
 
-fn name_ptr_ignore_error(slf: &Bound<'_, PyCapsule>) -> *const c_char {
-    // SAFETY:
-    // - `slf` is known to be a valid capsule object
-    // - thread is attached to the Python interpreter
-    let ptr = unsafe { ffi::PyCapsule_GetName(slf.as_ptr()) };
-    if ptr.is_null() {
-        // SAFETY: thread is attached to the Python interpreter
-        unsafe { ffi::PyErr_Clear() };
-    }
-    ptr
-}
-
 fn name_ptr(name: Option<&CStr>) -> *const c_char {
     match name {
         Some(name) => name.as_ptr(),
@@ -681,13 +691,16 @@ fn name_ptr(name: Option<&CStr>) -> *const c_char {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
+    use crate::platform::prelude::*;
     use crate::prelude::PyModule;
     use crate::types::capsule::PyCapsuleMethods;
     use crate::types::module::PyModuleMethods;
-    use crate::{types::PyCapsule, Py, PyResult, Python};
-    use std::ffi::{c_void, CStr};
-    use std::ptr::NonNull;
-    use std::sync::mpsc::{channel, Sender};
+    use crate::{Py, PyResult, Python, types::PyCapsule};
+    use core::ffi::{CStr, c_void};
+    use core::ptr::NonNull;
+    use std::sync::mpsc::{Sender, channel};
 
     const NAME: &CStr = c"foo";
 
@@ -794,6 +807,28 @@ mod tests {
     }
 
     #[test]
+    fn test_misaligned_import() {
+        #[repr(align(128))]
+        struct Align128 {
+            _n: usize,
+        }
+
+        Python::attach(|py| {
+            let ptr = NonNull::new(129 as *mut c_void).unwrap();
+            let name = c"builtins.capsule";
+
+            // SAFETY: the pointer will never be dereferenced
+            let capsule = unsafe { PyCapsule::new_with_pointer(py, ptr, name) }.unwrap();
+
+            let module = PyModule::import(py, "builtins").unwrap();
+            module.add("capsule", capsule).unwrap();
+
+            // SAFETY: this should return an error so no reference will be created
+            assert!(unsafe { PyCapsule::import::<Align128>(py, name) }.is_err());
+        });
+    }
+
+    #[test]
     fn test_vec_storage() {
         let cap: Py<PyCapsule> = Python::attach(|py| {
             let stuff: Vec<u8> = vec![1, 2, 3, 4];
@@ -864,14 +899,14 @@ mod tests {
                 &0usize
             );
             assert!(cap.name().unwrap().is_none());
-            assert_eq!(cap.context().unwrap(), std::ptr::null_mut());
+            assert_eq!(cap.context().unwrap(), core::ptr::null_mut());
         });
     }
 
     #[test]
     fn test_pycapsule_new_with_pointer() {
         extern "C" fn dummy_handler(_: *mut c_void) -> *mut c_void {
-            std::ptr::null_mut()
+            core::ptr::null_mut()
         }
 
         let fn_ptr =
@@ -891,7 +926,7 @@ mod tests {
 
     #[test]
     fn test_pycapsule_new_with_pointer_and_destructor() {
-        use std::sync::mpsc::{channel, TryRecvError};
+        use std::sync::mpsc::{TryRecvError, channel};
 
         let (tx, rx) = channel::<bool>();
 
@@ -1008,7 +1043,7 @@ mod tests {
             // Invalidate the capsule
             // SAFETY: intentionally breaking the capsule for testing
             unsafe {
-                crate::ffi::PyCapsule_SetPointer(cap.as_ptr(), std::ptr::null_mut());
+                crate::ffi::PyCapsule_SetPointer(cap.as_ptr(), core::ptr::null_mut());
             }
 
             // context() on invalid capsule should fail

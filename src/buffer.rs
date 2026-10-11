@@ -1,3 +1,5 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(any(not(Py_LIMITED_API), Py_3_11))]
 // Copyright (c) 2017 Daniel Grunwald
 //
@@ -19,18 +21,19 @@
 
 //! `PyBuffer` implementation
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
-use crate::{err, exceptions::PyBufferError, ffi, FromPyObject, PyAny, PyResult, Python};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
+use crate::platform::prelude::*;
 use crate::{Borrowed, Bound, PyErr};
-use std::ffi::{
+use crate::{FromPyObject, PyAny, PyResult, Python, err, exceptions::PyBufferError, ffi};
+use core::ffi::{
     c_char, c_int, c_long, c_longlong, c_schar, c_short, c_uchar, c_uint, c_ulong, c_ulonglong,
     c_ushort, c_void,
 };
-use std::marker::{PhantomData, PhantomPinned};
-use std::pin::Pin;
-use std::ptr::NonNull;
-use std::{cell, mem, ptr, slice};
-use std::{ffi::CStr, fmt::Debug};
+use core::marker::{PhantomData, PhantomPinned};
+use core::pin::Pin;
+use core::ptr::NonNull;
+use core::{cell, mem, ptr, slice};
+use core::{ffi::CStr, fmt::Debug};
 
 /// A typed form of [`PyUntypedBuffer`].
 #[repr(transparent)]
@@ -56,13 +59,13 @@ unsafe impl Send for PyUntypedBuffer {}
 unsafe impl Sync for PyUntypedBuffer {}
 
 impl<T> Debug for PyBuffer<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         debug_buffer("PyBuffer", &self.0, f)
     }
 }
 
 impl Debug for PyUntypedBuffer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         debug_buffer("PyUntypedBuffer", self, f)
     }
 }
@@ -70,8 +73,8 @@ impl Debug for PyUntypedBuffer {
 fn debug_buffer(
     name: &str,
     b: &PyUntypedBuffer,
-    f: &mut std::fmt::Formatter<'_>,
-) -> std::fmt::Result {
+    f: &mut core::fmt::Formatter<'_>,
+) -> core::fmt::Result {
     let raw = b.raw();
     f.debug_struct(name)
         .field("buf", &raw.buf)
@@ -220,7 +223,11 @@ impl<T: Element> FromPyObject<'_, '_> for PyBuffer<T> {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("collections.abc", "Buffer");
+    const INPUT_TYPE: PyStaticExpr = if cfg!(Py_3_12) {
+        type_hint_identifier!("collections.abc", "Buffer")
+    } else {
+        type_hint_identifier!("typing_extensions", "Buffer")
+    };
 
     fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<PyBuffer<T>, Self::Error> {
         Self::get(&obj)
@@ -323,6 +330,31 @@ impl<T: Element> PyBuffer<T> {
         }
     }
 
+    /// Gets the buffer memory as a slice.
+    ///
+    /// Returns null if the buffer is not C-style contiguous
+    pub fn as_slice_ptr(&self) -> Option<NonNull<[T]>> {
+        self.slice_pointer_internal(self.is_c_contiguous())
+    }
+
+    /// Gets the buffer memory as a slice.
+    ///
+    /// This function returns null if the buffer is not Fortran-style contiguous
+    pub fn as_fortran_slice_ptr(&self) -> Option<NonNull<[T]>> {
+        self.slice_pointer_internal(self.is_fortran_contiguous())
+    }
+
+    fn slice_pointer_internal(&self, contiguous: bool) -> Option<NonNull<[T]>> {
+        if contiguous {
+            NonNull::new(ptr::slice_from_raw_parts_mut(
+                self.raw().buf.cast(),
+                self.item_count(),
+            ))
+        } else {
+            None
+        }
+    }
+
     /// Copies the buffer elements to the specified slice.
     /// If the buffer is multi-dimensional, the elements are written in C-style order.
     ///
@@ -358,7 +390,7 @@ impl<T: Element> PyBuffer<T> {
             )));
         }
 
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyBuffer_ToContiguous(
                 target.as_mut_ptr().cast(),
                 #[cfg(Py_3_11)]
@@ -366,7 +398,7 @@ impl<T: Element> PyBuffer<T> {
                 #[cfg(not(Py_3_11))]
                 ptr::from_ref(self.raw()).cast_mut(),
                 self.raw().len,
-                fort as std::ffi::c_char,
+                fort as core::ffi::c_char,
             )
         })
     }
@@ -393,7 +425,7 @@ impl<T: Element> PyBuffer<T> {
 
         // Copy the buffer into the uninitialized space in the vector.
         // Due to T:Copy, we don't need to be concerned with Drop impls.
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyBuffer_ToContiguous(
                 vec.as_mut_ptr().cast(),
                 #[cfg(Py_3_11)]
@@ -401,7 +433,7 @@ impl<T: Element> PyBuffer<T> {
                 #[cfg(not(Py_3_11))]
                 ptr::from_ref(self.raw()).cast_mut(),
                 self.raw().len,
-                fort as std::ffi::c_char,
+                fort as core::ffi::c_char,
             )
         })?;
         // set vector length to mark the now-initialized space as usable
@@ -448,7 +480,7 @@ impl<T: Element> PyBuffer<T> {
             )));
         }
 
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyBuffer_FromContiguous(
                 #[cfg(Py_3_11)]
                 self.raw(),
@@ -463,13 +495,13 @@ impl<T: Element> PyBuffer<T> {
                     source.as_ptr().cast::<c_void>().cast_mut()
                 },
                 self.raw().len,
-                fort as std::ffi::c_char,
+                fort as core::ffi::c_char,
             )
         })
     }
 }
 
-impl<T> std::ops::Deref for PyBuffer<T> {
+impl<T> core::ops::Deref for PyBuffer<T> {
     type Target = PyUntypedBuffer;
 
     fn deref(&self) -> &Self::Target {
@@ -483,7 +515,7 @@ impl PyUntypedBuffer {
         let buf = {
             let mut buf = Box::<RawBuffer>::new_uninit();
             // SAFETY: RawBuffer is `#[repr(transparent)]` around FFI struct
-            err::error_on_minusone(obj.py(), unsafe {
+            err::error_on_negative(obj.py(), unsafe {
                 ffi::PyObject_GetBuffer(
                     obj.as_ptr(),
                     buf.as_mut_ptr().cast::<ffi::Py_buffer>(),
@@ -524,12 +556,12 @@ impl PyUntypedBuffer {
         if mem::size_of::<T>() != self.item_size() || !T::is_compatible_format(self.format()) {
             Err(PyBufferError::new_err(format!(
                 "buffer contents are not compatible with {}",
-                std::any::type_name::<T>()
+                core::any::type_name::<T>()
             )))
         } else if self.raw().buf.align_offset(mem::align_of::<T>()) != 0 {
             Err(PyBufferError::new_err(format!(
                 "buffer contents are insufficiently aligned for {}",
-                std::any::type_name::<T>()
+                core::any::type_name::<T>()
             )))
         } else {
             Ok(())
@@ -691,17 +723,17 @@ impl PyUntypedBuffer {
     /// Gets whether the buffer is contiguous in C-style order (last index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_c_contiguous(&self) -> bool {
-        unsafe { ffi::PyBuffer_IsContiguous(self.raw(), b'C' as std::ffi::c_char) != 0 }
+        unsafe { ffi::PyBuffer_IsContiguous(self.raw(), b'C' as core::ffi::c_char) != 0 }
     }
 
     /// Gets whether the buffer is contiguous in Fortran-style order (first index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_fortran_contiguous(&self) -> bool {
-        unsafe { ffi::PyBuffer_IsContiguous(self.raw(), b'F' as std::ffi::c_char) != 0 }
+        unsafe { ffi::PyBuffer_IsContiguous(self.raw(), b'F' as core::ffi::c_char) != 0 }
     }
 
     fn raw(&self) -> &ffi::Py_buffer {
-        &self.0 .0
+        &self.0.0
     }
 }
 
@@ -723,11 +755,20 @@ impl RawBuffer {
 
 impl Drop for PyUntypedBuffer {
     fn drop(&mut self) {
-        if Python::try_attach(|_| unsafe { self.0.release() }).is_none()
-            && crate::internal::state::is_in_gc_traversal()
-        {
-            eprintln!("Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory.");
+        #[cfg_attr(not(wip_feature_std), expect(unused_variables))]
+        let released = Python::try_attach(|_| unsafe {
+            self.0.release();
+        })
+        .is_some();
+
+        // TODO remove once implementing GC traversal is unsafe
+        #[cfg(wip_feature_std)]
+        if !released && crate::internal::state::is_in_gc_traversal() {
+            std::eprintln!(
+                "Warning: PyBuffer dropped while in GC traversal, this is a bug and will leak memory."
+            );
         }
+
         // If `try_attach` failed and `is_in_gc_traversal()` is false, then probably the interpreter has
         // already finalized and we can just assume that the underlying memory has already been freed.
         //
@@ -735,7 +776,7 @@ impl Drop for PyUntypedBuffer {
     }
 }
 
-/// Like [std::cell::Cell], but only provides read-only access to the data.
+/// Like [core::cell::Cell], but only provides read-only access to the data.
 ///
 /// `&ReadOnlyCell<T>` is basically a safe version of `*const T`:
 ///  The data cannot be modified through the reference, but other references may
@@ -788,10 +829,28 @@ impl_element!(f64, Float);
 mod tests {
     use super::*;
 
-    use crate::ffi;
-    use crate::types::any::PyAnyMethods;
-    use crate::types::PyBytes;
     use crate::Python;
+    use crate::ffi;
+    use crate::types::PyBytes;
+    use crate::types::any::PyAnyMethods;
+
+    #[cfg(feature = "experimental-inspect")]
+    #[test]
+    fn collections_abc_is_only_chosen_when_it_has_buffer() {
+        Python::attach(|py| {
+            let hint = <PyBuffer<u8> as FromPyObject<'_, '_>>::INPUT_TYPE.to_string();
+            if hint == "collections.abc.Buffer" {
+                let collections_abc_has_it = py
+                    .import("collections.abc")
+                    .unwrap()
+                    .hasattr("Buffer")
+                    .unwrap();
+                assert!(collections_abc_has_it);
+            } else {
+                assert_eq!(hint, "typing_extensions.Buffer");
+            }
+        });
+    }
 
     #[test]
     fn test_debug() {
@@ -817,7 +876,7 @@ mod tests {
     #[test]
     fn test_element_type_from_format() {
         use super::ElementType::*;
-        use std::mem::size_of;
+        use core::mem::size_of;
 
         for (cstr, expected) in [
             // @ prefix goes to native_element_type_from_type_char
@@ -943,8 +1002,8 @@ mod tests {
     fn test_compatible_size() {
         // for the cast in PyBuffer::shape()
         assert_eq!(
-            std::mem::size_of::<ffi::Py_ssize_t>(),
-            std::mem::size_of::<usize>()
+            core::mem::size_of::<ffi::Py_ssize_t>(),
+            core::mem::size_of::<usize>()
         );
     }
 
@@ -1076,6 +1135,30 @@ mod tests {
                 let rebound = owner_ref.bind(py);
                 assert!(rebound.is_instance_of::<PyBytes>());
             });
+        });
+    }
+
+    #[test]
+    fn test_as_slice_ptr() {
+        Python::attach(|py| {
+            let bytes = PyBytes::new(py, b"abcde");
+            let buffer = PyBuffer::<u8>::get(&bytes).unwrap();
+            let slice_ptr = buffer.as_slice_ptr().unwrap();
+            assert_eq!(slice_ptr.len(), 5);
+            assert_eq!(unsafe { *slice_ptr.as_ptr().cast::<u8>() }, b'a');
+
+            let fortran_slice_ptr = buffer.as_fortran_slice_ptr().unwrap();
+            assert_eq!(fortran_slice_ptr.len(), 5);
+            assert_eq!(unsafe { *fortran_slice_ptr.as_ptr().cast::<u8>() }, b'a');
+
+            // non-contiguous buffer should return None, e.g. strided memoryview
+            let view = py.eval(c"memoryview(b'abcde')[::2]", None, None).unwrap();
+            let buffer = PyBuffer::<u8>::get(&view).unwrap();
+
+            assert_eq!(buffer.shape(), [3]);
+            assert_eq!(buffer.strides(), [2]);
+            assert!(buffer.as_slice_ptr().is_none());
+            assert!(buffer.as_fortran_slice_ptr().is_none());
         });
     }
 }

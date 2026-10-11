@@ -1,17 +1,23 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
 //! Contains types for working with Python objects that own the underlying data.
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+use crate::platform::prelude::*;
+use crate::sync::critical_section::with_critical_section;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_union;
 use crate::{
-    types::{
-        bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
-        PyBytes, PyString, PyTuple,
-    },
     Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo, Python,
+    types::{
+        PyByteArray, PyBytes, PyString, PyTuple, bytearray::PyByteArrayMethods,
+        bytes::PyBytesMethods, string::PyStringMethods,
+    },
 };
-use std::{borrow::Borrow, convert::Infallible, ops::Deref, ptr::NonNull, sync::Arc};
+use alloc::sync::Arc;
+use core::{borrow::Borrow, convert::Infallible, ops::Deref, ptr::NonNull};
 
 /// An equivalent to `String` where the storage is owned by a Python `bytes` or `str` object.
 ///
@@ -91,9 +97,9 @@ impl Borrow<str> for PyBackedStr {
 unsafe impl Send for PyBackedStr {}
 unsafe impl Sync for PyBackedStr {}
 
-impl std::fmt::Display for PyBackedStr {
+impl core::fmt::Display for PyBackedStr {
     #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.deref().fmt(f)
     }
 }
@@ -115,7 +121,7 @@ impl TryFrom<Bound<'_, PyString>> for PyBackedStr {
         #[cfg(not(any(Py_3_10, not(Py_LIMITED_API))))]
         {
             let bytes = py_string.encode_utf8()?;
-            let s = unsafe { std::str::from_utf8_unchecked(bytes.as_bytes()) };
+            let s = unsafe { core::str::from_utf8_unchecked(bytes.as_bytes()) };
             let data = NonNull::from(s);
             Ok(Self {
                 storage: bytes.unbind(),
@@ -267,7 +273,14 @@ impl From<Bound<'_, PyBytes>> for PyBackedBytes {
 
 impl From<Bound<'_, PyByteArray>> for PyBackedBytes {
     fn from(py_bytearray: Bound<'_, PyByteArray>) -> Self {
-        let s = Arc::<[u8]>::from(py_bytearray.to_vec());
+        let s = with_critical_section(&py_bytearray, || {
+            // SAFETY:
+            //  * `py_bytearray` is a `Bound` object, which guarantees that the Python GIL is held.
+            //  * For free-threaded Python, a critical section is used in lieu of the GIL.
+            //  * We don't interact with the interpreter
+            //  * We don't mutate the underlying slice
+            Arc::<[u8]>::from(unsafe { py_bytearray.as_bytes() })
+        });
         let data = NonNull::from(s.as_ref());
         Self {
             storage: PyBackedBytesStorage::Rust(s),
@@ -338,9 +351,9 @@ impl<'py> IntoPyObject<'py> for &PyBackedBytes {
 
 macro_rules! impl_traits {
     ($slf:ty, $equiv:ty) => {
-        impl std::fmt::Debug for $slf {
+        impl core::fmt::Debug for $slf {
             #[inline]
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 self.deref().fmt(f)
             }
         }
@@ -384,35 +397,35 @@ macro_rules! impl_traits {
 
         impl PartialOrd for $slf {
             #[inline]
-            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
                 Some(self.cmp(other))
             }
         }
 
         impl PartialOrd<$equiv> for $slf {
             #[inline]
-            fn partial_cmp(&self, other: &$equiv) -> Option<std::cmp::Ordering> {
+            fn partial_cmp(&self, other: &$equiv) -> Option<core::cmp::Ordering> {
                 self.deref().partial_cmp(other)
             }
         }
 
         impl PartialOrd<$slf> for $equiv {
             #[inline]
-            fn partial_cmp(&self, other: &$slf) -> Option<std::cmp::Ordering> {
+            fn partial_cmp(&self, other: &$slf) -> Option<core::cmp::Ordering> {
                 self.partial_cmp(other.deref())
             }
         }
 
         impl Ord for $slf {
             #[inline]
-            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            fn cmp(&self, other: &Self) -> core::cmp::Ordering {
                 self.deref().cmp(other.deref())
             }
         }
 
-        impl std::hash::Hash for $slf {
+        impl core::hash::Hash for $slf {
             #[inline]
-            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
                 self.deref().hash(state)
             }
         }
@@ -422,12 +435,14 @@ use impl_traits;
 
 #[cfg(test)]
 mod test {
+    extern crate std;
+
     use super::*;
-    use crate::impl_::pyclass::{value_of, IsSend, IsSync};
+    use crate::impl_::pyclass::{IsSend, IsSync, value_of};
     use crate::types::PyAnyMethods as _;
     use crate::{IntoPyObject, Python};
+    use core::hash::{Hash, Hasher};
     use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
 
     #[test]
     fn py_backed_str_empty() {
@@ -509,10 +524,12 @@ mod test {
         Python::attach(|py| {
             let orig_bytes = PyBytes::new(py, b"abcde");
             let py_backed_bytes = PyBackedBytes::from(orig_bytes.clone());
-            assert!((&py_backed_bytes)
-                .into_pyobject(py)
-                .unwrap()
-                .is(&orig_bytes));
+            assert!(
+                (&py_backed_bytes)
+                    .into_pyobject(py)
+                    .unwrap()
+                    .is(&orig_bytes)
+            );
         });
     }
 
@@ -619,7 +636,7 @@ mod test {
     #[test]
     fn test_backed_str_map_key() {
         Python::attach(|py| {
-            use std::collections::HashMap;
+            use crate::platform::collections::HashMap;
 
             let mut map: HashMap<PyBackedStr, usize> = HashMap::new();
             let s: PyBackedStr = PyString::new(py, "key1").try_into().unwrap();

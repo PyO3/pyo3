@@ -15,10 +15,11 @@ pub use crate::marker::Python;
 pub use crate::pycell::{PyRef, PyRefMut};
 pub use crate::pyclass_init::PyClassInitializer;
 pub use crate::types::{PyAny, PyModule};
+pub use crate::{PyClassGuard, PyClassGuardMut};
 
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{
-    pyclass, pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef,
+    FromPyObject, IntoPyObject, IntoPyObjectRef, pyclass, pyfunction, pymethods, pymodule,
 };
 
 #[cfg(feature = "macros")]
@@ -32,6 +33,8 @@ pub use crate::types::capsule::PyCapsuleMethods;
 pub use crate::types::complex::PyComplexMethods;
 pub use crate::types::dict::PyDictMethods;
 pub use crate::types::float::PyFloatMethods;
+#[cfg(Py_3_15)]
+pub use crate::types::frozendict::PyFrozenDictMethods;
 pub use crate::types::frozenset::PyFrozenSetMethods;
 pub use crate::types::list::PyListMethods;
 pub use crate::types::mapping::PyMappingMethods;

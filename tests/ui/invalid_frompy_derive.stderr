@@ -5,271 +5,277 @@ error: cannot derive FromPyObject for empty structs and variants
   |           ^^
 
 error: cannot derive FromPyObject for empty structs and variants
- --> tests/ui/invalid_frompy_derive.rs:7:13
+ --> tests/ui/invalid_frompy_derive.rs:8:13
   |
-7 | struct Foo2 {}
+8 | struct Foo2 {}
   |             ^^
 
 error: cannot derive FromPyObject for empty enum
-  --> tests/ui/invalid_frompy_derive.rs:10:6
+  --> tests/ui/invalid_frompy_derive.rs:12:6
    |
-10 | enum EmptyEnum {}
+12 | enum EmptyEnum {}
    |      ^^^^^^^^^
 
 error: cannot derive FromPyObject for empty structs and variants
-  --> tests/ui/invalid_frompy_derive.rs:14:15
+  --> tests/ui/invalid_frompy_derive.rs:17:15
    |
-14 |     EmptyTuple(),
+17 |     EmptyTuple(),
    |               ^^
 
 error: cannot derive FromPyObject for empty structs and variants
-  --> tests/ui/invalid_frompy_derive.rs:20:17
+  --> tests/ui/invalid_frompy_derive.rs:24:17
    |
-20 |     EmptyStruct {},
+24 |     EmptyStruct {},
    |                 ^^
 
 error: cannot derive FromPyObject for empty structs and variants
-  --> tests/ui/invalid_frompy_derive.rs:26:27
+  --> tests/ui/invalid_frompy_derive.rs:31:27
    |
-26 | struct EmptyTransparentTup();
+31 | struct EmptyTransparentTup();
    |                           ^^
 
 error: cannot derive FromPyObject for empty structs and variants
-  --> tests/ui/invalid_frompy_derive.rs:30:31
+  --> tests/ui/invalid_frompy_derive.rs:36:31
    |
-30 | struct EmptyTransparentStruct {}
+36 | struct EmptyTransparentStruct {}
    |                               ^^
 
 error: cannot derive FromPyObject for empty structs and variants
-  --> tests/ui/invalid_frompy_derive.rs:35:15
+  --> tests/ui/invalid_frompy_derive.rs:42:15
    |
-35 |     EmptyTuple(),
+42 |     EmptyTuple(),
    |               ^^
 
 error: cannot derive FromPyObject for empty structs and variants
-  --> tests/ui/invalid_frompy_derive.rs:42:17
+  --> tests/ui/invalid_frompy_derive.rs:50:17
    |
-42 |     EmptyStruct {},
+50 |     EmptyStruct {},
    |                 ^^
 
 error: transparent structs and variants can only have 1 field
-  --> tests/ui/invalid_frompy_derive.rs:48:35
+  --> tests/ui/invalid_frompy_derive.rs:57:35
    |
-48 | struct TransparentTupTooManyFields(String, String);
+57 | struct TransparentTupTooManyFields(String, String);
    |                                   ^^^^^^^^^^^^^^^^
 
 error: transparent structs and variants can only have 1 field
-  --> tests/ui/invalid_frompy_derive.rs:52:39
+  --> tests/ui/invalid_frompy_derive.rs:62:39
    |
-52 |   struct TransparentStructTooManyFields {
+62 |   struct TransparentStructTooManyFields {
    |  _______________________________________^
-53 | |     foo: String,
-54 | |     bar: String,
-55 | | }
+63 | |
+64 | |     foo: String,
+65 | |     bar: String,
+66 | | }
    | |_^
 
 error: transparent structs and variants can only have 1 field
-  --> tests/ui/invalid_frompy_derive.rs:60:15
+  --> tests/ui/invalid_frompy_derive.rs:71:15
    |
-60 |     EmptyTuple(String, String),
+71 |     EmptyTuple(String, String),
    |               ^^^^^^^^^^^^^^^^
 
 error: transparent structs and variants can only have 1 field
-  --> tests/ui/invalid_frompy_derive.rs:67:17
+  --> tests/ui/invalid_frompy_derive.rs:79:17
    |
-67 |       EmptyStruct {
+79 |       EmptyStruct {
    |  _________________^
-68 | |         foo: String,
-69 | |         bar: String,
-70 | |     },
+80 | |
+81 | |         foo: String,
+82 | |         bar: String,
+83 | |     },
    | |_____^
 
 error: expected one of: `attribute`, `item`, `from_py_with`, `into_py_with`, `default`
-  --> tests/ui/invalid_frompy_derive.rs:76:12
+  --> tests/ui/invalid_frompy_derive.rs:89:12
    |
-76 |     #[pyo3(attr)]
+89 |     #[pyo3(attr)]
    |            ^^^^
 
 error: expected string literal
-  --> tests/ui/invalid_frompy_derive.rs:82:22
+  --> tests/ui/invalid_frompy_derive.rs:96:22
    |
-82 |     #[pyo3(attribute(1))]
+96 |     #[pyo3(attribute(1))]
    |                      ^
 
 error: expected at most one argument: `attribute` or `attribute("name")`
-  --> tests/ui/invalid_frompy_derive.rs:88:25
-   |
-88 |     #[pyo3(attribute("a", "b"))]
-   |                         ^
+   --> tests/ui/invalid_frompy_derive.rs:103:25
+    |
+103 |     #[pyo3(attribute("a", "b"))]
+    |                         ^
 
 error: attribute name cannot be empty
-  --> tests/ui/invalid_frompy_derive.rs:94:22
-   |
-94 |     #[pyo3(attribute(""))]
-   |                      ^^
+   --> tests/ui/invalid_frompy_derive.rs:110:22
+    |
+110 |     #[pyo3(attribute(""))]
+    |                      ^^
 
 error: unexpected end of input, expected string literal
-   --> tests/ui/invalid_frompy_derive.rs:100:22
+   --> tests/ui/invalid_frompy_derive.rs:117:22
     |
-100 |     #[pyo3(attribute())]
+117 |     #[pyo3(attribute())]
     |                      ^
 
 error: expected at most one argument: `item` or `item(key)`
-   --> tests/ui/invalid_frompy_derive.rs:106:20
+   --> tests/ui/invalid_frompy_derive.rs:124:20
     |
-106 |     #[pyo3(item("a", "b"))]
+124 |     #[pyo3(item("a", "b"))]
     |                    ^
 
 error: unexpected end of input, expected literal
-   --> tests/ui/invalid_frompy_derive.rs:112:17
+   --> tests/ui/invalid_frompy_derive.rs:131:17
     |
-112 |     #[pyo3(item())]
+131 |     #[pyo3(item())]
     |                 ^
 
 error: only one of `attribute` or `item` can be provided
-   --> tests/ui/invalid_frompy_derive.rs:118:18
+   --> tests/ui/invalid_frompy_derive.rs:138:18
     |
-118 |     #[pyo3(item, attribute)]
+138 |     #[pyo3(item, attribute)]
     |                  ^^^^^^^^^
 
 error: expected one of: `transparent`, `from_item_all`, `annotation`, `crate`, `rename_all`
-   --> tests/ui/invalid_frompy_derive.rs:123:8
+   --> tests/ui/invalid_frompy_derive.rs:144:8
     |
-123 | #[pyo3(unknown = "should not work")]
+144 | #[pyo3(unknown = "should not work")]
     |        ^^^^^^^
 
 error: `annotation` is unsupported for structs
-   --> tests/ui/invalid_frompy_derive.rs:129:21
+   --> tests/ui/invalid_frompy_derive.rs:151:21
     |
-129 | #[pyo3(annotation = "should not work")]
+151 | #[pyo3(annotation = "should not work")]
     |                     ^^^^^^^^^^^^^^^^^
 
 error: expected string literal
-   --> tests/ui/invalid_frompy_derive.rs:136:25
+   --> tests/ui/invalid_frompy_derive.rs:159:25
     |
-136 |     #[pyo3(annotation = 1)]
+159 |     #[pyo3(annotation = 1)]
     |                         ^
 
 error: FromPyObject can be derived with at most one lifetime parameter
-   --> tests/ui/invalid_frompy_derive.rs:141:22
+   --> tests/ui/invalid_frompy_derive.rs:165:22
     |
-141 | enum TooManyLifetimes<'a, 'b> {
+165 | enum TooManyLifetimes<'a, 'b> {
     |                      ^
 
 error: #[derive(FromPyObject)] is not supported for unions
-   --> tests/ui/invalid_frompy_derive.rs:147:1
+   --> tests/ui/invalid_frompy_derive.rs:172:1
     |
-147 | union Union {
+172 | union Union {
     | ^^^^^
 
 error: cannot derive FromPyObject for empty structs and variants
-   --> tests/ui/invalid_frompy_derive.rs:151:10
+   --> tests/ui/invalid_frompy_derive.rs:177:10
     |
-151 | #[derive(FromPyObject)]
+177 | #[derive(FromPyObject)]
     |          ^^^^^^^^^^^^
     |
     = note: this error originates in the derive macro `FromPyObject` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: expected `=`
-   --> tests/ui/invalid_frompy_derive.rs:158:24
+   --> tests/ui/invalid_frompy_derive.rs:185:24
     |
-158 |     #[pyo3(from_py_with)]
+185 |     #[pyo3(from_py_with)]
     |                        ^
 
 error: `getter` is not permitted on tuple struct elements.
-   --> tests/ui/invalid_frompy_derive.rs:169:27
+   --> tests/ui/invalid_frompy_derive.rs:197:27
     |
-169 | struct InvalidTupleGetter(#[pyo3(item("foo"))] String);
+197 | struct InvalidTupleGetter(#[pyo3(item("foo"))] String);
     |                           ^
 
 error: `transparent` structs may not have a `getter` for the inner field
-   --> tests/ui/invalid_frompy_derive.rs:175:5
+   --> tests/ui/invalid_frompy_derive.rs:204:5
     |
-175 |     field: String,
+204 |     field: String,
     |     ^^^^^
 
 error: `transparent` structs may not have a `getter` for the inner field
-   --> tests/ui/invalid_frompy_derive.rs:186:5
+   --> tests/ui/invalid_frompy_derive.rs:216:5
     |
-186 |     field: String,
+216 |     field: String,
     |     ^^^^^
 
 error: `from_item_all` may only be specified once
-   --> tests/ui/invalid_frompy_derive.rs:190:23
+   --> tests/ui/invalid_frompy_derive.rs:221:23
     |
-190 | #[pyo3(from_item_all, from_item_all)]
+221 | #[pyo3(from_item_all, from_item_all)]
     |                       ^^^^^^^^^^^^^
 
 error: Useless `item` - the struct is already annotated with `from_item_all`
-   --> tests/ui/invalid_frompy_derive.rs:196:8
+   --> tests/ui/invalid_frompy_derive.rs:228:8
     |
-196 | #[pyo3(from_item_all)]
+228 | #[pyo3(from_item_all)]
     |        ^^^^^^^^^^^^^
 
 error: The struct is already annotated with `from_item_all`, `attribute` is not allowed
-   --> tests/ui/invalid_frompy_derive.rs:203:8
+   --> tests/ui/invalid_frompy_derive.rs:236:8
     |
-203 | #[pyo3(from_item_all)]
+236 | #[pyo3(from_item_all)]
     |        ^^^^^^^^^^^^^
 
 error: The struct is already annotated with `from_item_all`, `attribute` is not allowed
-   --> tests/ui/invalid_frompy_derive.rs:210:8
+   --> tests/ui/invalid_frompy_derive.rs:244:8
     |
-210 | #[pyo3(from_item_all)]
+244 | #[pyo3(from_item_all)]
     |        ^^^^^^^^^^^^^
 
 error: cannot derive FromPyObject for structs and variants with only default values
-   --> tests/ui/invalid_frompy_derive.rs:217:36
+   --> tests/ui/invalid_frompy_derive.rs:252:36
     |
-217 |   struct StructWithOnlyDefaultValues {
+252 |   struct StructWithOnlyDefaultValues {
     |  ____________________________________^
-218 | |     #[pyo3(default)]
-219 | |     field: String,
-220 | | }
+253 | |
+254 | |     #[pyo3(default)]
+255 | |     field: String,
+256 | | }
     | |_^
 
 error: cannot derive FromPyObject for structs and variants with only default values
-   --> tests/ui/invalid_frompy_derive.rs:224:9
+   --> tests/ui/invalid_frompy_derive.rs:260:9
     |
-224 |       Foo {
+260 |       Foo {
     |  _________^
-225 | |         #[pyo3(default)]
-226 | |         field: String,
-227 | |     },
+261 | |
+262 | |         #[pyo3(default)]
+263 | |         field: String,
+264 | |     },
     | |_____^
 
 error: `default` is not permitted on tuple struct elements.
-   --> tests/ui/invalid_frompy_derive.rs:231:37
+   --> tests/ui/invalid_frompy_derive.rs:268:37
     |
-231 | struct NamedTuplesWithDefaultValues(#[pyo3(default)] String);
+268 | struct NamedTuplesWithDefaultValues(#[pyo3(default)] String);
     |                                     ^
 
 error: `rename_all` may only be specified once
-   --> tests/ui/invalid_frompy_derive.rs:234:34
+   --> tests/ui/invalid_frompy_derive.rs:272:34
     |
-234 | #[pyo3(rename_all = "camelCase", rename_all = "kebab-case")]
+272 | #[pyo3(rename_all = "camelCase", rename_all = "kebab-case")]
     |                                  ^^^^^^^^^^
 
 error: `rename_all` is useless on tuple structs and variants.
-   --> tests/ui/invalid_frompy_derive.rs:240:8
+   --> tests/ui/invalid_frompy_derive.rs:279:8
     |
-240 | #[pyo3(rename_all = "camelCase")]
+279 | #[pyo3(rename_all = "camelCase")]
     |        ^^^^^^^^^^
 
 error: `rename_all` is useless on tuple structs and variants.
-   --> tests/ui/invalid_frompy_derive.rs:245:12
+   --> tests/ui/invalid_frompy_derive.rs:285:12
     |
-245 |     #[pyo3(rename_all = "camelCase")]
+285 |     #[pyo3(rename_all = "camelCase")]
     |            ^^^^^^^^^^
 
 error: `rename_all` is not permitted on `transparent` structs and variants
-   --> tests/ui/invalid_frompy_derive.rs:250:21
+   --> tests/ui/invalid_frompy_derive.rs:291:21
     |
-250 | #[pyo3(transparent, rename_all = "camelCase")]
+291 | #[pyo3(transparent, rename_all = "camelCase")]
     |                     ^^^^^^^^^^
 
 error: Useless variant `rename_all` - enum is already annotated with `rename_all
-   --> tests/ui/invalid_frompy_derive.rs:258:12
+   --> tests/ui/invalid_frompy_derive.rs:300:12
     |
-258 |     #[pyo3(rename_all = "camelCase")]
+300 |     #[pyo3(rename_all = "camelCase")]
     |            ^^^^^^^^^^
+
+error: aborting due to 43 previous errors

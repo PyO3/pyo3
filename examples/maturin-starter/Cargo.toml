@@ -1,8 +1,8 @@
 [package]
 name = "maturin-starter"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.83"
+edition = "2024"
+rust-version = "1.85"
 
 [lib]
 name = "maturin_starter"
@@ -12,6 +12,6 @@ crate-type = ["cdylib"]
 pyo3 = { path = "../../" }
 
 [features]
-abi3 = ["pyo3/abi3-py38"]
+abi3 = ["pyo3/abi3-py39"]
 
 [workspace]

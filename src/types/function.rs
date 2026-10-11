@@ -1,16 +1,25 @@
+//! Python function objects.
+
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::impl_::pyfunction::create_py_c_function;
+use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::types::capsule::PyCapsuleMethods;
+use crate::{Bound, PyAny, PyResult, Python};
+#[cfg(Py_LIMITED_API)]
+use crate::{
+    Py,
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+};
 use crate::{
     ffi,
     impl_::pymethods::{self, PyMethodDef},
     types::{PyCapsule, PyDict, PyModule, PyTuple},
 };
-use crate::{Bound, PyAny, PyResult, Python};
-use std::cell::UnsafeCell;
-use std::ffi::CStr;
-use std::ptr::NonNull;
+use core::cell::UnsafeCell;
+use core::ffi::CStr;
+use core::ptr::NonNull;
 
 /// Represents a builtin Python function object.
 ///
@@ -19,7 +28,22 @@ use std::ptr::NonNull;
 #[repr(transparent)]
 pub struct PyCFunction(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyCFunction, pyobject_native_static_type_object!(ffi::PyCFunction_Type), "builtins", "builtin_function_or_method", #checkfunction=ffi::PyCFunction_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyCFunction,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "builtin_function_or_method")
+            .unwrap()
+            .as_type_ptr()
+    },
+    "builtins",
+    "builtin_function_or_method",
+    #checkfunction=ffi::PyCFunction_Check
+);
 
 impl PyCFunction {
     /// Create a new built-in function with keywords (*args and/or **kwargs).
@@ -82,7 +106,7 @@ impl PyCFunction {
         closure: F,
     ) -> PyResult<Bound<'py, Self>>
     where
-        F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + 'static,
+        F: Fn(&Bound<'_, PyTuple>, Option<&Bound<'_, PyDict>>) -> R + Send + Sync + 'static,
         for<'p> R: crate::impl_::callback::IntoPyCallbackOutput<'p, *mut ffi::PyObject>,
     {
         let name = name.unwrap_or(c"pyo3-closure");
@@ -110,7 +134,7 @@ impl PyCFunction {
         // SAFETY: The arguments to `PyCFunction_NewEx` are valid, we are attached to the
         // interpreter and we know the function either returns a new reference or errors.
         unsafe {
-            ffi::PyCFunction_NewEx(method_def, capsule.as_ptr(), std::ptr::null_mut())
+            ffi::PyCFunction_NewEx(method_def, capsule.as_ptr(), core::ptr::null_mut())
                 .assume_owned_or_err(py)
                 .cast_into_unchecked()
         }
@@ -163,8 +187,20 @@ unsafe impl<F: Send> Send for ClosureDestructor<F> {}
 /// Values of this type are accessed via PyO3's smart pointers, e.g. as
 /// [`Py<PyFunction>`][crate::Py] or [`Bound<'py, PyFunction>`][Bound].
 #[repr(transparent)]
-#[cfg(not(Py_LIMITED_API))]
 pub struct PyFunction(PyAny);
 
 #[cfg(not(Py_LIMITED_API))]
 pyobject_native_type_core!(PyFunction, pyobject_native_static_type_object!(ffi::PyFunction_Type), "builtins", "function", #checkfunction=ffi::PyFunction_Check);
+
+#[cfg(Py_LIMITED_API)]
+pyobject_native_type_core!(
+    PyFunction,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "FunctionType")
+            .unwrap()
+            .as_type_ptr()
+    },
+    "builtins",
+    "function"
+);

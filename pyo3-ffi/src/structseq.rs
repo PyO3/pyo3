@@ -1,7 +1,7 @@
 use crate::object::{PyObject, PyTypeObject};
 #[cfg(not(PyPy))]
 use crate::pyport::Py_ssize_t;
-use std::ffi::{c_char, c_int};
+use core::ffi::{c_char, c_int};
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -20,7 +20,8 @@ pub struct PyStructSequence_Desc {
 }
 
 extern_libpython! {
-    #[cfg(any(Py_3_11, all(Py_3_9, not(Py_LIMITED_API))))]
+    #[cfg(any(Py_3_11, not(Py_LIMITED_API)))]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyStructSequence_UnnamedField")]
     pub static PyStructSequence_UnnamedField: *const c_char;
 }
 
@@ -38,7 +39,7 @@ extern_libpython! {
 
     #[cfg(not(PyPy))]
     pub fn PyStructSequence_NewType(desc: *mut PyStructSequence_Desc) -> *mut PyTypeObject;
-    #[cfg_attr(PyPy, link_name = "PyPyStructSequence_New")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyStructSequence_New")]
     pub fn PyStructSequence_New(_type: *mut PyTypeObject) -> *mut PyObject;
 }
 

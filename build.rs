@@ -1,12 +1,12 @@
 use std::env;
 
-use pyo3_build_config::pyo3_build_script_impl::{cargo_env_var, errors::Result};
-use pyo3_build_config::{
-    add_python_framework_link_args, bail, print_feature_cfgs, InterpreterConfig,
+use pyo3_build_config::pyo3_build_script_impl::{
+    cargo_env_var, env_var, errors::Result, print_feature_cfgs,
 };
+use pyo3_build_config::{InterpreterConfig, add_libpython_rpath_link_args, bail};
 
 fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<()> {
-    if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() && !interpreter_config.shared {
+    if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() && !interpreter_config.shared() {
         bail!(
             "The `auto-initialize` feature is enabled, but your python installation only supports \
             embedding the Python interpreter statically. If you are attempting to run tests, or a \
@@ -43,13 +43,32 @@ fn configure_pyo3() -> Result<()> {
 
     print_feature_cfgs();
 
-    // Make `cargo test` etc work on macOS with Xcode bundled Python
-    add_python_framework_link_args();
+    // Forwards interpreter config under the links = "pyo3-python" configuration,
+    // which allows consumers of `pyo3-build-config` APIs to depend on pyo3 instead of pyo3-ffi.
+    interpreter_config.to_cargo_dep_env()?;
+
+    // Make `cargo test` etc work with non-system Python installations
+    add_libpython_rpath_link_args();
 
     Ok(())
 }
 
+/// Enables a faux `std` feature by default.
+///
+/// Set env var `PYO3_WIP_NO_STD` to `1` to disable it.
+// Has matching functions in
+// - pyo3-macros-backend
+// - pytests
+fn configure_wip_no_std() {
+    println!("cargo:rustc-check-cfg=cfg(wip_feature_std)");
+    match env_var("PYO3_WIP_NO_STD").map(|s| s.into_string().unwrap()) {
+        Some(no_std) if no_std.trim() == "1" || no_std.trim().eq_ignore_ascii_case("true") => (),
+        _ => println!("cargo:rustc-cfg=wip_feature_std"),
+    }
+}
+
 fn main() {
+    configure_wip_no_std();
     pyo3_build_config::print_expected_cfgs();
     if let Err(e) = configure_pyo3() {
         eprintln!("error: {}", e.report());

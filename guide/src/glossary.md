@@ -10,7 +10,7 @@ attached
     The [`Python::attach`]({{#PYO3_DOCS_URL}}/pyo3/marker/struct.Python.html#method.attach) method is used to attach the current thread to the Python interpreter and obtain a `Python` token which can be used to call Python APIs.
 
 extension module
-  : A Python module which is implemeted using native code (e.g. C, C++ or Rust) instead of Python.
+  : A Python module which is implemented using native code (e.g. C, C++ or Rust) instead of Python.
     See also [CPython's documentation on creating extension modules](https://docs.python.org/3/extending/extending.html).
 
 GIL-enabled Python

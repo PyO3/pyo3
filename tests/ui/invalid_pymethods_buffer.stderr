@@ -5,7 +5,9 @@ error: `__getbuffer__` must be `unsafe fn`
   |        ^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: `__releasebuffer__` must be `unsafe fn`
-  --> tests/ui/invalid_pymethods_buffer.rs:15:8
+  --> tests/ui/invalid_pymethods_buffer.rs:16:8
    |
-15 |     fn releasebuffer_must_be_unsafe(&self, _view: *mut pyo3::ffi::Py_buffer) {}
+16 |     fn releasebuffer_must_be_unsafe(&self, _view: *mut pyo3::ffi::Py_buffer) {}
    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: aborting due to 2 previous errors

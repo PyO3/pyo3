@@ -1,43 +1,50 @@
+//! Python tuples and related types.
+
+#[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
+use crate::BoundObject;
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_subscript, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_subscript};
 use crate::instance::Borrowed;
 use crate::internal_tricks::get_ssize_index;
+#[allow(unused_imports, reason = "used to build docs")]
+use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
-use crate::types::{sequence::PySequenceMethods, PyList, PySequence};
-#[cfg(all(
-    not(any(PyPy, GraalPy)),
-    any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)
-))]
-use crate::BoundObject;
+use crate::types::{PyList, PySequence, sequence::PySequenceMethods};
 use crate::{
-    exceptions, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
+    Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python, exceptions,
 };
-use std::iter::FusedIterator;
+#[cfg(RustPython)]
+use crate::{
+    Py,
+    py_result_ext::PyResultExt,
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+};
+use core::iter::FusedIterator;
 #[cfg(feature = "nightly")]
-use std::num::NonZero;
+use core::num::NonZero;
 
-#[cfg(all(
-    not(any(PyPy, GraalPy)),
-    any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)
-))]
+#[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
 use libc::size_t;
 
 #[inline]
 #[track_caller]
+#[cfg_attr(RustPython, allow(unused_mut))]
 fn try_new_from_iter<'py>(
     py: Python<'py>,
     mut elements: impl ExactSizeIterator<Item = PyResult<Bound<'py, PyAny>>>,
 ) -> PyResult<Bound<'py, PyTuple>> {
-    unsafe {
-        // PyTuple_New checks for overflow but has a bad error message, so we check ourselves
-        let len: Py_ssize_t = elements
-            .len()
-            .try_into()
-            .expect("out of range integral type conversion attempted on `elements.len()`");
+    // PyTuple_New checks for overflow but has a bad error message, so we check ourselves
+    let len: Py_ssize_t = elements
+        .len()
+        .try_into()
+        .expect("out of range integral type conversion attempted on `elements.len()`");
 
+    #[cfg(not(RustPython))]
+    let (tup, counter) = unsafe {
         let ptr = ffi::PyTuple_New(len);
 
         // - Panics if the ptr is null
@@ -54,11 +61,32 @@ fn try_new_from_iter<'py>(
             counter += 1;
         }
 
-        assert!(elements.next().is_none(), "Attempted to create PyTuple but `elements` was larger than reported by its `ExactSizeIterator` implementation.");
-        assert_eq!(len, counter, "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation.");
+        (tup, counter)
+    };
 
-        Ok(tup)
-    }
+    #[cfg(RustPython)]
+    let (tup, counter) = unsafe {
+        let elements = (&mut elements)
+            .take(len as _)
+            .collect::<PyResult<Vec<_>>>()?;
+        // SAFETY: list is layout compatible with *const *mut crate::PyObject
+        let tup = ffi::PyTuple_FromArray(elements.as_ptr().cast(), elements.len() as _)
+            .assume_owned_or_err(py)
+            .cast_into_unchecked()?;
+
+        (tup, elements.len() as Py_ssize_t)
+    };
+
+    assert!(
+        elements.next().is_none(),
+        "Attempted to create PyTuple but `elements` was larger than reported by its `ExactSizeIterator` implementation."
+    );
+    assert_eq!(
+        len, counter,
+        "Attempted to create PyTuple but `elements` was smaller than reported by its `ExactSizeIterator` implementation."
+    );
+
+    Ok(tup)
 }
 
 /// Represents a Python `tuple` object.
@@ -71,7 +99,20 @@ fn try_new_from_iter<'py>(
 #[repr(transparent)]
 pub struct PyTuple(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyTuple, pyobject_native_static_type_object!(ffi::PyTuple_Type), "builtins", "tuple", #checkfunction=ffi::PyTuple_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyTuple,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "tuple").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "tuple",
+    #checkfunction=ffi::PyTuple_Check
+);
 
 impl PyTuple {
     /// Constructs a new tuple with the given elements.
@@ -172,17 +213,12 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// by avoiding a reference count change.
     fn get_borrowed_item<'a>(&'a self, index: usize) -> PyResult<Borrowed<'a, 'py, PyAny>>;
 
-    /// Gets the tuple item at the specified index. Undefined behavior on bad index, or if the tuple
-    /// contains a null pointer at the specified index. Use with caution.
+    /// Gets the tuple item at the specified index without checking bounds.
+    /// Undefined behavior if index is out of bounds.
     ///
     /// # Safety
     ///
     /// - Caller must verify that the index is within the bounds of the tuple.
-    /// - A null pointer is only legal in a tuple which is in the process of being initialized, callers
-    ///   can typically assume the tuple item is non-null unless they are knowingly filling an
-    ///   uninitialized tuple. (If a tuple were to contain a null pointer element, accessing it from Python
-    ///   typically causes a segfault.)
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny>;
 
     /// Like [`get_item_unchecked`][PyTupleMethods::get_item_unchecked], but returns a borrowed object,
@@ -191,7 +227,6 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     /// # Safety
     ///
     /// See [`get_item_unchecked`][PyTupleMethods::get_item_unchecked].
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny>;
 
     /// Returns `self` as a slice of objects.
@@ -216,7 +251,7 @@ pub trait PyTupleMethods<'py>: crate::sealed::Sealed {
     fn iter(&self) -> BoundTupleIterator<'py>;
 
     /// Like [`iter`][PyTupleMethods::iter], but produces an iterator which returns borrowed objects,
-    /// which is a slight performance optimization by avoiding a reference count change.
+    /// which is a slight performance optimization by avoiding a reference count changes.
     fn iter_borrowed<'a>(&'a self) -> BorrowedTupleIterator<'a, 'py>;
 
     /// Return a new list containing the contents of this tuple; equivalent to the Python expression `list(tuple)`.
@@ -265,12 +300,10 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
         self.as_borrowed().get_borrowed_item(index)
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
         unsafe { self.get_borrowed_item_unchecked(index).to_owned() }
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked<'a>(&'a self, index: usize) -> Borrowed<'a, 'py, PyAny> {
         unsafe { self.as_borrowed().get_borrowed_item_unchecked(index) }
     }
@@ -280,7 +313,7 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
         // SAFETY: self is known to be a tuple object, and tuples are immutable
         let items = unsafe { &(*self.as_ptr().cast::<ffi::PyTupleObject>()).ob_item };
         // SAFETY: Bound<'py, PyAny> has the same memory layout as *mut ffi::PyObject
-        unsafe { std::slice::from_raw_parts(items.as_ptr().cast(), self.len()) }
+        unsafe { core::slice::from_raw_parts(items.as_ptr().cast(), self.len()) }
     }
 
     #[inline]
@@ -325,12 +358,18 @@ impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
     /// # Safety
     ///
     /// See `get_item_unchecked` in `PyTupleMethods`.
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
-        // SAFETY: caller has upheld the safety contract
-        unsafe {
-            ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
-                .assume_borrowed_unchecked(self.py())
+        cfg_select! {
+            // SAFETY: caller has upheld the safety contract
+            not(any(Py_LIMITED_API, PyPy, GraalPy)) => unsafe {
+                ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
+                    .assume_borrowed_unchecked(self.py())
+            },
+            // SAFETY: `PyTuple_GetItem` is known to always succeed under these conditions
+            any(Py_LIMITED_API, PyPy, GraalPy) => unsafe {
+                ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t)
+                    .assume_borrowed_unchecked(self.py())
+            }
         }
     }
 
@@ -363,9 +402,8 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
-            let item = unsafe {
-                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), self.index).to_owned()
-            };
+            // SAFETY: self.index < self.length
+            let item = unsafe { self.tuple.get_item_unchecked(self.index) };
             self.index += 1;
             Some(item)
         } else {
@@ -398,41 +436,35 @@ impl<'py> Iterator for BoundTupleIterator<'py> {
     #[inline]
     #[cfg(not(feature = "nightly"))]
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        let length = self.length.min(self.tuple.len());
-        let target_index = self.index + n;
-        if target_index < length {
-            let item = unsafe {
-                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), target_index).to_owned()
-            };
-            self.index = target_index + 1;
-            Some(item)
-        } else {
-            None
+        if let Some(target_index) = self.index.checked_add(n) {
+            if target_index < self.length {
+                // SAFETY: target_index < self.length
+                let item = unsafe { self.tuple.get_item_unchecked(target_index) };
+                // +1 cannot overflow as target_index < self.length
+                self.index = target_index + 1;
+                return Some(item);
+            }
         }
+
+        // n overflows the remaining length of the tuple;
+        // nth must exhaust all remaining items
+        self.index = self.length;
+        None
     }
 
     #[inline]
     #[cfg(feature = "nightly")]
     fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
-        let max_len = self.length.min(self.tuple.len());
-        let currently_at = self.index;
-        if currently_at >= max_len {
-            if n == 0 {
-                return Ok(());
-            } else {
-                return Err(unsafe { NonZero::new_unchecked(n) });
-            }
+        let items_left = self.length.saturating_sub(self.index);
+        if let Some(overflow) = NonZero::new(n.saturating_sub(items_left)) {
+            // n overflows the remaining length of the tuple; advance_by must exhaust all remaining items
+            self.index = self.length;
+            return Err(overflow);
         }
 
-        let items_left = max_len - currently_at;
-        if n <= items_left {
-            self.index += n;
-            Ok(())
-        } else {
-            self.index = max_len;
-            let remainder = n - items_left;
-            Err(unsafe { NonZero::new_unchecked(remainder) })
-        }
+        // cannot overflow as self.length - self.index >= n
+        self.index += n;
+        Ok(())
     }
 }
 
@@ -440,11 +472,10 @@ impl DoubleEndedIterator for BoundTupleIterator<'_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
-            let item = unsafe {
-                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), self.length - 1)
-                    .to_owned()
-            };
-            self.length -= 1;
+            let target_index = self.length - 1;
+            // SAFETY: target_index < self.length
+            let item = unsafe { self.tuple.get_item_unchecked(target_index) };
+            self.length = target_index;
             Some(item)
         } else {
             None
@@ -454,41 +485,36 @@ impl DoubleEndedIterator for BoundTupleIterator<'_> {
     #[inline]
     #[cfg(not(feature = "nightly"))]
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        let length_size = self.length.min(self.tuple.len());
-        if self.index + n < length_size {
-            let target_index = length_size - n - 1;
-            let item = unsafe {
-                BorrowedTupleIterator::get_item(self.tuple.as_borrowed(), target_index).to_owned()
-            };
-            self.length = target_index;
-            Some(item)
-        } else {
-            None
+        if let Some(index_after_item) = self.length.checked_sub(n) {
+            if self.index < index_after_item {
+                // -1 cannot underflow as index_after_item > self.index
+                let target_index = index_after_item - 1;
+                // SAFETY: target_index < self.length
+                let item = unsafe { self.tuple.get_item_unchecked(target_index) };
+                self.length = target_index;
+                return Some(item);
+            }
         }
+
+        // n overflows the remaining length of the tuple;
+        // nth must exhaust all remaining items
+        self.length = self.index;
+        None
     }
 
     #[inline]
     #[cfg(feature = "nightly")]
     fn advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
-        let max_len = self.length.min(self.tuple.len());
-        let currently_at = self.index;
-        if currently_at >= max_len {
-            if n == 0 {
-                return Ok(());
-            } else {
-                return Err(unsafe { NonZero::new_unchecked(n) });
-            }
+        let items_left = self.length.saturating_sub(self.index);
+        if let Some(overflow) = NonZero::new(n.saturating_sub(items_left)) {
+            // n overflows the remaining length of the tuple; advance_back_by must exhaust all remaining items
+            self.length = self.index;
+            return Err(overflow);
         }
 
-        let items_left = max_len - currently_at;
-        if n <= items_left {
-            self.length = max_len - n;
-            Ok(())
-        } else {
-            self.length = currently_at;
-            let remainder = n - items_left;
-            Err(unsafe { NonZero::new_unchecked(remainder) })
-        }
+        // cannot overflow as self.length - self.index >= n
+        self.length -= n;
+        Ok(())
     }
 }
 
@@ -534,17 +560,6 @@ impl<'a, 'py> BorrowedTupleIterator<'a, 'py> {
             length,
         }
     }
-
-    unsafe fn get_item(
-        tuple: Borrowed<'a, 'py, PyTuple>,
-        index: usize,
-    ) -> Borrowed<'a, 'py, PyAny> {
-        #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
-        let item = tuple.get_borrowed_item(index).expect("tuple.get failed");
-        #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-        let item = unsafe { tuple.get_borrowed_item_unchecked(index) };
-        item
-    }
 }
 
 impl<'a, 'py> Iterator for BorrowedTupleIterator<'a, 'py> {
@@ -553,7 +568,8 @@ impl<'a, 'py> Iterator for BorrowedTupleIterator<'a, 'py> {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
-            let item = unsafe { Self::get_item(self.tuple, self.index) };
+            // SAFETY: self.index < self.length
+            let item = unsafe { self.tuple.get_borrowed_item_unchecked(self.index) };
             self.index += 1;
             Some(item)
         } else {
@@ -588,8 +604,11 @@ impl DoubleEndedIterator for BorrowedTupleIterator<'_, '_> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.index < self.length {
-            let item = unsafe { Self::get_item(self.tuple, self.length - 1) };
-            self.length -= 1;
+            // Cannot underflow as self.index < self.length implies self.length > 0
+            let target_index = self.length - 1;
+            // SAFETY: target_index < self.length
+            let item = unsafe { self.tuple.get_borrowed_item_unchecked(target_index) };
+            self.length = target_index;
             Some(item)
         } else {
             None
@@ -615,7 +634,7 @@ fn wrong_tuple_length(t: Borrowed<'_, '_, PyTuple>, expected_length: usize) -> P
     exceptions::PyValueError::new_err(msg)
 }
 
-macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+} => {
+macro_rules! tuple_conversion (($length:expr, $(($n:tt, $T:ident)),+) => {
     impl <'py, $($T),+> IntoPyObject<'py> for ($($T,)+)
     where
         $($T: IntoPyObject<'py>,)+
@@ -659,7 +678,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     where
         $($T: IntoPyObject<'py>,)+
     {
-        #[cfg(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API))))]
+        #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
         fn call(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -670,7 +689,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             // We need this to drop the arguments correctly.
             let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
+            let mut args = [core::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_VectorcallDict(
                     function.as_ptr(),
@@ -682,7 +701,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             }
         }
 
-        #[cfg(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)))]
+        #[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
         fn call_positional(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -703,19 +722,19 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             }
 
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
+            let mut args = [core::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_Vectorcall(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
                     const { with_vectorcall_arguments_offset($length) },
-                    std::ptr::null_mut(),
+                    core::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
             }
         }
 
-        #[cfg(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)))]
+        #[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
         fn call_method_positional(
             self,
             object: Borrowed<'_, 'py, PyAny>,
@@ -744,14 +763,14 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                     args.as_mut_ptr(),
                     // +1 for the receiver.
                     const { with_vectorcall_arguments_offset(1 + $length) },
-                    std::ptr::null_mut(),
+                    core::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
             }
 
         }
 
-        #[cfg(not(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API)))))]
+        #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
         fn call(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -761,7 +780,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             self.into_pyobject_or_pyerr(function.py())?.call(function, kwargs, token)
         }
 
-        #[cfg(not(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12))))]
+        #[cfg(not(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12))))]
         fn call_positional(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -770,7 +789,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             self.into_pyobject_or_pyerr(function.py())?.call_positional(function, token)
         }
 
-        #[cfg(not(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12))))]
+        #[cfg(not(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12))))]
         fn call_method_positional(
             self,
             object: Borrowed<'_, 'py, PyAny>,
@@ -786,7 +805,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
     where
         $(&'a $T: IntoPyObject<'py>,)+
     {
-        #[cfg(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API))))]
+        #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
         fn call(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -796,7 +815,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             let py = function.py();
             let args_objects = ($(self.$n.into_pyobject_or_pyerr(py)?),*,);
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
+            let mut args = [core::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_VectorcallDict(
                     function.as_ptr(),
@@ -808,7 +827,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             }
         }
 
-        #[cfg(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)))]
+        #[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
         fn call_positional(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -829,19 +848,19 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             }
 
             // Prepend one null argument for `PY_VECTORCALL_ARGUMENTS_OFFSET`.
-            let mut args = [std::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
+            let mut args = [core::ptr::null_mut(), $(args_objects.$n.as_ptr()),*];
             unsafe {
                 ffi::PyObject_Vectorcall(
                     function.as_ptr(),
                     args.as_mut_ptr().add(1),
                     const { with_vectorcall_arguments_offset($length) },
-                    std::ptr::null_mut(),
+                    core::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
             }
         }
 
-        #[cfg(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)))]
+        #[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
         fn call_method_positional(
             self,
             object: Borrowed<'_, 'py, PyAny>,
@@ -870,13 +889,13 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
                     args.as_mut_ptr(),
                     // +1 for the receiver.
                     const { with_vectorcall_arguments_offset(1 + $length) },
-                    std::ptr::null_mut(),
+                    core::ptr::null_mut(),
                 )
                 .assume_owned_or_err(py)
             }
         }
 
-        #[cfg(not(all(Py_3_9, not(any(PyPy, GraalPy, Py_LIMITED_API)))))]
+        #[cfg(any(PyPy, GraalPy, Py_LIMITED_API))]
         fn call(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -886,7 +905,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             self.into_pyobject_or_pyerr(function.py())?.call(function, kwargs, token)
         }
 
-        #[cfg(not(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12))))]
+        #[cfg(not(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12))))]
         fn call_positional(
             self,
             function: Borrowed<'_, 'py, PyAny>,
@@ -895,7 +914,7 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
             self.into_pyobject_or_pyerr(function.py())?.call_positional(function, token)
         }
 
-        #[cfg(not(all(not(any(PyPy, GraalPy)), any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12))))]
+        #[cfg(not(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12))))]
         fn call_method_positional(
             self,
             object: Borrowed<'_, 'py, PyAny>,
@@ -919,11 +938,12 @@ macro_rules! tuple_conversion ({$length:expr,$(($refN:ident, $n:tt, $T:ident)),+
         {
             let t = obj.cast::<PyTuple>()?;
             if t.len() == $length {
-                #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
-                return Ok(($(t.get_borrowed_item($n)?.extract::<$T>().map_err(Into::into)?,)+));
-
-                #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-                unsafe {return Ok(($(t.get_borrowed_item_unchecked($n).extract::<$T>().map_err(Into::into)?,)+));}
+                Ok(($(
+                    // SAFETY: index guaranteed in bounds by the length check
+                    unsafe { t.get_borrowed_item_unchecked($n) }
+                        .extract::<$T>()
+                        .map_err(Into::into)?,
+                )+))
             } else {
                 Err(wrong_tuple_length(t, $length))
             }
@@ -935,6 +955,7 @@ fn array_into_tuple<'py, const N: usize>(
     py: Python<'py>,
     array: [Bound<'py, PyAny>; N],
 ) -> Bound<'py, PyTuple> {
+    #[cfg(not(RustPython))]
     unsafe {
         let ptr = ffi::PyTuple_New(N.try_into().expect("0 < N <= 12"));
         let tup = ptr.assume_owned(py).cast_into_unchecked();
@@ -946,132 +967,120 @@ fn array_into_tuple<'py, const N: usize>(
         }
         tup
     }
+
+    // SAFETY: array is layout compatible with *const *mut crate::PyObject
+    // and does not steal the bound reference.
+    #[cfg(RustPython)]
+    unsafe {
+        ffi::PyTuple_FromArray(array.as_ptr().cast(), N.try_into().expect("0 < N <= 12"))
+            .assume_owned(py)
+            .cast_into_unchecked()
+    }
 }
 
 /// Add `PY_VECTORCALL_ARGUMENTS_OFFSET` to the given number, checking for overflow at compile time.
 ///
 /// Guarantees that we don't accidentally overflow a `size_t` should this get changed in the future.
-#[cfg(all(
-    not(any(PyPy, GraalPy)),
-    any(all(Py_3_9, not(Py_LIMITED_API)), Py_3_12)
-))]
+#[cfg(all(not(any(PyPy, GraalPy)), any(not(Py_LIMITED_API), Py_3_12)))]
 const fn with_vectorcall_arguments_offset(n: size_t) -> size_t {
     n.checked_add(ffi::PY_VECTORCALL_ARGUMENTS_OFFSET)
         .expect("overflow adding PY_VECTORCALL_ARGUMENTS_OFFSET")
 }
 
-tuple_conversion!(1, (ref0, 0, T0));
-tuple_conversion!(2, (ref0, 0, T0), (ref1, 1, T1));
-tuple_conversion!(3, (ref0, 0, T0), (ref1, 1, T1), (ref2, 2, T2));
-tuple_conversion!(
-    4,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3)
-);
-tuple_conversion!(
-    5,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4)
-);
-tuple_conversion!(
-    6,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5)
-);
+tuple_conversion!(1, (0, T0));
+tuple_conversion!(2, (0, T0), (1, T1));
+tuple_conversion!(3, (0, T0), (1, T1), (2, T2));
+tuple_conversion!(4, (0, T0), (1, T1), (2, T2), (3, T3));
+tuple_conversion!(5, (0, T0), (1, T1), (2, T2), (3, T3), (4, T4));
+tuple_conversion!(6, (0, T0), (1, T1), (2, T2), (3, T3), (4, T4), (5, T5));
 tuple_conversion!(
     7,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5),
-    (ref6, 6, T6)
+    (0, T0),
+    (1, T1),
+    (2, T2),
+    (3, T3),
+    (4, T4),
+    (5, T5),
+    (6, T6)
 );
 tuple_conversion!(
     8,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5),
-    (ref6, 6, T6),
-    (ref7, 7, T7)
+    (0, T0),
+    (1, T1),
+    (2, T2),
+    (3, T3),
+    (4, T4),
+    (5, T5),
+    (6, T6),
+    (7, T7)
 );
 tuple_conversion!(
     9,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5),
-    (ref6, 6, T6),
-    (ref7, 7, T7),
-    (ref8, 8, T8)
+    (0, T0),
+    (1, T1),
+    (2, T2),
+    (3, T3),
+    (4, T4),
+    (5, T5),
+    (6, T6),
+    (7, T7),
+    (8, T8)
 );
 tuple_conversion!(
     10,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5),
-    (ref6, 6, T6),
-    (ref7, 7, T7),
-    (ref8, 8, T8),
-    (ref9, 9, T9)
+    (0, T0),
+    (1, T1),
+    (2, T2),
+    (3, T3),
+    (4, T4),
+    (5, T5),
+    (6, T6),
+    (7, T7),
+    (8, T8),
+    (9, T9)
 );
 tuple_conversion!(
     11,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5),
-    (ref6, 6, T6),
-    (ref7, 7, T7),
-    (ref8, 8, T8),
-    (ref9, 9, T9),
-    (ref10, 10, T10)
+    (0, T0),
+    (1, T1),
+    (2, T2),
+    (3, T3),
+    (4, T4),
+    (5, T5),
+    (6, T6),
+    (7, T7),
+    (8, T8),
+    (9, T9),
+    (10, T10)
 );
-
 tuple_conversion!(
     12,
-    (ref0, 0, T0),
-    (ref1, 1, T1),
-    (ref2, 2, T2),
-    (ref3, 3, T3),
-    (ref4, 4, T4),
-    (ref5, 5, T5),
-    (ref6, 6, T6),
-    (ref7, 7, T7),
-    (ref8, 8, T8),
-    (ref9, 9, T9),
-    (ref10, 10, T10),
-    (ref11, 11, T11)
+    (0, T0),
+    (1, T1),
+    (2, T2),
+    (3, T3),
+    (4, T4),
+    (5, T5),
+    (6, T6),
+    (7, T7),
+    (8, T8),
+    (9, T9),
+    (10, T10),
+    (11, T11)
 );
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{any::PyAnyMethods, tuple::PyTupleMethods, PyList, PyTuple};
-    use crate::{IntoPyObject, Python};
-    use std::collections::HashSet;
+    extern crate std;
+
+    use crate::platform::collections::HashSet;
+    use crate::platform::prelude::*;
+    use crate::types::{PyList, PyTuple, any::PyAnyMethods, tuple::PyTupleMethods};
+    use crate::{Bound, IntoPyObject, PyAny, Python};
     #[cfg(feature = "nightly")]
-    use std::num::NonZero;
-    use std::ops::Range;
+    use core::num::NonZero;
+    use core::ops::Range;
+
     #[test]
     fn test_new() {
         Python::attach(|py| {
@@ -1347,7 +1356,6 @@ mod tests {
         });
     }
 
-    #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
     #[test]
     fn test_tuple_get_item_unchecked_sanity() {
         Python::attach(|py| {
@@ -1446,8 +1454,8 @@ mod tests {
     #[cfg(panic = "unwind")]
     fn bad_intopyobject_doesnt_cause_leaks() {
         use crate::types::PyInt;
-        use std::convert::Infallible;
-        use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+        use core::convert::Infallible;
+        use core::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -1509,8 +1517,8 @@ mod tests {
     #[cfg(panic = "unwind")]
     fn bad_intopyobject_doesnt_cause_leaks_2() {
         use crate::types::PyInt;
-        use std::convert::Infallible;
-        use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+        use core::convert::Infallible;
+        use core::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
         static NEEDS_DESTRUCTING_COUNT: AtomicUsize = AtomicUsize::new(0);
 
@@ -1599,161 +1607,249 @@ mod tests {
                     .unwrap(),
                 2
             );
-            #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-            {
-                assert_eq!(
-                    unsafe { tuple.get_item_unchecked(2) }
-                        .extract::<i32>()
-                        .unwrap(),
-                    3
-                );
-                assert_eq!(
-                    unsafe { tuple.get_borrowed_item_unchecked(3) }
-                        .extract::<i32>()
-                        .unwrap(),
-                    4
-                );
-            }
+
+            assert_eq!(
+                unsafe { tuple.get_item_unchecked(2) }
+                    .extract::<i32>()
+                    .unwrap(),
+                3
+            );
+            assert_eq!(
+                unsafe { tuple.get_borrowed_item_unchecked(3) }
+                    .extract::<i32>()
+                    .unwrap(),
+                4
+            );
         })
     }
 
+    /// Runs `f` for each of `BoundTupleIterator` and `BorrowedTupleIterator`.
+    fn test_iterators(
+        tuple: &Bound<'_, PyTuple>,
+        f: impl Fn(&mut dyn DoubleEndedIterator<Item = Bound<'_, PyAny>>),
+    ) {
+        let mut iter = tuple.iter();
+        f(&mut iter);
+
+        let mut borrowed_iter = tuple.iter_borrowed().map(|item| item.to_owned());
+        f(&mut borrowed_iter);
+    }
+
     #[test]
-    fn test_bound_tuple_nth() {
+    fn test_tuple_iter_nth() {
         Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4]).unwrap();
-            let mut iter = tuple.iter();
-            assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 2);
-            assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 4);
-            assert!(iter.nth(1).is_none());
+
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 2);
+                assert_eq!(iter.nth(1).unwrap().extract::<i32>().unwrap(), 4);
+                assert!(iter.nth(1).is_none());
+            });
 
             let tuple = PyTuple::new(py, Vec::<i32>::new()).unwrap();
-            let mut iter = tuple.iter();
-            iter.next();
-            assert!(iter.nth(1).is_none());
+            test_iterators(&tuple, |iter| {
+                iter.next();
+                assert!(iter.nth(1).is_none());
+            });
 
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
-            let mut iter = tuple.iter();
-            assert!(iter.nth(10).is_none());
+            test_iterators(&tuple, |iter| {
+                assert!(iter.nth(10).is_none());
+            });
 
             let tuple = PyTuple::new(py, vec![6, 7, 8, 9, 10]).unwrap();
-            let mut iter = tuple.iter();
-            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 6);
-            assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 9);
-            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 10);
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 6);
+                assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 9);
+                assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 10);
+            });
 
-            let mut iter = tuple.iter();
-            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 9);
-            assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 8);
-            assert!(iter.next().is_none());
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 9);
+                assert_eq!(iter.nth(2).unwrap().extract::<i32>().unwrap(), 8);
+                assert!(iter.next().is_none());
+            });
+
+            // nth consumes all elements in the tuple, even on `None` return
+            test_iterators(&tuple, |iter| {
+                assert!(iter.nth(100).is_none());
+                assert!(iter.next().is_none());
+                assert!(iter.next_back().is_none());
+            });
+
+            // nth should not overflow the iterator
+            // a naive implementation of nth will overflow if number of advanced
+            // elements plus N overflows usize::MAX
+            test_iterators(&tuple, |iter| {
+                assert!(iter.next().is_some());
+                assert!(iter.nth(usize::MAX).is_none());
+            });
         });
     }
 
     #[test]
-    fn test_bound_tuple_nth_back() {
+    fn test_tuple_iter_nth_back() {
         Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
-            let mut iter = tuple.iter();
-            assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 5);
-            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
-            assert!(iter.nth_back(2).is_none());
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 5);
+                assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
+                assert!(iter.nth_back(2).is_none());
+            });
 
             let tuple = PyTuple::new(py, Vec::<i32>::new()).unwrap();
-            let mut iter = tuple.iter();
-            assert!(iter.nth_back(0).is_none());
-            assert!(iter.nth_back(1).is_none());
+            test_iterators(&tuple, |iter| {
+                assert!(iter.nth_back(0).is_none());
+                assert!(iter.nth_back(1).is_none());
+            });
 
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
-            let mut iter = tuple.iter();
-            assert!(iter.nth_back(5).is_none());
+            test_iterators(&tuple, |iter| {
+                assert!(iter.nth_back(5).is_none());
+            });
 
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
-            let mut iter = tuple.iter();
-            iter.next_back(); // Consume the last element
-            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
-            assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 2);
-            assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 1);
+            test_iterators(&tuple, |iter| {
+                iter.next_back(); // Consume the last element
+                assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
+                assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 2);
+                assert_eq!(iter.nth_back(0).unwrap().extract::<i32>().unwrap(), 1);
+            });
 
-            let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
-            let mut iter = tuple.iter();
-            assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 4);
-            assert_eq!(iter.nth_back(2).unwrap().extract::<i32>().unwrap(), 1);
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 4);
+                assert_eq!(iter.nth_back(2).unwrap().extract::<i32>().unwrap(), 1);
+            });
 
-            let mut iter2 = tuple.iter();
-            iter2.next_back();
-            assert_eq!(iter2.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
-            assert_eq!(iter2.next_back().unwrap().extract::<i32>().unwrap(), 2);
+            test_iterators(&tuple, |iter| {
+                iter.next_back();
+                assert_eq!(iter.nth_back(1).unwrap().extract::<i32>().unwrap(), 3);
+                assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 2);
+            });
 
-            let mut iter3 = tuple.iter();
-            iter3.nth(1);
-            assert_eq!(iter3.nth_back(2).unwrap().extract::<i32>().unwrap(), 3);
-            assert!(iter3.nth_back(0).is_none());
+            test_iterators(&tuple, |iter| {
+                iter.nth(1);
+                assert_eq!(iter.nth_back(2).unwrap().extract::<i32>().unwrap(), 3);
+                assert!(iter.nth_back(0).is_none());
+            });
+
+            // nth_back consumes all elements in the tuple, even on `None` return
+            test_iterators(&tuple, |iter| {
+                assert!(iter.nth_back(100).is_none());
+                assert!(iter.next_back().is_none());
+                assert!(iter.next().is_none());
+            });
+
+            // nth_back should not overflow with usize::MAX
+            test_iterators(&tuple, |iter| {
+                iter.nth(1);
+                assert!(iter.nth_back(usize::MAX).is_none());
+            });
         });
     }
 
     #[cfg(feature = "nightly")]
     #[test]
-    fn test_bound_tuple_advance_by() {
+    fn test_tuple_iter_advance_by() {
         Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
-            let mut iter = tuple.iter();
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_by(2), Ok(()));
+                assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 3);
+                assert_eq!(iter.advance_by(0), Ok(()));
+                assert_eq!(iter.advance_by(100), Err(NonZero::new(98).unwrap()));
+                assert!(iter.next().is_none());
+            });
 
-            assert_eq!(iter.advance_by(2), Ok(()));
-            assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 3);
-            assert_eq!(iter.advance_by(0), Ok(()));
-            assert_eq!(iter.advance_by(100), Err(NonZero::new(98).unwrap()));
-            assert!(iter.next().is_none());
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_by(6), Err(NonZero::new(1).unwrap()));
+            });
 
-            let mut iter2 = tuple.iter();
-            assert_eq!(iter2.advance_by(6), Err(NonZero::new(1).unwrap()));
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_by(5), Ok(()));
+            });
 
-            let mut iter3 = tuple.iter();
-            assert_eq!(iter3.advance_by(5), Ok(()));
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_by(0), Ok(()));
+                assert_eq!(iter.next().unwrap().extract::<i32>().unwrap(), 1);
+            });
 
-            let mut iter4 = tuple.iter();
-            assert_eq!(iter4.advance_by(0), Ok(()));
-            assert_eq!(iter4.next().unwrap().extract::<i32>().unwrap(), 1);
+            // advance_by should not overflow with usize::MAX
+            // - first advance will overflow by MAX - len, and will exhaust the iterator
+            // - second advance will overflow by MAX
+            test_iterators(&tuple, |iter| {
+                assert_eq!(
+                    iter.advance_by(usize::MAX),
+                    Err(NonZero::new(usize::MAX - 5).unwrap())
+                );
+                assert_eq!(
+                    iter.advance_by(usize::MAX),
+                    Err(NonZero::new(usize::MAX).unwrap())
+                );
+            });
         })
     }
 
     #[cfg(feature = "nightly")]
     #[test]
-    fn test_bound_tuple_advance_back_by() {
+    fn test_tuple_iter_advance_back_by() {
         Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3, 4, 5]).unwrap();
-            let mut iter = tuple.iter();
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_back_by(2), Ok(()));
+                assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 3);
+                assert_eq!(iter.advance_back_by(0), Ok(()));
+                assert_eq!(iter.advance_back_by(100), Err(NonZero::new(98).unwrap()));
+                assert!(iter.next_back().is_none());
+            });
 
-            assert_eq!(iter.advance_back_by(2), Ok(()));
-            assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 3);
-            assert_eq!(iter.advance_back_by(0), Ok(()));
-            assert_eq!(iter.advance_back_by(100), Err(NonZero::new(98).unwrap()));
-            assert!(iter.next_back().is_none());
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_back_by(6), Err(NonZero::new(1).unwrap()));
+            });
 
-            let mut iter2 = tuple.iter();
-            assert_eq!(iter2.advance_back_by(6), Err(NonZero::new(1).unwrap()));
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_back_by(5), Ok(()));
+            });
 
-            let mut iter3 = tuple.iter();
-            assert_eq!(iter3.advance_back_by(5), Ok(()));
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.advance_back_by(0), Ok(()));
+                assert_eq!(iter.next_back().unwrap().extract::<i32>().unwrap(), 5);
+            });
 
-            let mut iter4 = tuple.iter();
-            assert_eq!(iter4.advance_back_by(0), Ok(()));
-            assert_eq!(iter4.next_back().unwrap().extract::<i32>().unwrap(), 5);
+            // advance_back_by should not overflow with usize::MAX
+            // - first advance will overflow by MAX - len, and will exhaust the iterator
+            // - second advance will overflow by MAX
+            test_iterators(&tuple, |iter| {
+                assert_eq!(
+                    iter.advance_back_by(usize::MAX),
+                    Err(NonZero::new(usize::MAX - 5).unwrap())
+                );
+                assert_eq!(
+                    iter.advance_back_by(usize::MAX),
+                    Err(NonZero::new(usize::MAX).unwrap())
+                );
+            });
         })
     }
 
     #[test]
-    fn test_iter_last() {
+    fn test_tuple_iter_last() {
         Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
-            let last = tuple.iter().last();
-            assert_eq!(last.unwrap().extract::<i32>().unwrap(), 3);
+            test_iterators(&tuple, |iter| {
+                let last = iter.last();
+                assert_eq!(last.unwrap().extract::<i32>().unwrap(), 3);
+            });
         })
     }
 
     #[test]
-    fn test_iter_count() {
+    fn test_tuple_iter_count() {
         Python::attach(|py| {
             let tuple = PyTuple::new(py, vec![1, 2, 3]).unwrap();
-            assert_eq!(tuple.iter().count(), 3);
+            test_iterators(&tuple, |iter| {
+                assert_eq!(iter.count(), 3);
+            });
         })
     }
 }

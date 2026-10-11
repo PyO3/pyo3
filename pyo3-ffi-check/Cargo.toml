@@ -1,12 +1,13 @@
 [package]
 name = "pyo3-ffi-check"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 publish = false
 
 [dependencies]
 pyo3-ffi-check-definitions = { path = "definitions" }
 pyo3-ffi-check-macro = { path = "macro" }
+pyo3-ffi = { path = "../pyo3-ffi" }
 
 [build-dependencies]
 pyo3-build-config = { path = "../pyo3-build-config" }

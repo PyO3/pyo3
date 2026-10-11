@@ -109,10 +109,10 @@ def test_gevent():
             def arbitrary_python_code():
                 # remove the dictionary entry so that the class value can be
                 # garbage collected
-                del d["key"]
-                print("gevent sleep", worker_id, iteration)
+                del d["key"]  # noqa: B023
+                print("gevent sleep", worker_id, iteration)  # noqa: B023
                 gevent.sleep(0)
-                print("after gevent sleep", worker_id, iteration)
+                print("after gevent sleep", worker_id, iteration)  # noqa: B023
 
             print("start", worker_id, iteration)
             pyo3_pytests.misc.get_item_and_run_callback(d, arbitrary_python_code)

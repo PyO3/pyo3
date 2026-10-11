@@ -2,10 +2,12 @@ use crate::err::{self, PyResult};
 use crate::instance::Borrowed;
 #[cfg(not(Py_3_13))]
 use crate::pybacked::PyBackedStr;
+use crate::types::PyTuple;
 #[cfg(any(Py_LIMITED_API, PyPy, not(Py_3_13)))]
 use crate::types::any::PyAnyMethods;
-use crate::types::PyTuple;
-use crate::{ffi, Bound, PyAny, PyTypeInfo, Python};
+use crate::{Bound, PyAny, PyTypeInfo, Python, ffi};
+#[cfg(RustPython)]
+use crate::{Py, sync::PyOnceLock};
 
 use super::PyString;
 
@@ -19,7 +21,20 @@ use super::PyString;
 #[repr(transparent)]
 pub struct PyType(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyType, pyobject_native_static_type_object!(ffi::PyType_Type), "builtins", "type", #checkfunction=ffi::PyType_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyType,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "type").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "type",
+    #checkfunction=ffi::PyType_Check
+);
 
 impl PyType {
     /// Creates a new type object.
@@ -184,7 +199,7 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
     /// Equivalent to the Python expression `issubclass(self, other)`.
     fn is_subclass(&self, other: &Bound<'_, PyAny>) -> PyResult<bool> {
         let result = unsafe { ffi::PyObject_IsSubclass(self.as_ptr(), other.as_ptr()) };
-        err::error_on_minusone(self.py(), result)?;
+        err::error_on_negative(self.py(), result)?;
         Ok(result == 1)
     }
 
@@ -244,10 +259,10 @@ impl<'py> PyTypeMethods<'py> for Bound<'py, PyType> {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::generate_unique_module_name;
-    use crate::types::{PyAnyMethods, PyBool, PyInt, PyModule, PyTuple, PyType, PyTypeMethods};
     use crate::PyAny;
     use crate::Python;
+    use crate::test_utils::generate_unique_module_name;
+    use crate::types::{PyAnyMethods, PyBool, PyInt, PyModule, PyTuple, PyType, PyTypeMethods};
     use pyo3_ffi::c_str;
 
     #[test]
@@ -269,41 +284,44 @@ mod tests {
     #[test]
     fn test_mro() {
         Python::attach(|py| {
-            assert!(py
-                .get_type::<PyBool>()
-                .mro()
-                .eq(PyTuple::new(
-                    py,
-                    [
-                        py.get_type::<PyBool>(),
-                        py.get_type::<PyInt>(),
-                        py.get_type::<PyAny>()
-                    ]
-                )
-                .unwrap())
-                .unwrap());
+            assert!(
+                py.get_type::<PyBool>()
+                    .mro()
+                    .eq(PyTuple::new(
+                        py,
+                        [
+                            py.get_type::<PyBool>(),
+                            py.get_type::<PyInt>(),
+                            py.get_type::<PyAny>()
+                        ]
+                    )
+                    .unwrap())
+                    .unwrap()
+            );
         });
     }
 
     #[test]
     fn test_bases_bool() {
         Python::attach(|py| {
-            assert!(py
-                .get_type::<PyBool>()
-                .bases()
-                .eq(PyTuple::new(py, [py.get_type::<PyInt>()]).unwrap())
-                .unwrap());
+            assert!(
+                py.get_type::<PyBool>()
+                    .bases()
+                    .eq(PyTuple::new(py, [py.get_type::<PyInt>()]).unwrap())
+                    .unwrap()
+            );
         });
     }
 
     #[test]
     fn test_bases_object() {
         Python::attach(|py| {
-            assert!(py
-                .get_type::<PyAny>()
-                .bases()
-                .eq(PyTuple::empty(py))
-                .unwrap());
+            assert!(
+                py.get_type::<PyAny>()
+                    .bases()
+                    .eq(PyTuple::empty(py))
+                    .unwrap()
+            );
         });
     }
 

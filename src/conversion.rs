@@ -1,18 +1,17 @@
 //! Defines conversions between Rust and Python types.
 use crate::err::PyResult;
-use crate::impl_::pyclass::ExtractPyClassWithClone;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, type_hint_subscript, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier, type_hint_subscript};
+use crate::platform::prelude::*;
 use crate::pyclass::boolean_struct::False;
 use crate::pyclass::{PyClassGuardError, PyClassGuardMutError};
 use crate::types::PyList;
 use crate::types::PyTuple;
 use crate::{
-    Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyClassGuard, PyErr, PyRef, PyRefMut,
-    PyTypeCheck, Python,
+    Borrowed, Bound, BoundObject, Py, PyAny, PyClass, PyErr, PyRef, PyRefMut, PyTypeCheck, Python,
 };
-use std::convert::Infallible;
-use std::marker::PhantomData;
+use core::convert::Infallible;
+use core::marker::PhantomData;
 
 /// Defines a conversion from a Rust type to a Python object, which may fail.
 ///
@@ -375,9 +374,9 @@ impl<'py, T> IntoPyObjectExt<'py> for T where T: IntoPyObject<'py> {}
 /// The output type may also depend on the Python lifetime `'py`. This allows the output type to
 /// keep interacting with the Python interpreter. See also [`Bound<'py, T>`].
 ///
-/// [`Cow<'a, str>`]: std::borrow::Cow
-/// [`Cow::Borrowed`]: std::borrow::Cow::Borrowed
-/// [`Cow::Owned`]: std::borrow::Cow::Owned
+/// [`Cow<'a, str>`]: alloc::borrow::Cow
+/// [`Cow::Borrowed`]: alloc::borrow::Cow::Borrowed
+/// [`Cow::Owned`]: alloc::borrow::Cow::Owned
 /// [guide]: https://pyo3.rs/latest/conversions/traits.html#deriving-frompyobject
 pub trait FromPyObject<'a, 'py>: Sized {
     /// The type returned in the event of a conversion error.
@@ -394,7 +393,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
 
     /// Provides the type hint information for this type when it appears as an argument.
     ///
-    /// For example, `Vec<u32>` would be `collections.abc.Sequence[int]`.
+    /// For example, `Vec<u32>` would be `_typeshed.SupportsGetItem[int, typing.SupportsIndex]`.
     /// The default value is `typing.Any`, which is correct for any type.
     #[cfg(feature = "experimental-inspect")]
     const INPUT_TYPE: PyStaticExpr = type_hint_identifier!("_typeshed", "Incomplete");
@@ -442,6 +441,7 @@ pub trait FromPyObject<'a, 'py>: Sized {
 
 mod from_py_object_sequence {
     use crate::PyResult;
+    use crate::platform::prelude::*;
 
     /// Private trait for implementing specialized sequence extraction for `Vec<u8>` and `[u8; N]`
     #[doc(hidden)]
@@ -506,23 +506,9 @@ pub(crate) use from_py_object_sequence::FromPyObjectSequence;
 /// ```
 ///
 /// [`PyList`]: crate::types::PyList
-/// [`Arc<T>`]: std::sync::Arc
+/// [`Arc<T>`]: alloc::sync::Arc
 pub trait FromPyObjectOwned<'py>: for<'a> FromPyObject<'a, 'py> {}
 impl<'py, T> FromPyObjectOwned<'py> for T where T: for<'a> FromPyObject<'a, 'py> {}
-
-impl<'a, 'py, T> FromPyObject<'a, 'py> for T
-where
-    T: PyClass + Clone + ExtractPyClassWithClone,
-{
-    type Error = PyClassGuardError<'a, 'py>;
-
-    #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = <T as crate::PyTypeInfo>::TYPE_HINT;
-
-    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
-        Ok(obj.extract::<PyClassGuard<'_, T>>()?.clone())
-    }
-}
 
 impl<'a, 'py, T> FromPyObject<'a, 'py> for PyRef<'py, T>
 where
@@ -593,8 +579,9 @@ mod test_no_clone {}
 mod tests {
     #[test]
     #[cfg(feature = "macros")]
+    #[expect(deprecated)]
     fn test_pyclass_skip_from_py_object() {
-        use crate::{types::PyAnyMethods, FromPyObject, IntoPyObject, PyErr, Python};
+        use crate::{FromPyObject, IntoPyObject, PyErr, Python, types::PyAnyMethods};
 
         #[crate::pyclass(crate = "crate", skip_from_py_object)]
         #[derive(Clone)]
@@ -626,7 +613,7 @@ mod tests {
     #[test]
     #[cfg(feature = "macros")]
     fn test_pyclass_from_py_object() {
-        use crate::{types::PyAnyMethods, IntoPyObject, PyErr, Python};
+        use crate::{IntoPyObject, PyErr, Python, types::PyAnyMethods};
 
         #[crate::pyclass(crate = "crate", from_py_object)]
         #[derive(Clone)]

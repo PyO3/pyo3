@@ -4,17 +4,22 @@ use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
-    any::PyAnyMethods, list::PyListMethods, string::PyStringMethods, PyAny, PyCFunction, PyDict,
-    PyList, PyString,
+    PyAny, PyCFunction, PyDict, PyList, PyString, any::PyAnyMethods, list::PyListMethods,
+    string::PyStringMethods,
 };
 use crate::{
-    exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
+    Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python, exceptions, ffi,
 };
-use std::borrow::Cow;
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+};
+use alloc::borrow::Cow;
+use core::ffi::CStr;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
-use std::ffi::c_int;
-use std::ffi::CStr;
-use std::str;
+use core::ffi::c_int;
+use core::str;
 
 /// Represents a Python [`module`][1] object.
 ///
@@ -32,7 +37,20 @@ use std::str;
 #[repr(transparent)]
 pub struct PyModule(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyModule, pyobject_native_static_type_object!(ffi::PyModule_Type), "types", "ModuleType", #checkfunction=ffi::PyModule_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyModule,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "ModuleType").unwrap().as_type_ptr()
+    },
+    "types",
+    "ModuleType",
+    #checkfunction=ffi::PyModule_Check
+);
 
 impl PyModule {
     /// Creates a new module object with the `__name__` attribute set to `name`.  When creating
@@ -108,9 +126,7 @@ impl PyModule {
     /// <div class="information">
     ///     <div class="tooltip compile_fail" style="">&#x26a0; &#xfe0f;</div>
     /// </div><div class="example-wrap" style="display:inline-block"><pre class="compile_fail" style="white-space:normal;font:inherit;">
-    //
-    ///  <strong>Warning</strong>: This will compile and execute code. <strong>Never</strong> pass untrusted code to this function!
-    ///
+    /// <strong>Warning</strong>: This will compile and execute code. <strong>Never</strong> pass untrusted code to this function!
     /// </pre></div>
     ///
     /// # Errors
@@ -118,11 +134,14 @@ impl PyModule {
     /// Returns `PyErr` if:
     /// - `code` is not syntactically correct Python.
     /// - Any Python exceptions are raised while initializing the module.
-    /// - Any of the arguments cannot be converted to [`CString`][std::ffi::CString]s.
+    /// - Any of the arguments cannot be converted to [`CString`][alloc::ffi::CString]s.
     ///
-    /// # Example: bundle in a file at compile time with [`include_str!`][std::include_str]:
+    /// # Example: bundle in a file at compile time with [`include_str!`][core::include_str]:
     ///
-    /// ```rust
+    /// <!-- Using standalone_crate ensures that the `include_str!` is resolved relative to this
+    /// file, not the workspace root, when merged doctests are being compiled. -->
+    ///
+    /// ```rust,standalone_crate
     /// use pyo3::prelude::*;
     /// use pyo3::ffi::c_str;
     ///
@@ -144,6 +163,10 @@ impl PyModule {
     /// use pyo3::prelude::*;
     /// use std::ffi::CString;
     ///
+    /// # #[cfg(not(wip_feature_std))]
+    /// fn main() {}
+    ///
+    /// # #[cfg(wip_feature_std)]
     /// # fn main() -> PyResult<()> {
     /// # #[cfg(not(target_arch = "wasm32"))]  // node fs doesn't see this file, maybe cwd wrong?
     /// # {
@@ -220,6 +243,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
+    /// # #[pyo3(name = "example_module_add_constant")]
     /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     module.add("c", 299_792_458)?;
     ///     Ok(())
@@ -259,6 +283,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// struct Foo { /* fields omitted */ }
     ///
     /// #[pymodule]
+    /// # #[pyo3(name = "example_module_add_class")]
     /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     module.add_class::<Foo>()?;
     ///     Ok(())
@@ -309,6 +334,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
+    /// # #[pyo3(name = "example_module_add_submodule")]
     /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     let submodule = PyModule::new(py, "submodule")?;
     ///     submodule.add("super_useful_constant", "important")?;
@@ -349,6 +375,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///     println!("Hello world!")
     /// }
     /// #[pymodule]
+    /// # #[pyo3(name = "example_module_add_function")]
     /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     module.add_function(wrap_pyfunction!(say_hello, module)?)
     /// }
@@ -388,6 +415,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
+    /// # #[pyo3(name = "example_module_gil_used")]
     /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     let submodule = PyModule::new(py, "submodule")?;
     ///     submodule.gil_used(true)?;
@@ -561,8 +589,8 @@ fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::{module::PyModuleMethods, PyModule},
         Python,
+        types::{PyModule, module::PyModuleMethods},
     };
 
     #[test]
@@ -578,12 +606,13 @@ mod tests {
         use crate::types::string::PyStringMethods;
         Python::attach(|py| {
             let site = PyModule::import(py, "site").unwrap();
-            assert!(site
-                .filename()
-                .unwrap()
-                .to_cow()
-                .unwrap()
-                .ends_with("site.py"));
+            assert!(
+                site.filename()
+                    .unwrap()
+                    .to_cow()
+                    .unwrap()
+                    .ends_with("site.py")
+            );
         })
     }
 

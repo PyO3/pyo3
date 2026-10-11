@@ -1,13 +1,13 @@
-#![cfg(not(Py_LIMITED_API))]
+#![cfg(not(any(Py_LIMITED_API, GraalPy)))]
 
 //! Support for the Python `marshal` format.
 
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyBytes};
-use crate::{ffi, Bound};
+use crate::{Bound, ffi};
 use crate::{PyResult, Python};
-use std::ffi::c_int;
+use core::ffi::c_int;
 
 /// The current version of the marshal binary format.
 pub const VERSION: i32 = 4;
@@ -33,6 +33,9 @@ pub const VERSION: i32 = 4;
 /// # });
 /// ```
 pub fn dumps<'py>(object: &Bound<'py, PyAny>, version: i32) -> PyResult<Bound<'py, PyBytes>> {
+    // SAFETY: `object` is a valid object pointer, and a non-NULL return from
+    // `PyMarshal_WriteObjectToString` is a new owned reference to a bytes
+    // object.
     unsafe {
         ffi::PyMarshal_WriteObjectToString(object.as_ptr(), version as c_int)
             .assume_owned_or_err(object.py())
@@ -46,6 +49,9 @@ where
     B: AsRef<[u8]> + ?Sized,
 {
     let data = data.as_ref();
+    // SAFETY: `data` and `len` come from the same byte slice, so `data` points
+    // to `len` readable bytes, and `PyMarshal_ReadObjectFromString` returns a
+    // new owned reference on success, or NULL with an exception set on error.
     unsafe {
         ffi::PyMarshal_ReadObjectFromString(data.as_ptr().cast(), data.len() as isize)
             .assume_owned_or_err(py)
@@ -55,7 +61,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{bytes::PyBytesMethods, dict::PyDictMethods, PyAnyMethods, PyDict};
+    use crate::types::{PyAnyMethods, PyDict, bytes::PyBytesMethods, dict::PyDictMethods};
 
     #[test]
     fn marshal_roundtrip() {

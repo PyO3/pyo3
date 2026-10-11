@@ -1,10 +1,10 @@
-use crate::object::*;
 use crate::Py_ssize_t;
+use crate::object::*;
 #[cfg(not(Py_LIMITED_API))]
-use std::ffi::c_char;
-use std::ffi::c_int;
+use core::ffi::c_char;
+use core::ffi::c_int;
 #[cfg(Py_3_15)]
-use std::ffi::c_void;
+use core::ffi::c_void;
 
 #[cfg(not(any(PyPy, GraalPy, Py_LIMITED_API)))]
 #[repr(C)]
@@ -23,7 +23,7 @@ opaque_struct!(pub PyBytesObject);
 
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "_PyPyBytes_Resize")]
-    pub fn _PyBytes_Resize(bytes: *mut *mut PyObject, newsize: Py_ssize_t) -> c_int;
+    pub(crate) fn _PyBytes_Resize(bytes: *mut *mut PyObject, newsize: Py_ssize_t) -> c_int;
 }
 
 #[cfg(not(Py_LIMITED_API))]

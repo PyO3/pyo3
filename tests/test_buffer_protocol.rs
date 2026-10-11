@@ -1,6 +1,7 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "macros")]
 #![cfg(any(not(Py_LIMITED_API), Py_3_11))]
-#![warn(unsafe_op_in_unsafe_fn)]
 
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyBufferError;
@@ -10,8 +11,8 @@ use pyo3::types::IntoPyDict;
 use std::ffi::CString;
 use std::ffi::{c_int, c_void};
 use std::ptr;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 mod test_utils;
 

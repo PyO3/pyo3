@@ -15,7 +15,7 @@
 macro_rules! extern_libpython_cpython_private_fn {
     ($(#[$attrs:meta])* $vis:vis $name:ident($($args:tt)*) $(-> $ret:ty)?) => {
         #[cfg_attr(
-            all(windows, target_arch = "x86", not(any(PyPy, GraalPy))),
+            all(windows, pyo3_use_raw_dylib, target_arch = "x86"),
             link_name = concat!("_", stringify!($name))
         )]
         $(#[$attrs])*
@@ -57,30 +57,6 @@ macro_rules! extern_libpython_maybe_private_fn {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
     };
     (
-        [_PyEval_EvalFrameDefault]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyEval_RequestCodeExtraIndex]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyCode_GetExtra]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyCode_SetExtra]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
         [_PyLong_AsByteArray]
         $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
@@ -93,61 +69,31 @@ macro_rules! extern_libpython_maybe_private_fn {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
     };
     (
-        [_PyObject_GC_Calloc]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyObject_GC_Malloc]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_Py_GetAllocatedBlocks]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyRun_AnyFileObject]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyRun_InteractiveLoopObject]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyRun_SimpleFileObject]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyUnicode_CheckConsistency]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
         [_PyUnicode_Ready]
         $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
     };
     (
-        [_PyLong_NumBits]
+        [_PyUnicode_ToDecimalDigit]
         $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
     };
     (
         [_PyThreadState_UncheckedGet]
+        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
+    ) => {
+        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
+    };
+    (
+        [_PyInterpreterState_GetEvalFrameFunc]
+        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
+    ) => {
+        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
+    };
+    (
+        [_PyInterpreterState_SetEvalFrameFunc]
         $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
@@ -178,12 +124,6 @@ macro_rules! extern_libpython_maybe_private_fn {
     };
     (
         [_PyObject_NewVar]
-        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
-    ) => {
-        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
-    };
-    (
-        [_PyErr_BadInternalCall]
         $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
@@ -226,6 +166,12 @@ macro_rules! extern_libpython_maybe_private_fn {
     };
     (
         [_Py_NegativeRefcount]
+        $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
+    ) => {
+        extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
+    };
+    (
+        [_PyErr_BadInternalCall]
         $(#[$attrs:meta])* $vis:vis fn $name:ident($($args:tt)*) $(-> $ret:ty)?
     ) => {
         extern_libpython_cpython_private_fn! { $(#[$attrs])* $vis $name($($args)*) $(-> $ret)? }
@@ -324,8 +270,9 @@ macro_rules! extern_libpython {
         extern_libpython!(@impl $abi { $($body)* }
             // abi3
             "python3", "python3_d",
-            // Python 3.8 - 3.15
-            "python38", "python38_d",
+            // abi3t
+            "python3t", "python3t_d",
+            // Python 3.9 - 3.15
             "python39", "python39_d",
             "python310", "python310_d",
             "python311", "python311_d",
@@ -333,12 +280,17 @@ macro_rules! extern_libpython {
             "python313", "python313_d",
             "python314", "python314_d",
             "python315", "python315_d",
+            "python316", "python316_d",
             // free-threaded builds (3.13+)
             "python313t", "python313t_d",
             "python314t", "python314t_d",
             "python315t", "python315t_d",
+            "python316t", "python316t_d",
             // PyPy (DLL is libpypy3.X-c.dll, not pythonXY.dll)
             "libpypy3.11-c",
+            "libpypy3.12-c",
+            // GraalPy DLL
+            "python-native",
         );
     };
     // Internal: generate cfg_attr for each DLL name. One of these will be selected
@@ -351,12 +303,13 @@ macro_rules! extern_libpython {
     // separate cfg_attr arms per architecture.
     (@impl $abi:literal { $($body:tt)* } $($dll:literal),* $(,)?) => {
         $(
-            #[cfg_attr(all(windows, target_arch = "x86", pyo3_dll = $dll),
+            #[cfg_attr(all(windows, pyo3_use_raw_dylib, target_arch = "x86", pyo3_dll = $dll),
                 link(name = $dll, kind = "raw-dylib", import_name_type = "undecorated"))]
-            #[cfg_attr(all(windows, not(target_arch = "x86"), pyo3_dll = $dll),
+            #[cfg_attr(all(windows, pyo3_use_raw_dylib, not(target_arch = "x86"), pyo3_dll = $dll),
                 link(name = $dll, kind = "raw-dylib"))]
         )*
-        extern $abi {
+        #[cfg_attr(all(windows, not(pyo3_use_raw_dylib)), link(name = "pythonXY"))]
+        unsafe extern $abi {
             extern_libpython_items! { $($body)* }
         }
     };

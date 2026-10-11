@@ -1,17 +1,20 @@
-use std::{
-    cell::UnsafeCell,
-    sync::{Mutex, Once},
-    thread::ThreadId,
-};
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
 
-#[cfg(not(Py_3_12))]
+use crate::platform::prelude::*;
+use crate::platform::sync::Once;
+use crate::platform::sync::non_poison::Mutex;
+use crate::platform::thread::{self, ThreadId};
+
+use core::cell::UnsafeCell;
+
 use crate::sync::MutexExt;
 use crate::{
+    Bound, Py, PyAny, PyErrArguments, PyTypeInfo, Python,
     exceptions::{PyBaseException, PyTypeError},
     ffi,
     ffi_ptr_ext::FfiPtrExt,
     types::{PyAnyMethods, PyTraceback, PyType},
-    Bound, Py, PyAny, PyErrArguments, PyTypeInfo, Python,
 };
 
 pub(crate) struct PyErrState {
@@ -92,9 +95,10 @@ impl PyErrState {
 
         // Guard against re-entrant normalization, because `Once` does not provide
         // re-entrancy guarantees.
-        if let Some(thread) = self.normalizing_thread.lock().unwrap().as_ref() {
-            assert!(
-                !(*thread == std::thread::current().id()),
+        if let Some(thread) = *self.normalizing_thread.lock_py_attached(py) {
+            assert_ne!(
+                thread,
+                thread::current().id(),
                 "Re-entrant normalization of PyErrState detected"
             );
         }
@@ -102,10 +106,7 @@ impl PyErrState {
         // avoid deadlock of `.call_once` with the GIL
         py.detach(|| {
             self.normalized.call_once(|| {
-                self.normalizing_thread
-                    .lock()
-                    .unwrap()
-                    .replace(std::thread::current().id());
+                *self.normalizing_thread.lock() = Some(thread::current().id());
 
                 // Safety: no other thread can access the inner value while we are normalizing it.
                 let state = unsafe {
@@ -139,7 +140,7 @@ pub(crate) struct PyErrStateNormalized {
     ptype: Py<PyType>,
     pub pvalue: Py<PyBaseException>,
     #[cfg(not(Py_3_12))]
-    ptraceback: std::sync::Mutex<Option<Py<PyTraceback>>>,
+    ptraceback: Mutex<Option<Py<PyTraceback>>>,
 }
 
 impl PyErrStateNormalized {
@@ -173,7 +174,6 @@ impl PyErrStateNormalized {
     pub(crate) fn ptraceback<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyTraceback>> {
         self.ptraceback
             .lock_py_attached(py)
-            .unwrap()
             .as_ref()
             .map(|traceback| traceback.bind(py).clone())
     }
@@ -189,7 +189,7 @@ impl PyErrStateNormalized {
 
     #[cfg(not(Py_3_12))]
     pub(crate) fn set_ptraceback<'py>(&self, py: Python<'py>, tb: Option<Bound<'py, PyTraceback>>) {
-        *self.ptraceback.lock_py_attached(py).unwrap() = tb.map(Bound::unbind);
+        *self.ptraceback.lock_py_attached(py) = tb.map(Bound::unbind);
     }
 
     #[cfg(Py_3_12)]
@@ -218,9 +218,9 @@ impl PyErrStateNormalized {
         #[cfg(not(Py_3_12))]
         {
             let (ptype, pvalue, ptraceback) = unsafe {
-                let mut ptype: *mut ffi::PyObject = std::ptr::null_mut();
-                let mut pvalue: *mut ffi::PyObject = std::ptr::null_mut();
-                let mut ptraceback: *mut ffi::PyObject = std::ptr::null_mut();
+                let mut ptype: *mut ffi::PyObject = core::ptr::null_mut();
+                let mut pvalue: *mut ffi::PyObject = core::ptr::null_mut();
+                let mut ptraceback: *mut ffi::PyObject = core::ptr::null_mut();
 
                 ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
 
@@ -247,7 +247,7 @@ impl PyErrStateNormalized {
             ptype.map(|ptype| PyErrStateNormalized {
                 ptype: ptype.unbind(),
                 pvalue: pvalue.expect("normalized exception value missing").unbind(),
-                ptraceback: std::sync::Mutex::new(ptraceback.map(Bound::unbind)),
+                ptraceback: Mutex::new(ptraceback.map(Bound::unbind)),
             })
         }
     }
@@ -287,10 +287,9 @@ impl PyErrStateNormalized {
             ptype: self.ptype.clone_ref(py),
             pvalue: self.pvalue.clone_ref(py),
             #[cfg(not(Py_3_12))]
-            ptraceback: std::sync::Mutex::new(
+            ptraceback: Mutex::new(
                 self.ptraceback
                     .lock_py_attached(py)
-                    .unwrap()
                     .as_ref()
                     .map(|ptraceback| ptraceback.clone_ref(py)),
             ),
@@ -346,8 +345,7 @@ impl PyErrStateInner {
                 pvalue.into_ptr(),
                 ptraceback
                     .into_inner()
-                    .unwrap()
-                    .map_or(std::ptr::null_mut(), Py::into_ptr),
+                    .map_or(core::ptr::null_mut(), Py::into_ptr),
             ),
         };
         unsafe { ffi::PyErr_Restore(ptype, pvalue, ptraceback) }
@@ -372,9 +370,9 @@ fn lazy_into_normalized_ffi_tuple(
     // To be consistent with 3.12 logic, go via raise_lazy, but also then normalize
     // the resulting exception
     raise_lazy(py, lazy);
-    let mut ptype = std::ptr::null_mut();
-    let mut pvalue = std::ptr::null_mut();
-    let mut ptraceback = std::ptr::null_mut();
+    let mut ptype = core::ptr::null_mut();
+    let mut pvalue = core::ptr::null_mut();
+    let mut ptraceback = core::ptr::null_mut();
     unsafe {
         ffi::PyErr_Fetch(&mut ptype, &mut pvalue, &mut ptraceback);
         ffi::PyErr_NormalizeException(&mut ptype, &mut pvalue, &mut ptraceback);
@@ -405,10 +403,18 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
 
 #[cfg(test)]
 mod tests {
-
+    #[allow(unused_imports, reason = "conditionally used")]
+    use crate::platform::prelude::*;
     use crate::{
-        exceptions::PyValueError, sync::PyOnceLock, Py, PyAny, PyErr, PyErrArguments, Python,
+        Py, PyAny, PyErr, PyErrArguments, Python, exceptions::PyValueError, sync::PyOnceLock,
     };
+
+    // import a few things from std without leaking any imports
+    #[cfg(not(target_arch = "wasm32"))]
+    mod thread {
+        extern crate std;
+        pub use std::thread::{sleep, spawn};
+    }
 
     #[test]
     #[should_panic(expected = "Re-entrant normalization of PyErrState detected")]
@@ -446,7 +452,7 @@ mod tests {
                 // releasing the GIL potentially allows for other threads to deadlock
                 // with the normalization going on here
                 py.detach(|| {
-                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    thread::sleep(core::time::Duration::from_millis(10));
                 });
                 py.None()
             }
@@ -457,7 +463,7 @@ mod tests {
         // Let many threads attempt to read the normalized value at the same time
         let handles = (0..10)
             .map(|_| {
-                std::thread::spawn(|| {
+                thread::spawn(|| {
                     Python::attach(|py| {
                         ERR.get(py).expect("is set just above").value(py);
                     });
@@ -472,10 +478,11 @@ mod tests {
         // We should never have deadlocked, and should be able to run
         // this assertion
         Python::attach(|py| {
-            assert!(ERR
-                .get(py)
-                .expect("is set above")
-                .is_instance_of::<PyValueError>(py))
+            assert!(
+                ERR.get(py)
+                    .expect("is set above")
+                    .is_instance_of::<PyValueError>(py)
+            )
         });
     }
 }

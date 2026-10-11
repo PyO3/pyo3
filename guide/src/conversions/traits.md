@@ -450,7 +450,7 @@ If the input is neither a string nor an integer, the error message will be: `"'<
 
 - `pyo3(transparent)`
   - extract the field directly from the object as `obj.extract()` instead of `get_item()` or
-      `getattr()`
+    `getattr()`
   - Newtype structs and tuple-variants are treated as transparent per default.
   - only supported for single-field structs and enum variants
 - `pyo3(annotation = "name")`
@@ -525,7 +525,7 @@ Over the next few releases the blanket implementation is gradually phased out, a
 As a first step of this migration a new `skip_from_py_object` option for `#[pyclass]` was introduced, to opt-out of the blanket implementation and allow downstream users to provide their own implementation:
 
 ```rust
-# #![allow(dead_code)]
+# #![allow(dead_code, deprecated)]
 # use pyo3::prelude::*;
 
 #[pyclass(skip_from_py_object)] // opt-out of the PyO3 FromPyObject blanket
@@ -548,6 +548,10 @@ impl<'py> FromPyObject<'_, 'py> for Number {
 As a second step the `from_py_object` option was introduced.
 This option also opts-out of the blanket implementation and instead generates a custom `FromPyObject` implementation for the pyclass which is functionally equivalent to the blanket.
 
+As of PyO3 0.30.0 `skip_from_py_object` is the new default behavior.
+Setting the option is now deprecated and can be safely removed without changes in behavior.
+PyO3 will remove this option entirely in a future release.
+
 ## `IntoPyObject`
 
 The [`IntoPyObject`] trait defines the to-python conversion for a Rust type.
@@ -568,7 +572,9 @@ Both `struct`s and `enum`s are supported.
 ```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
+# #[cfg(wip_feature_std)]
 # use std::collections::HashMap;
+# #[cfg(wip_feature_std)]
 # use std::hash::Hash;
 
 // structs convert into `PyDict` with field names as keys
@@ -581,6 +587,7 @@ struct Struct {
 // tuple structs convert into `PyTuple`
 // lifetimes and generics are supported, the impl will be bounded by
 // `K: IntoPyObject, V: IntoPyObject`
+# #[cfg(wip_feature_std)]
 #[derive(IntoPyObject)]
 struct Tuple<'a, K: Hash + Eq, V>(&'a str, HashMap<K, V>);
 ```
@@ -607,9 +614,12 @@ For `enum`s each variant is converted according to the rules for `struct`s above
 ```rust,no_run
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
+# #[cfg(wip_feature_std)]
 # use std::collections::HashMap;
+# #[cfg(wip_feature_std)]
 # use std::hash::Hash;
 
+# #[cfg(wip_feature_std)]
 #[derive(IntoPyObject)]
 enum Enum<'a, 'py, K: Hash + Eq, V> { // enums are supported and convert using the same
     TransparentTuple(Py<PyAny>),       // rules on the variants as the structs above
@@ -632,24 +642,29 @@ All the same rules from above apply as well.
     - `#[derive(IntoPyObject)]` will invoke the function with `Cow::Owned`
     - `#[derive(IntoPyObjectRef)]` will invoke the function with `Cow::Borrowed`
 
-    ```rust,no_run
-    # use pyo3::prelude::*;
-    # use pyo3::IntoPyObjectExt;
-    # use std::borrow::Cow;
-    #[derive(Clone)]
-    struct NotIntoPy(usize);
+  ```rust,no_run
+  # use pyo3::prelude::*;
+  # use pyo3::IntoPyObjectExt;
+  # #[cfg(wip_feature_std)]
+  # use std::borrow::Cow;
+  # use core::convert;
+  # #[allow(dead_code)]
+  #[derive(Clone)]
+  struct NotIntoPy(usize);
 
-    #[derive(IntoPyObject, IntoPyObjectRef)]
-    struct MyStruct {
-        #[pyo3(into_py_with = convert)]
-        not_into_py: NotIntoPy,
-    }
+  # #[cfg(wip_feature_std)]
+  #[derive(IntoPyObject, IntoPyObjectRef)]
+  struct MyStruct {
+      #[pyo3(into_py_with = convert)]
+      not_into_py: NotIntoPy,
+  }
 
-    /// Convert `NotIntoPy` into Python
-    fn convert<'py>(not_into_py: Cow<'_, NotIntoPy>, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        not_into_py.0.into_bound_py_any(py)
-    }
-    ```
+  /// Convert `NotIntoPy` into Python
+  # #[cfg(wip_feature_std)]
+  fn convert<'py>(not_into_py: Cow<'_, NotIntoPy>, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+      not_into_py.0.into_bound_py_any(py)
+  }
+  ```
 
 ### manual implementation
 

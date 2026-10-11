@@ -2,14 +2,14 @@ use crate::methodobject::PyMethodDef;
 use crate::moduleobject::PyModuleDef;
 use crate::object::PyObject;
 use crate::pyport::Py_ssize_t;
-use std::ffi::{c_char, c_int, c_long};
+use core::ffi::{c_char, c_int, c_long};
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyArg_Parse")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyArg_Parse")]
     pub fn PyArg_Parse(arg1: *mut PyObject, arg2: *const c_char, ...) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyArg_ParseTuple")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyArg_ParseTuple")]
     pub fn PyArg_ParseTuple(arg1: *mut PyObject, arg2: *const c_char, ...) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyArg_ParseTupleAndKeywords")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyArg_ParseTupleAndKeywords")]
     pub fn PyArg_ParseTupleAndKeywords(
         arg1: *mut PyObject,
         arg2: *mut PyObject,
@@ -23,7 +23,7 @@ extern_libpython! {
     // skipped PyArg_VaParseTupleAndKeywords
 
     pub fn PyArg_ValidateKeywordArguments(arg1: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyArg_UnpackTuple")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyArg_UnpackTuple")]
     pub fn PyArg_UnpackTuple(
         arg1: *mut PyObject,
         arg2: *const c_char,
@@ -32,39 +32,38 @@ extern_libpython! {
         ...
     ) -> c_int;
 
-    #[cfg_attr(PyPy, link_name = "PyPy_BuildValue")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPy_BuildValue")]
     pub fn Py_BuildValue(arg1: *const c_char, ...) -> *mut PyObject;
     // skipped Py_VaBuildValue
 
     #[cfg(Py_3_13)]
     pub fn PyModule_Add(module: *mut PyObject, name: *const c_char, value: *mut PyObject) -> c_int;
     #[cfg(Py_3_10)]
-    #[cfg_attr(PyPy, link_name = "PyPyModule_AddObjectRef")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_AddObjectRef")]
     pub fn PyModule_AddObjectRef(
         module: *mut PyObject,
         name: *const c_char,
         value: *mut PyObject,
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_AddObject")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_AddObject")]
     pub fn PyModule_AddObject(
         module: *mut PyObject,
         name: *const c_char,
         value: *mut PyObject,
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_AddIntConstant")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_AddIntConstant")]
     pub fn PyModule_AddIntConstant(
         module: *mut PyObject,
         name: *const c_char,
         value: c_long,
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_AddStringConstant")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_AddStringConstant")]
     pub fn PyModule_AddStringConstant(
         module: *mut PyObject,
         name: *const c_char,
         value: *const c_char,
     ) -> c_int;
-    #[cfg(any(Py_3_10, all(Py_3_9, not(Py_LIMITED_API))))]
-    #[cfg_attr(PyPy, link_name = "PyPyModule_AddType")]
+    #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     pub fn PyModule_AddType(
         module: *mut PyObject,
         type_: *mut crate::object::PyTypeObject,
@@ -72,8 +71,9 @@ extern_libpython! {
     // skipped PyModule_AddIntMacro
     // skipped PyModule_AddStringMacro
     pub fn PyModule_SetDocString(arg1: *mut PyObject, arg2: *const c_char) -> c_int;
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_AddFunctions")]
     pub fn PyModule_AddFunctions(arg1: *mut PyObject, arg2: *mut PyMethodDef) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyModule_ExecDef")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_ExecDef")]
     pub fn PyModule_ExecDef(module: *mut PyObject, def: *mut PyModuleDef) -> c_int;
 }
 
@@ -84,7 +84,7 @@ pub const PYTHON_ABI_VERSION: i32 = 3;
 
 extern_libpython! {
 
-    #[cfg_attr(PyPy, link_name = "PyPyModule_Create2")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_Create2")]
     pub fn PyModule_Create2(module: *mut PyModuleDef, apiver: c_int) -> *mut PyObject;
 }
 
@@ -102,7 +102,7 @@ pub unsafe fn PyModule_Create(module: *mut PyModuleDef) -> *mut PyObject {
 
 extern_libpython! {
 
-    #[cfg_attr(PyPy, link_name = "PyPyModule_FromDefAndSpec2")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyModule_FromDefAndSpec2")]
     pub fn PyModule_FromDefAndSpec2(
         def: *mut PyModuleDef,
         spec: *mut PyObject,
@@ -157,7 +157,9 @@ const _PyABIInfo_DEFAULT_FLAG_STABLE: u16 = 0;
 
 // skipped PyABIInfo_DEFAULT_ABI_VERSION: depends on Py_VERSION_HEX
 
-#[cfg(all(Py_3_15, Py_GIL_DISABLED))]
+#[cfg(all(Py_3_15, all(Py_LIMITED_API, Py_GIL_DISABLED)))]
+const _PyABIInfo_DEFAULT_FLAG_FT: u16 = PyABIInfo_FREETHREADING_AGNOSTIC;
+#[cfg(all(Py_3_15, Py_GIL_DISABLED, not(Py_LIMITED_API)))]
 const _PyABIInfo_DEFAULT_FLAG_FT: u16 = PyABIInfo_FREETHREADED;
 #[cfg(all(Py_3_15, not(Py_GIL_DISABLED)))]
 const _PyABIInfo_DEFAULT_FLAG_FT: u16 = PyABIInfo_GIL;

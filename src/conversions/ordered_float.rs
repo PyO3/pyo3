@@ -36,6 +36,7 @@
 //! }
 //!
 //! #[pymodule]
+//! # #[pyo3(name = "example_ordered_float")]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(add_not_nans, m)?)?;
 //!     m.add_function(wrap_pyfunction!(add_ordered_floats, m)?)?;
@@ -55,10 +56,11 @@ use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
+use crate::platform::prelude::*;
 use crate::types::PyFloat;
 use crate::{Borrowed, Bound, FromPyObject, PyAny, Python};
+use core::convert::Infallible;
 use ordered_float::{NotNan, OrderedFloat};
-use std::convert::Infallible;
 
 macro_rules! float_conversions {
     ($wrapper:ident, $float_type:ty, $constructor:expr) => {
@@ -112,10 +114,10 @@ float_conversions!(NotNan, f64, |val| NotNan::new(val)
 #[cfg(test)]
 mod test_ordered_float {
     use super::*;
-    use crate::types::dict::IntoPyDict;
     use crate::types::PyAnyMethods;
-    use std::ffi::CStr;
-    use std::ffi::CString;
+    use crate::types::dict::IntoPyDict;
+    use alloc::ffi::CString;
+    use core::ffi::CStr;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;

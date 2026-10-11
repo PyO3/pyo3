@@ -1,3 +1,5 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
 #![no_implicit_prelude]
 #![allow(dead_code, unused_variables, clippy::unnecessary_wraps)]
 

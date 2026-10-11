@@ -13,6 +13,7 @@ fn double(x: usize) -> usize {
 
 /// This module is implemented in Rust.
 #[pymodule]
+# #[pyo3(name = "example")]
 mod my_extension {
     use pyo3::prelude::*;
 
@@ -119,8 +120,8 @@ It is possible to declare functions, classes, sub-modules and constants inline i
 For example:
 
 ```rust,no_run
-# mod declarative_module_test {
 #[pyo3::pymodule]
+# #[pyo3(name = "example_inline_declarations")]
 mod my_extension {
     use pyo3::prelude::*;
 
@@ -144,7 +145,6 @@ mod my_extension {
         struct Nested;
     }
 }
-# }
 ```
 
 In this case, `#[pymodule]` macro automatically sets the `module` attribute of the `#[pyclass]` macros declared inside of it with its name.
@@ -156,8 +156,8 @@ In the previous example, the `Nested` class will have for `module` `my_extension
 If the macros provided by PyO3 are not enough, it is possible to run code at the module initialization:
 
 ```rust,no_run
-# mod procedural_module_test {
 #[pyo3::pymodule]
+# #[pyo3(name = "example_module_init")]
 mod my_extension {
     use pyo3::prelude::*;
 
@@ -172,5 +172,38 @@ mod my_extension {
         m.add("double2", m.getattr("double")?)
     }
 }
-# }
 ```
+
+The module argument may be omitted if the initialization does not need it, for example when it only installs some global state.
+The return type may then be omitted too:
+
+```rust,no_run
+#[pyo3::pymodule]
+# #[pyo3(name = "example_module_init_no_module_arg")]
+mod my_extension {
+    #[pymodule_init]
+    fn init() {
+        // Arbitrary code which does not touch the module
+    }
+}
+```
+
+A `Python<'_>` marker may be taken as the first argument, either on its own or followed by the module.
+This suits an initializer which needs the interpreter but not the module itself:
+
+```rust,no_run
+#[pyo3::pymodule]
+# #[pyo3(name = "example_module_init_python_arg")]
+mod my_extension {
+    use pyo3::prelude::*;
+
+    #[pymodule_init]
+    fn init(py: Python<'_>) -> PyResult<()> {
+        // Arbitrary code which needs the interpreter but not the module
+        py.import("decimal")?;
+        Ok(())
+    }
+}
+```
+
+Prefer a form which does not take the module where possible: an initializer which is not handed the module does not add attributes to it, so [type stub generation](type-stub.md) can keep describing the module in full.

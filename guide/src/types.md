@@ -69,10 +69,10 @@ To give an example of how `Bound<'py, T>` is PyO3's primary API type, consider t
 
 ```python
 def example():
-    x = list()   # create a Python list
+    x = list()  # create a Python list
     x.append(1)  # append the integer 1 to it
-    y = x        # create a second reference to the list
-    del x        # delete the original reference
+    y = x  # create a second reference to the list
+    del x  # delete the original reference
 ```
 
 Using PyO3's API, and in particular `Bound<'py, PyList>`, this code translates into the following Rust code:

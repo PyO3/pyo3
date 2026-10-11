@@ -3,7 +3,7 @@ name = "pyo3-benches"
 version = "0.1.0"
 description = "In-tree benchmarks for the PyO3 project"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
-edition = "2021"
+edition = "2024"
 publish = false
 
 [dependencies]
@@ -13,14 +13,14 @@ pyo3 = { path = "../", features = ["auto-initialize", "full"] }
 pyo3-build-config = { path = "../pyo3-build-config" }
 
 [dev-dependencies]
-codspeed-criterion-compat = "4.0"
+codspeed-criterion-compat = "5.0"
 criterion = "0.8.0"
 num-bigint = "0.4.3"
 rust_decimal = { version = "1.0.0", default-features = false }
 hashbrown = "0.17"
 
 [features]
-abi3 = ["pyo3-build-config/abi3"]
+abi3 = ["pyo3/abi3"]
 
 [[bench]]
 name = "bench_any"
@@ -28,6 +28,10 @@ harness = false
 
 [[bench]]
 name = "bench_attach"
+harness = false
+
+[[bench]]
+name = "bench_attach_scaling"
 harness = false
 
 [[bench]]
@@ -96,6 +100,10 @@ harness = false
 
 [[bench]]
 name = "bench_pystring_from_fmt"
+harness = false
+
+[[bench]]
+name = "bench_int128"
 harness = false
 
 [workspace]

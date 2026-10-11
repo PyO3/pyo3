@@ -1,14 +1,22 @@
+//! Python strings and related types.
+
 #[cfg(not(Py_LIMITED_API))]
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
+use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
-use crate::types::bytes::PyBytesMethods;
 use crate::types::PyBytes;
-use crate::{ffi, Bound, Py, PyAny, PyResult, Python};
-use std::borrow::Cow;
-use std::ffi::CStr;
-use std::{fmt, str};
+use crate::types::bytes::PyBytesMethods;
+use crate::{Bound, Py, PyAny, PyResult, Python, err, ffi};
+#[cfg(RustPython)]
+use crate::{
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+};
+use alloc::borrow::Cow;
+use core::ffi::CStr;
+use core::{fmt, str};
 
 /// Represents raw data backing a Python `str`.
 ///
@@ -34,10 +42,10 @@ impl<'a> PyStringData<'a> {
         match self {
             Self::Ucs1(s) => s,
             Self::Ucs2(s) => unsafe {
-                std::slice::from_raw_parts(s.as_ptr().cast(), s.len() * self.value_width_bytes())
+                core::slice::from_raw_parts(s.as_ptr().cast(), s.len() * self.value_width_bytes())
             },
             Self::Ucs4(s) => unsafe {
-                std::slice::from_raw_parts(s.as_ptr().cast(), s.len() * self.value_width_bytes())
+                core::slice::from_raw_parts(s.as_ptr().cast(), s.len() * self.value_width_bytes())
             },
         }
     }
@@ -83,7 +91,7 @@ impl<'a> PyStringData<'a> {
                     .into())
                 }
             },
-            Self::Ucs4(data) => match data.iter().map(|&c| std::char::from_u32(c)).collect() {
+            Self::Ucs4(data) => match data.iter().copied().map(char::from_u32).collect() {
                 Some(s) => Ok(Cow::Owned(s)),
                 None => Err(PyUnicodeDecodeError::new(
                     py,
@@ -111,7 +119,7 @@ impl<'a> PyStringData<'a> {
             Self::Ucs2(data) => Cow::Owned(String::from_utf16_lossy(data)),
             Self::Ucs4(data) => Cow::Owned(
                 data.iter()
-                    .map(|&c| std::char::from_u32(c).unwrap_or('\u{FFFD}'))
+                    .map(|&c| char::from_u32(c).unwrap_or('\u{FFFD}'))
                     .collect(),
             ),
         }
@@ -152,7 +160,20 @@ impl<'a> PyStringData<'a> {
 #[repr(transparent)]
 pub struct PyString(PyAny);
 
+#[cfg(not(RustPython))]
 pyobject_native_type_core!(PyString, pyobject_native_static_type_object!(ffi::PyUnicode_Type), "builtins", "str", #checkfunction=ffi::PyUnicode_Check);
+
+#[cfg(RustPython)]
+pyobject_native_type_core!(
+    PyString,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "builtins", "str").unwrap().as_type_ptr()
+    },
+    "builtins",
+    "str",
+    #checkfunction=ffi::PyUnicode_Check
+);
 
 impl PyString {
     /// Creates a new Python string object.
@@ -217,8 +238,8 @@ impl PyString {
         encoding: Option<&CStr>,
         errors: Option<&CStr>,
     ) -> PyResult<Bound<'py, PyString>> {
-        let encoding = encoding.map_or(std::ptr::null(), CStr::as_ptr);
-        let errors = errors.map_or(std::ptr::null(), CStr::as_ptr);
+        let encoding = encoding.map_or(core::ptr::null(), CStr::as_ptr);
+        let errors = errors.map_or(core::ptr::null(), CStr::as_ptr);
         // Safety:
         // - `src` is a valid Python object
         // - `encoding` and `errors` are either null or valid C strings. `encoding` and `errors` are
@@ -246,7 +267,7 @@ impl PyString {
         #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
         {
             use crate::fmt::PyUnicodeWriter;
-            use std::fmt::Write as _;
+            use core::fmt::Write as _;
 
             let mut writer = PyUnicodeWriter::new(py)?;
             writer
@@ -269,6 +290,12 @@ impl PyString {
 /// `arbitrary_self_types`.
 #[doc(alias = "PyString")]
 pub trait PyStringMethods<'py>: crate::sealed::Sealed {
+    /// Returns the number of code points in the string.
+    ///
+    /// Unlike [`PyAnyMethods::len`](crate::types::PyAnyMethods::len), this never calls `__len__`,
+    /// so an override in a `str` subclass is ignored.
+    fn code_point_len(&self) -> PyResult<usize>;
+
     /// Gets the Python string as a Rust UTF-8 string slice.
     ///
     /// Returns a `UnicodeEncodeError` if the input is not valid unicode
@@ -310,6 +337,19 @@ pub trait PyStringMethods<'py>: crate::sealed::Sealed {
 }
 
 impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
+    fn code_point_len(&self) -> PyResult<usize> {
+        let len = cfg_select! {
+            // SAFETY: self is a valid str object, and every str is canonical since Python 3.12
+            all(Py_3_12, not(any(Py_LIMITED_API, PyPy, GraalPy))) => unsafe {
+                ffi::PyUnicode_GET_LENGTH(self.as_ptr())
+            },
+            // SAFETY: self is a valid str object
+            _ => unsafe { ffi::PyUnicode_GetLength(self.as_ptr()) },
+        };
+        err::error_on_negative(self.py(), len)?;
+        Ok(len as usize)
+    }
+
     #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
     fn to_str(&self) -> PyResult<&str> {
         self.as_borrowed().to_str()
@@ -348,7 +388,7 @@ impl<'a> Borrowed<'a, '_, PyString> {
             Err(crate::PyErr::fetch(self.py()))
         } else {
             Ok(unsafe {
-                std::str::from_utf8_unchecked(std::slice::from_raw_parts(data, size as usize))
+                core::str::from_utf8_unchecked(core::slice::from_raw_parts(data, size as usize))
             })
         }
     }
@@ -410,15 +450,15 @@ impl<'a> Borrowed<'a, '_, PyString> {
             let kind = ffi::PyUnicode_KIND(ptr);
 
             match kind {
-                ffi::PyUnicode_1BYTE_KIND => Ok(PyStringData::Ucs1(std::slice::from_raw_parts(
+                ffi::PyUnicode_1BYTE_KIND => Ok(PyStringData::Ucs1(core::slice::from_raw_parts(
                     raw_data as *const u8,
                     length,
                 ))),
-                ffi::PyUnicode_2BYTE_KIND => Ok(PyStringData::Ucs2(std::slice::from_raw_parts(
+                ffi::PyUnicode_2BYTE_KIND => Ok(PyStringData::Ucs2(core::slice::from_raw_parts(
                     raw_data as *const u16,
                     length,
                 ))),
-                ffi::PyUnicode_4BYTE_KIND => Ok(PyStringData::Ucs4(std::slice::from_raw_parts(
+                ffi::PyUnicode_4BYTE_KIND => Ok(PyStringData::Ucs4(core::slice::from_raw_parts(
                     raw_data as *const u32,
                     length,
                 ))),
@@ -579,7 +619,52 @@ impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{exceptions::PyLookupError, types::PyAnyMethods as _, IntoPyObject};
+    use crate::{IntoPyObject, exceptions::PyLookupError, types::PyAnyMethods as _};
+
+    #[test]
+    fn test_code_point_len() {
+        Python::attach(|py| {
+            for s in ["", "ascii", "é", "哈哈", "🐈", "ascii 哈哈🐈"] {
+                let py_string = PyString::new(py, s);
+                assert_eq!(py_string.code_point_len().unwrap(), s.chars().count());
+                assert_eq!(
+                    py_string.code_point_len().unwrap(),
+                    py_string.len().unwrap()
+                );
+            }
+        })
+    }
+
+    #[test]
+    fn test_code_point_len_surrogate() {
+        Python::attach(|py| {
+            let py_string = py
+                .eval(cr"'a\ud800'", None, None)
+                .unwrap()
+                .cast_into::<PyString>()
+                .unwrap();
+            assert_eq!(py_string.code_point_len().unwrap(), 2);
+        })
+    }
+
+    #[test]
+    #[cfg(not(PyPy))]
+    fn test_code_point_len_ignores_subclass_len() {
+        use crate::types::{PyDict, PyDictMethods as _};
+
+        Python::attach(|py| {
+            let locals = PyDict::new(py);
+            py.run(
+                c"class Lying(str):\n    def __len__(self):\n        return 0\ns = Lying('abc')",
+                None,
+                Some(&locals),
+            )
+            .unwrap();
+            let s = locals.get_item("s").unwrap().unwrap();
+            assert_eq!(s.len().unwrap(), 0);
+            assert_eq!(s.cast::<PyString>().unwrap().code_point_len().unwrap(), 3);
+        })
+    }
 
     #[test]
     fn test_to_cow_utf8() {
@@ -624,12 +709,13 @@ mod tests {
     fn test_encode_utf8_surrogate() {
         Python::attach(|py| {
             let obj: Py<PyAny> = py.eval(cr"'\ud800'", None, None).unwrap().into();
-            assert!(obj
-                .bind(py)
-                .cast::<PyString>()
-                .unwrap()
-                .encode_utf8()
-                .is_err());
+            assert!(
+                obj.bind(py)
+                    .cast::<PyString>()
+                    .unwrap()
+                    .encode_utf8()
+                    .is_err()
+            );
         })
     }
 
@@ -669,9 +755,11 @@ mod tests {
 
             // default encoding is utf-8, default error handler is strict
             let py_string = PyString::from_encoded_object(&py_bytes, None, None).unwrap_err();
-            assert!(py_string
-                .get_type(py)
-                .is(py.get_type::<crate::exceptions::PyUnicodeDecodeError>()));
+            assert!(
+                py_string
+                    .get_type(py)
+                    .is(py.get_type::<crate::exceptions::PyUnicodeDecodeError>())
+            );
 
             // with `ignore` error handler, the invalid byte is dropped
             let py_string =
@@ -736,9 +824,10 @@ mod tests {
             assert_eq!(data, PyStringData::Ucs1(b"f\xfe"));
             let err = data.to_string(py).unwrap_err();
             assert!(err.get_type(py).is(py.get_type::<PyUnicodeDecodeError>()));
-            assert!(err
-                .to_string()
-                .contains("'utf-8' codec can't decode byte 0xfe in position 1"));
+            assert!(
+                err.to_string()
+                    .contains("'utf-8' codec can't decode byte 0xfe in position 1")
+            );
             assert_eq!(data.to_string_lossy(), Cow::Borrowed("f�"));
         });
     }
@@ -778,9 +867,10 @@ mod tests {
             assert_eq!(data, PyStringData::Ucs2(&[0xff22, 0xd800]));
             let err = data.to_string(py).unwrap_err();
             assert!(err.get_type(py).is(py.get_type::<PyUnicodeDecodeError>()));
-            assert!(err
-                .to_string()
-                .contains("'utf-16' codec can't decode bytes in position 0-3"));
+            assert!(
+                err.to_string()
+                    .contains("'utf-16' codec can't decode bytes in position 0-3")
+            );
             assert_eq!(data.to_string_lossy(), Cow::Owned::<str>("Ｂ�".into()));
         });
     }
@@ -817,9 +907,10 @@ mod tests {
             assert_eq!(data, PyStringData::Ucs4(&[0x20000, 0xd800]));
             let err = data.to_string(py).unwrap_err();
             assert!(err.get_type(py).is(py.get_type::<PyUnicodeDecodeError>()));
-            assert!(err
-                .to_string()
-                .contains("'utf-32' codec can't decode bytes in position 0-7"));
+            assert!(
+                err.to_string()
+                    .contains("'utf-32' codec can't decode bytes in position 0-7")
+            );
             assert_eq!(data.to_string_lossy(), Cow::Owned::<str>("𠀀�".into()));
         });
     }
@@ -831,10 +922,12 @@ mod tests {
             let result = PyString::from_bytes(py, "\u{2122}".as_bytes());
             assert!(result.is_ok());
             let result = PyString::from_bytes(py, b"\x80");
-            assert!(result
-                .unwrap_err()
-                .get_type(py)
-                .is(py.get_type::<PyUnicodeDecodeError>()));
+            assert!(
+                result
+                    .unwrap_err()
+                    .get_type(py)
+                    .is(py.get_type::<PyUnicodeDecodeError>())
+            );
         });
     }
 

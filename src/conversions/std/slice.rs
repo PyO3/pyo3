@@ -1,11 +1,12 @@
-use std::borrow::Cow;
+use crate::platform::prelude::*;
+use alloc::borrow::Cow;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
-    conversion::IntoPyObject, types::PyBytes, Bound, CastError, PyAny, PyErr, PyResult, Python,
+    Bound, CastError, PyAny, PyErr, PyResult, Python, conversion::IntoPyObject, types::PyBytes,
 };
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
@@ -19,7 +20,7 @@ where
     #[cfg(feature = "experimental-inspect")]
     const OUTPUT_TYPE: PyStaticExpr = <&T>::SEQUENCE_OUTPUT_TYPE;
 
-    /// Turns [`&[u8]`](std::slice) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
+    /// Turns [`&[u8]`](core::slice) into [`PyBytes`], all other `T`s will be turned into a [`PyList`]
     ///
     /// [`PyBytes`]: crate::types::PyBytes
     /// [`PyList`]: crate::types::PyList
@@ -84,12 +85,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
+    use alloc::borrow::Cow;
 
     use crate::{
-        conversion::IntoPyObject,
-        types::{any::PyAnyMethods, PyBytes, PyBytesMethods, PyList},
         Python,
+        conversion::IntoPyObject,
+        types::{PyBytes, PyBytesMethods, PyList, any::PyAnyMethods},
     };
 
     #[test]

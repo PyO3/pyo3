@@ -1,0 +1,64 @@
+[files]
+extend-exclude = []
+
+[default.extend-words]
+# error: `fo` should be `of`, `for`, `do`, `go`, `to`
+# --> .\src\exceptions.rs:1202:30
+#      |
+# 1202 |         let invalid_utf8 = b"fo\xd8o";
+#      |                              ^^
+fo = "fo"
+# error: `BA` should be `BY`, `BE`
+# --> .\tests\test_arithmetics.rs:403:13
+#     |
+# 403 |     //     "BA"
+#     |             ^^
+BA = "BA"
+# error: `cpy` should be `copy`, `cpu`
+# --> .\pyo3-build-config\src\impl_.rs:4153:52
+#      |
+# 4153 |         let lib_name = default_lib_name_for_target(cpy313_abi3, &win_arm64);
+#      |                                                    ^^^
+cpy = "cpy"
+# error: `tpe` should be `type`
+# --> .\pytests\tests\test_pyclasses.py:91:18
+#   |
+#91 |         for _ in tpe.map(closure, range(max_workers)):
+#   |                  ^^^
+tpe = "tpe"
+# error: `ND` should be `AND`
+# --> .\pyo3-ffi\src\cpython\object.rs:100:46
+#     |
+# 100 |     pub const PyBUF_CONTIG_RO: c_int = PyBUF_ND;
+#     |                                              ^^
+ND = "ND"
+# error: `arro` should be `arrow`
+# --> .\README.md:190:76
+#     |
+# 190 |     - [arro3-io](https://github.com/kylebarron/arro3/tree/main/arro3-io) _`arro3-io`_
+#     |                                                                            ^^^^
+arro = "arro"
+# error: `placehold` should be `placeholder`
+# --> .\pyo3-build-config\src\impl_.rs:1942:46
+#      |
+# 1942 |     if key == "Py_ENABLE_SHARED" and "_h_env_placehold" in build_time_vars.get("prefix"):
+#      |                                              ^^^^^^^^^
+placehold = "placehold"
+# error: `WRITEABLE` should be `WRITABLE`
+# --> .\pyo3-ffi\src\pybuffer.rs:112:17
+#     |
+# 112 | pub const PyBUF_WRITEABLE: c_int = PyBUF_WRITABLE;
+#     |                 ^^^^^^^^^
+WRITEABLE = "WRITEABLE"
+# error: `numer` should be `number`
+# --> .\src\conversions\num_rational.rs:118:51
+#     |
+# 118 |                 get_fraction_cls(py)?.call1((self.numer().clone(), self.denom().clone()))
+#     |                                                   ^^^^^
+numer = "numer"
+# error: `TBE` should be `THE`
+# --> .\guide\src\python-typing-hints.md:34:66
+#    |
+# 34 |     def with_traceback(self: _TBE, tb: TracebackType | None) -> _TBE: ...
+#    |                                                                  ^^^
+TBE = "TBE"

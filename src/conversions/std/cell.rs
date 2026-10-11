@@ -1,8 +1,8 @@
-use std::cell::Cell;
+use core::cell::Cell;
 
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
-use crate::{conversion::IntoPyObject, Borrowed, FromPyObject, PyAny, Python};
+use crate::{Borrowed, FromPyObject, PyAny, Python, conversion::IntoPyObject};
 
 impl<'py, T: Copy + IntoPyObject<'py>> IntoPyObject<'py> for Cell<T> {
     type Target = T::Target;

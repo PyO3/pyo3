@@ -1,11 +1,10 @@
-#[cfg(any(Py_3_11, all(Py_3_9, not(PyPy))))]
+#[cfg(any(Py_3_11, not(PyPy)))]
 use crate::PyFrameObject;
-use crate::{PyObject, PyTypeObject, Py_TYPE};
+use crate::{Py_IS_TYPE, PyObject, PyTypeObject};
 #[cfg(Py_3_12)]
-use std::ffi::c_char;
-use std::ffi::c_int;
+use core::ffi::c_char;
+use core::ffi::c_int;
 
-// NB used in `_PyEval_EvalFrameDefault`, maybe we remove this too.
 #[cfg(all(Py_3_11, not(PyPy)))]
 opaque_struct!(pub _PyInterpreterFrame);
 
@@ -21,6 +20,7 @@ pub const PyUnstable_EXECUTABLE_KIND_METHOD_DESCRIPTOR: c_int = 4;
 pub const PyUnstable_EXECUTABLE_KINDS: c_int = 5;
 
 extern_libpython! {
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFrame_Type")]
     pub static mut PyFrame_Type: PyTypeObject;
 
     #[cfg(Py_3_13)]
@@ -32,46 +32,56 @@ extern_libpython! {
 
 #[inline]
 pub unsafe fn PyFrame_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyFrame_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyFrame_Type)
 }
 
 #[cfg(Py_3_13)]
 #[inline]
 pub unsafe fn PyFrameLocalsProxy_Check(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyFrameLocalsProxy_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyFrameLocalsProxy_Type)
 }
 
 extern_libpython! {
-    #[cfg(all(Py_3_9, not(PyPy)))]
+    #[cfg(not(PyPy))]
     pub fn PyFrame_GetBack(frame: *mut PyFrameObject) -> *mut PyFrameObject;
 
     #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetLocals")]
     pub fn PyFrame_GetLocals(frame: *mut PyFrameObject) -> *mut PyObject;
 
     #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetGlobals")]
     pub fn PyFrame_GetGlobals(frame: *mut PyFrameObject) -> *mut PyObject;
 
     #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetBuiltins")]
     pub fn PyFrame_GetBuiltins(frame: *mut PyFrameObject) -> *mut PyObject;
 
     #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetGenerator")]
     pub fn PyFrame_GetGenerator(frame: *mut PyFrameObject) -> *mut PyObject;
 
     #[cfg(Py_3_11)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetLasti")]
     pub fn PyFrame_GetLasti(frame: *mut PyFrameObject) -> c_int;
 
     #[cfg(Py_3_12)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetVar")]
     pub fn PyFrame_GetVar(frame: *mut PyFrameObject, name: *mut PyObject) -> *mut PyObject;
 
     #[cfg(Py_3_12)]
+    #[cfg_attr(PyPy, link_name = "PyPyFrame_GetVarString")]
     pub fn PyFrame_GetVarString(frame: *mut PyFrameObject, name: *mut c_char) -> *mut PyObject;
 
     #[cfg(Py_3_12)]
+    #[cfg(not(PyPy))]
     pub fn PyUnstable_InterpreterFrame_GetCode(frame: *mut _PyInterpreterFrame) -> *mut PyObject;
 
     #[cfg(Py_3_12)]
-    pub fn PyUnstable_InterpreterFrame_GetLasti(frame: *mut _PyInterpreterFrame) -> *mut PyObject;
+    #[cfg(not(PyPy))]
+    pub fn PyUnstable_InterpreterFrame_GetLasti(frame: *mut _PyInterpreterFrame) -> c_int;
 
     #[cfg(Py_3_12)]
-    pub fn PyUnstable_InterpreterFrame_GetLine(frame: *mut _PyInterpreterFrame) -> *mut PyObject;
+    #[cfg(not(PyPy))]
+    pub fn PyUnstable_InterpreterFrame_GetLine(frame: *mut _PyInterpreterFrame) -> c_int;
 }

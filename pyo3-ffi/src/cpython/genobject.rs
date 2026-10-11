@@ -1,8 +1,8 @@
-use crate::object::*;
 use crate::PyFrameObject;
+use crate::object::*;
 #[cfg(all(Py_3_11, not(any(PyPy, GraalPy, Py_3_14))))]
-use std::ffi::c_char;
-use std::ffi::c_int;
+use core::ffi::c_char;
+use core::ffi::c_int;
 
 #[cfg(not(any(PyPy, GraalPy, Py_3_14)))]
 #[repr(C)]
@@ -50,7 +50,7 @@ pub unsafe fn PyGen_Check(op: *mut PyObject) -> c_int {
 
 #[inline]
 pub unsafe fn PyGen_CheckExact(op: *mut PyObject) -> c_int {
-    (Py_TYPE(op) == &raw mut PyGen_Type) as c_int
+    Py_IS_TYPE(op, &raw mut PyGen_Type)
 }
 
 extern_libpython! {
@@ -60,9 +60,6 @@ extern_libpython! {
     // skipped _PyGen_FetchStopIterationValue
     // skipped _PyGen_yf
     // skipped _PyGen_Finalize
-    #[cfg(not(any(Py_3_9, PyPy)))]
-    #[deprecated(note = "This function was never documented in the Python API.")]
-    pub fn PyGen_NeedsFinalizing(op: *mut PyGenObject) -> c_int;
 }
 
 // skipped PyCoroObject

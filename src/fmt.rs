@@ -1,19 +1,23 @@
+// TODO https://github.com/PyO3/pyo3/issues/5487
+#![allow(clippy::undocumented_unsafe_blocks)]
+
+#[allow(unused_imports, reason = "used to build docs")]
+use crate::platform::prelude::*;
 #[cfg(any(doc, all(Py_3_14, not(Py_LIMITED_API))))]
-use crate::{types::PyString, Python};
+use crate::{Python, types::PyString};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
 use {
+    crate::IntoPyObject,
     crate::ffi::{
         PyUnicodeWriter_Create, PyUnicodeWriter_Discard, PyUnicodeWriter_Finish,
         PyUnicodeWriter_WriteChar, PyUnicodeWriter_WriteUTF8,
     },
     crate::ffi_ptr_ext::FfiPtrExt,
-    crate::impl_::callback::WrappingCastTo,
     crate::py_result_ext::PyResultExt,
-    crate::IntoPyObject,
-    crate::{ffi, Bound, PyErr, PyResult},
-    std::fmt,
-    std::mem::ManuallyDrop,
-    std::ptr::NonNull,
+    crate::{Bound, PyErr, PyResult, ffi},
+    core::fmt,
+    core::mem::ManuallyDrop,
+    core::ptr::NonNull,
 };
 
 /// This macro is analogous to Rust's [`format!`] macro, but returns a [`PyString`] instead of a [`String`].
@@ -40,12 +44,11 @@ macro_rules! py_format {
     ($py: expr, $($arg:tt)*) => {{
         if let Some(static_string) = format_args!($($arg)*).as_str() {
             static INTERNED: $crate::sync::PyOnceLock<$crate::Py<$crate::types::PyString>> = $crate::sync::PyOnceLock::new();
-            Ok(
+            Ok($crate::Bound::clone(
                 INTERNED
                 .get_or_init($py, || $crate::types::PyString::intern($py, static_string).unbind())
                 .bind($py)
-                .to_owned()
-            )
+            ))
         } else {
             $crate::types::PyString::from_fmt($py, format_args!($($arg)*))
         }
@@ -70,7 +73,7 @@ impl<'py> PyUnicodeWriter<'py> {
     /// Creates a new `PyUnicodeWriter` with the specified initial capacity.
     #[inline]
     pub fn with_capacity(py: Python<'py>, capacity: usize) -> PyResult<Self> {
-        match NonNull::new(unsafe { PyUnicodeWriter_Create(capacity.wrapping_cast()) }) {
+        match NonNull::new(unsafe { PyUnicodeWriter_Create(capacity.try_into()?) }) {
             Some(ptr) => Ok(PyUnicodeWriter {
                 python: py,
                 writer: ptr,
@@ -182,7 +185,7 @@ mod tests {
     #[allow(clippy::write_literal)]
     #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
     fn unicode_writer_test() {
-        use std::fmt::Write;
+        use core::fmt::Write;
         Python::attach(|py| {
             let mut writer = PyUnicodeWriter::new(py).unwrap();
             write!(writer, "Hello {}!", "world").unwrap();
@@ -196,7 +199,7 @@ mod tests {
     #[allow(clippy::write_literal)]
     #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
     fn unicode_writer_with_capacity() {
-        use std::fmt::Write;
+        use core::fmt::Write;
         Python::attach(|py| {
             let mut writer = PyUnicodeWriter::with_capacity(py, 10).unwrap();
             write!(writer, "Hello {}!", "world").unwrap();

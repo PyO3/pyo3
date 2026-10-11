@@ -1,6 +1,7 @@
-use crate::types::any::PyAnyMethods;
 use crate::Bound;
-use crate::{exceptions::PyTypeError, FromPyObject, PyAny, PyErr, PyResult, Python};
+use crate::platform::prelude::*;
+use crate::types::any::PyAnyMethods;
+use crate::{FromPyObject, PyAny, PyErr, PyResult, Python, exceptions::PyTypeError};
 
 #[cold]
 pub fn failed_to_extract_enum(
@@ -17,7 +18,7 @@ pub fn failed_to_extract_enum(
         error_names.join(" | ")
     );
     for ((variant_name, error_name), error) in variant_names.iter().zip(error_names).zip(errors) {
-        use std::fmt::Write;
+        use core::fmt::Write;
         write!(
             &mut err_msg,
             "\n- variant {variant_name} ({error_name}): {error_msg}",
@@ -32,7 +33,7 @@ pub fn failed_to_extract_enum(
 
 /// Flattens a chain of errors into a single string.
 fn extract_traceback(py: Python<'_>, mut error: PyErr) -> String {
-    use std::fmt::Write;
+    use core::fmt::Write;
 
     let mut error_msg = error.to_string();
     while let Some(cause) = error.cause(py) {
@@ -88,7 +89,7 @@ fn failed_to_extract_struct_field(
     let new_err = PyTypeError::new_err(format!(
         "failed to extract field {struct_name}.{field_name}"
     ));
-    new_err.set_cause(py, ::std::option::Option::Some(inner_err));
+    new_err.set_cause(py, ::core::option::Option::Some(inner_err));
     new_err
 }
 
@@ -136,6 +137,6 @@ fn failed_to_extract_tuple_struct_field(
     index: usize,
 ) -> PyErr {
     let new_err = PyTypeError::new_err(format!("failed to extract field {struct_name}.{index}"));
-    new_err.set_cause(py, ::std::option::Option::Some(inner_err));
+    new_err.set_cause(py, ::core::option::Option::Some(inner_err));
     new_err
 }
