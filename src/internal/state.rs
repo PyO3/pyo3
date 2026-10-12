@@ -6,14 +6,14 @@ use crate::platform::prelude::*;
 use crate::{Py, PyAny, Python, ffi};
 
 #[cfg(not(pyo3_disable_reference_pool))]
-use crate::platform::sync::non_poison::Mutex;
+use crate::platform::sync::nonpoison::Mutex;
 use core::cell::Cell;
 #[cfg_attr(pyo3_disable_reference_pool, allow(unused_imports))]
 use core::mem;
 #[cfg(not(pyo3_disable_reference_pool))]
 use core::sync::atomic::{AtomicBool, Ordering};
 
-std::thread_local! {
+crate::platform::thread_local! {
     /// This is an internal counter in pyo3 monitoring whether this thread is attached to the interpreter.
     ///
     /// It will be incremented whenever an AttachGuard is created, and decremented whenever
@@ -404,6 +404,8 @@ fn decrement_attach_count() {
 #[allow(clippy::undocumented_unsafe_blocks, reason = "tests")]
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::*;
 
     use crate::ffi_ptr_ext::FfiPtrExt;

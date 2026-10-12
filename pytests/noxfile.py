@@ -38,7 +38,13 @@ def test(session: nox.Session):
         # Match syntax is only available in Python >= 3.10
         ignored_paths.append("tests/test_enums_match.py")
     ignore_args = [f"--ignore={path}" for path in ignored_paths]
-    session.run("pytest", *ignore_args, *unhandled_posargs)
+
+    extra_args = []
+    # https://github.com/oracle/graalpython/issues/1211
+    if sys.implementation.name == "graalpy":
+        extra_args.append("--assert=plain")
+
+    session.run("pytest", *extra_args, *ignore_args, *unhandled_posargs)
 
 
 @nox.session

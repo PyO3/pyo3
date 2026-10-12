@@ -95,8 +95,6 @@ The given signatures should be interpreted as follows:
   The return type will normally be `bool` or `PyResult<bool>`, however any Python object can be returned.
   </details>
 
-<!-- rumdl-disable MD013 -->
-
 - `__richcmp__(<self>, object, pyo3::basic::CompareOp) -> object`
 
   Implements Python comparison operations (`==`, `!=`, `<`, `<=`, `>`, and `>=`) in a single method.
@@ -133,11 +131,7 @@ The given signatures should be interpreted as follows:
   }
   ```
 
-  If the second argument `object` is not of the type specified in the signature, the generated code will automatically `return NotImplemented`.
-  </details>
-
-<!-- rumdl-enable MD013 -->
-
+  If the second argument `object` is not of the type specified in the signature, the generated code will automatically `return NotImplemented`. </details>
 - `__getattr__(<self>, object) -> object`
 - `__getattribute__(<self>, object) -> object`
 

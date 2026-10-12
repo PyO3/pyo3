@@ -21,7 +21,7 @@ Requires Rust 1.85 or greater.
 PyO3 supports the following Python distributions:
   - CPython 3.9 or greater
   - PyPy 7.3 (Python 3.11+)
-  - GraalPy 25.0 or greater (Python 3.12+)
+  - GraalPy 25.4 or greater (Python 3.13+)
 
 You can use PyO3 to write a native Python module in Rust, or to embed Python in a Rust binary. The following sections explain each of these in turn.
 
@@ -226,6 +226,8 @@ about this topic.
 - [pycrdt](https://github.com/jupyter-server/pycrdt) _Python bindings for the Rust CRDT implementation [Yrs](https://github.com/y-crdt/y-crdt)._
 - [pydantic-core](https://github.com/pydantic/pydantic-core) _Core validation logic for pydantic written in Rust._
 - [primp](https://github.com/deedy5/primp) _The fastest python HTTP client that can impersonate web browsers by mimicking their headers and TLS/JA3/JA4/HTTP2 fingerprints._
+- [pyro-mysql](https://github.com/elbaro/pyro-mysql) _A high-performance MySQL driver for Python._
+- [pyro-postgres](https://github.com/elbaro/pyro-postgres) _A high-performance PostgreSQL driver for Python._
 - [quebec](https://github.com/ratazzi/quebec) _A database-backed background job queue for Python, inspired by Rails' Solid Queue._
 - [radiate](https://github.com/pkalivas/radiate): _A high-performance evolution engine for genetic programming and evolutionary algorithms._
 - [rateslib](https://github.com/attack68/rateslib) _A fixed income library for Python using Rust extensions._
