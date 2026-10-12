@@ -10,6 +10,7 @@ on:
 
 env:
   UV_LOCKED: 1
+  UV_PYTHON: "3.14"
 
 permissions:
   contents: read
