@@ -33,8 +33,8 @@ use crate::pyimpl::{PyClassMethodsType, gen_py_const, get_cfg_attributes};
 use crate::pymethod::field_python_name;
 use crate::pymethod::{
     __GETITEM__, __HASH__, __INT__, __LEN__, __NEW__, __REPR__, __RICHCMP__, __STR__,
-    MethodAndMethodDef, MethodAndSlotDef, PropertyType, SlotDef, impl_py_class_attribute,
-    impl_py_getter_def, impl_py_setter_def,
+    DEFAULT_SLOT_PROBES, MethodAndDefaultSlotDef, MethodAndMethodDef, MethodAndSlotDef,
+    PropertyType, SlotDef, impl_py_class_attribute, impl_py_getter_def, impl_py_setter_def,
 };
 use crate::utils::{self, Ctx, PythonDoc, apply_renaming_rule, get_doc, locate_tokens_at};
 
@@ -477,7 +477,7 @@ fn impl_class(
         }
     }
 
-    let (default_new, default_new_slot) = pyclass_new_impl(
+    let (intrinsic_new, intrinsic_new_slot) = pyclass_new_impl(
         &args.options,
         &syn::parse_quote!(#cls),
         field_options.iter().map(|(f, _)| f),
@@ -499,23 +499,30 @@ fn impl_class(
         default_methods.push(default_class_getitem_method);
     }
 
-    let (default_str, default_str_slot) =
+    let (intrinsic_str, intrinsic_str_slot) =
         implement_pyclass_str(&args.options, &syn::parse_quote!(#cls), ctx);
 
-    let (default_richcmp, default_richcmp_slot) =
+    let (intrinsic_richcmp, intrinsic_richcmp_slot) =
         pyclass_richcmp(&args.options, &syn::parse_quote!(#cls), ctx)?;
 
-    let (default_hash, default_hash_slot) =
+    let (intrinsic_hash, intrinsic_hash_slot) =
         pyclass_hash(&args.options, &syn::parse_quote!(#cls), ctx)?;
 
-    let mut slots = Vec::new();
-    slots.extend(default_richcmp_slot);
-    slots.extend(default_hash_slot);
-    slots.extend(default_str_slot);
-    slots.extend(default_new_slot);
+    let mut intrinsic_slots = Vec::new();
+    intrinsic_slots.extend(intrinsic_richcmp_slot);
+    intrinsic_slots.extend(intrinsic_hash_slot);
+    intrinsic_slots.extend(intrinsic_str_slot);
+    intrinsic_slots.extend(intrinsic_new_slot);
 
-    let mut impl_builder =
-        PyClassImplsBuilder::new(cls, cls, args, methods_type, default_methods, slots);
+    let mut impl_builder = PyClassImplsBuilder::new(
+        cls,
+        cls,
+        args,
+        methods_type,
+        default_methods,
+        Vec::new(), // no default slots
+        intrinsic_slots,
+    );
     if let Some(doc) = doc {
         impl_builder = impl_builder.doc(doc);
     }
@@ -540,10 +547,10 @@ fn impl_class(
         #[doc(hidden)]
         #[allow(non_snake_case)]
         impl #cls {
-            #default_richcmp
-            #default_hash
-            #default_str
-            #default_new
+            #intrinsic_richcmp
+            #intrinsic_hash
+            #intrinsic_str
+            #intrinsic_new
             #default_class_getitem
         }
     })
@@ -1050,7 +1057,7 @@ fn impl_simple_enum(
                 }
             }
         };
-        let repr_slot = generate_default_protocol_slot(
+        let repr_slot = generate_overridable_protocol_slot(
             &ty,
             &mut repr_impl,
             &__REPR__,
@@ -1066,7 +1073,7 @@ fn impl_simple_enum(
         (repr_impl, repr_slot)
     };
 
-    let (default_str, default_str_slot) = implement_pyclass_str(&args.options, &ty, ctx);
+    let (intrinsic_str, intrinsic_str_slot) = implement_pyclass_str(&args.options, &ty, ctx);
 
     let repr_type = &simple_enum.repr_type;
 
@@ -1084,7 +1091,7 @@ fn impl_simple_enum(
                 }
             }
         };
-        let int_slot = generate_default_protocol_slot(
+        let int_slot = generate_overridable_protocol_slot(
             &ty,
             &mut int_impl,
             &__INT__,
@@ -1100,14 +1107,15 @@ fn impl_simple_enum(
         (int_impl, int_slot)
     };
 
-    let (default_richcmp, default_richcmp_slot) =
+    let (intrinsic_richcmp, intrinsic_richcmp_slot) =
         pyclass_richcmp_simple_enum(&args.options, &ty, repr_type, ctx)?;
-    let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
+    let (intrinsic_hash, intrinsic_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
 
-    let mut default_slots = vec![default_repr_slot, default_int_slot];
-    default_slots.extend(default_richcmp_slot);
-    default_slots.extend(default_hash_slot);
-    default_slots.extend(default_str_slot);
+    let default_slots = vec![default_repr_slot, default_int_slot];
+    let mut intrinsic_slots = Vec::new();
+    intrinsic_slots.extend(intrinsic_richcmp_slot);
+    intrinsic_slots.extend(intrinsic_hash_slot);
+    intrinsic_slots.extend(intrinsic_str_slot);
 
     let mut impl_builder = PyClassImplsBuilder::new(
         cls,
@@ -1122,6 +1130,7 @@ fn impl_simple_enum(
             ctx,
         ),
         default_slots,
+        intrinsic_slots,
     );
     if let Some(doc) = doc {
         impl_builder = impl_builder.doc(doc);
@@ -1188,9 +1197,9 @@ fn impl_simple_enum(
         impl #cls {
             #default_repr
             #default_int
-            #default_richcmp
-            #default_hash
-            #default_str
+            #intrinsic_richcmp
+            #intrinsic_hash
+            #intrinsic_str
         }
     })
 }
@@ -1221,15 +1230,15 @@ fn impl_complex_enum(
     let variants = complex_enum.variants;
     let pytypeinfo = impl_pytypeinfo(cls, &args, ctx);
 
-    let (default_richcmp, default_richcmp_slot) = pyclass_richcmp(&args.options, &ty, ctx)?;
-    let (default_hash, default_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
+    let (intrinsic_richcmp, intrinsic_richcmp_slot) = pyclass_richcmp(&args.options, &ty, ctx)?;
+    let (intrinsic_hash, intrinsic_hash_slot) = pyclass_hash(&args.options, &ty, ctx)?;
 
-    let (default_str, default_str_slot) = implement_pyclass_str(&args.options, &ty, ctx);
+    let (intrinsic_str, intrinsic_str_slot) = implement_pyclass_str(&args.options, &ty, ctx);
 
-    let mut default_slots = vec![];
-    default_slots.extend(default_richcmp_slot);
-    default_slots.extend(default_hash_slot);
-    default_slots.extend(default_str_slot);
+    let mut intrinsic_slots = vec![];
+    intrinsic_slots.extend(intrinsic_richcmp_slot);
+    intrinsic_slots.extend(intrinsic_hash_slot);
+    intrinsic_slots.extend(intrinsic_str_slot);
 
     let mut impl_builder = PyClassImplsBuilder::new(
         cls,
@@ -1243,7 +1252,8 @@ fn impl_complex_enum(
                 .map(|v| (v.get_ident(), v.get_python_name(&args), v.get_attrs())),
             ctx,
         ),
-        default_slots,
+        Vec::new(), // no default slots
+        intrinsic_slots,
     );
     if let Some(doc) = doc {
         impl_builder = impl_builder.doc(doc);
@@ -1319,13 +1329,14 @@ fn impl_complex_enum(
         let variant_cls_pytypeinfo = impl_pytypeinfo(&variant_cls, &variant_args, ctx);
         variant_cls_pytypeinfos.push(variant_cls_pytypeinfo);
 
-        let (variant_cls_impl, field_getters, mut slots) =
+        let (variant_cls_impl, field_getters, mut intrinsic_slots) =
             impl_complex_enum_variant_cls(cls, &args, &variant, ctx)?;
         variant_cls_impls.push(variant_cls_impl);
 
         let variant_doc = get_doc(variant.get_attrs(), None);
         let variant_new = complex_enum_variant_new(cls, variant, ctx)?;
-        slots.push(variant_new);
+
+        intrinsic_slots.push(variant_new);
 
         let mut impl_builder = PyClassImplsBuilder::new(
             &variant_cls,
@@ -1333,7 +1344,8 @@ fn impl_complex_enum(
             &variant_args,
             methods_type,
             field_getters,
-            slots,
+            Vec::new(),
+            intrinsic_slots,
         );
         if let Some(doc) = variant_doc {
             impl_builder = impl_builder.doc(doc);
@@ -1361,9 +1373,9 @@ fn impl_complex_enum(
         #[doc(hidden)]
         #[allow(non_snake_case)]
         impl #cls {
-            #default_richcmp
-            #default_hash
-            #default_str
+            #intrinsic_richcmp
+            #intrinsic_hash
+            #intrinsic_str
         }
 
         #(#variant_cls_zsts)*
@@ -1857,6 +1869,26 @@ fn generate_default_protocol_slot(
         &format!("__default_{name}__"),
         ctx,
     )?;
+    #[cfg(feature = "experimental-inspect")]
+    def.add_introspection(introspection_data.generate(ctx, cls, slot));
+    Ok(def)
+}
+
+fn generate_overridable_protocol_slot(
+    cls: &syn::Type,
+    method: &mut syn::ImplItemFn,
+    slot: &SlotDef,
+    #[cfg(feature = "experimental-inspect")] introspection_data: FunctionIntrospectionData<'_>,
+    ctx: &Ctx,
+) -> syn::Result<MethodAndDefaultSlotDef> {
+    let spec = FnSpec::parse(
+        &mut method.sig,
+        &mut Vec::new(),
+        PyFunctionOptions::default(),
+    )?;
+    let name = spec.name.to_string();
+    #[cfg_attr(not(feature = "experimental-inspect"), allow(unused_mut))]
+    let mut def = slot.generate_default_slot(cls, &spec, &format!("__default_{name}__"), ctx)?;
     #[cfg(feature = "experimental-inspect")]
     def.add_introspection(introspection_data.generate(ctx, cls, slot));
     Ok(def)
@@ -2712,7 +2744,11 @@ struct PyClassImplsBuilder<'a> {
     attr: &'a PyClassArgs,
     methods_type: PyClassMethodsType,
     default_methods: Vec<MethodAndMethodDef>,
-    default_slots: Vec<MethodAndSlotDef>,
+    /// Default generated slots which user may override, e.g. enum `repr`
+    default_slots: Vec<MethodAndDefaultSlotDef>,
+    /// User-requested intrinsic items which will conflict with additional
+    /// user methods (e.g. `hash`)
+    intrinsic_slots: Vec<MethodAndSlotDef>,
     doc: Option<PythonDoc>,
 }
 
@@ -2723,7 +2759,8 @@ impl<'a> PyClassImplsBuilder<'a> {
         attr: &'a PyClassArgs,
         methods_type: PyClassMethodsType,
         default_methods: Vec<MethodAndMethodDef>,
-        default_slots: Vec<MethodAndSlotDef>,
+        default_slots: Vec<MethodAndDefaultSlotDef>,
+        intrinsic_slots: Vec<MethodAndSlotDef>,
     ) -> Self {
         Self {
             cls_ident,
@@ -2732,6 +2769,7 @@ impl<'a> PyClassImplsBuilder<'a> {
             methods_type,
             default_methods,
             default_slots,
+            intrinsic_slots,
             doc: None,
         }
     }
@@ -2897,6 +2935,11 @@ impl<'a> PyClassImplsBuilder<'a> {
                     .iter()
                     .map(|meth| &meth.associated_method),
             )
+            .chain(
+                self.intrinsic_slots
+                    .iter()
+                    .map(|meth| &meth.associated_method),
+            )
             .collect::<Vec<_>>();
         // Skip emitting the associated-methods impl block entirely when it would be empty.
         let default_methods_impl = (!default_methods.is_empty()).then(|| {
@@ -2909,41 +2952,64 @@ impl<'a> PyClassImplsBuilder<'a> {
             }
         });
 
-        let default_method_defs = self
-            .default_methods
-            .iter()
-            .map(|meth| &meth.method_def)
-            .collect::<Vec<_>>();
-        let default_slot_defs = self
-            .default_slots
-            .iter()
-            .map(|slot| &slot.slot_def)
-            .collect::<Vec<_>>();
-        let freelist_slots = self.freelist_slots(ctx);
-
-        // When there are no intrinsic items, point at a shared empty `PyClassItems` to keep the
-        // generated code small.
-        let items_iter = if default_method_defs.is_empty()
-            && default_slot_defs.is_empty()
-            && freelist_slots.is_empty()
-        {
+        let default_slots = if self.default_slots.is_empty() {
+            quote! { #pyo3_path::impl_::pyclass::default_slots::DefaultPyO3Slots::EMPTY }
+        } else {
+            let default_slot_builders = self.default_slots.iter().map(|slot| {
+                let Some(probe) = DEFAULT_SLOT_PROBES
+                    .iter()
+                    .find(|probe| probe.slot == slot.slot)
+                else {
+                    panic!("No probe found for slot {:?}", slot.slot.as_str());
+                };
+                let constant = probe.constant;
+                let builder = probe.builder;
+                let slot_func = &slot.slot_func;
+                quote! { .#builder(!#cls::#constant, #slot_func) }
+            });
+            // Experiment found that naming the const here is beneficial for avoiding codegen of default slots
+            // if the user provides their own implementation. (inline `const { }` form still generated the dead code)
             quote! {
-                fn items_iter() -> #pyo3_path::impl_::pyclass::PyClassItemsIter {
-                    #pyo3_path::impl_::pyclass::PyClassItemsIter::new(
-                        &#pyo3_path::impl_::pyclass::NO_PY_CLASS_ITEMS,
-                        #pymethods_items,
-                    )
+                {
+                    const DEFAULT_SLOTS: #pyo3_path::impl_::pyclass::default_slots::DefaultPyO3Slots = {
+                        #[allow(unused_imports)]
+                        use #pyo3_path::impl_::pyclass::default_slots::PyClassSlotProbes as _;
+                        #pyo3_path::impl_::pyclass::default_slots::DefaultPyO3Slots::new()
+                            #(#default_slot_builders)*
+                    };
+                    DEFAULT_SLOTS
                 }
             }
+        };
+        let freelist_slots = self.freelist_slots(ctx);
+        let slots = self
+            .intrinsic_slots
+            .iter()
+            .map(|slot| &slot.slot_def)
+            .chain(freelist_slots.iter())
+            .collect::<Vec<_>>();
+        let intrinsic_items = if self.default_methods.is_empty() && slots.is_empty() {
+            quote! { &#pyo3_path::impl_::pyclass::NO_PY_CLASS_ITEMS }
         } else {
+            let default_method_defs = self.default_methods.iter().map(|meth| &meth.method_def);
             quote! {
-                fn items_iter() -> #pyo3_path::impl_::pyclass::PyClassItemsIter {
+                {
                     static INTRINSIC_ITEMS: #pyo3_path::impl_::pyclass::PyClassItems = #pyo3_path::impl_::pyclass::PyClassItems {
                         methods: &[#(#default_method_defs),*],
-                        slots: &[#(#default_slot_defs),* #(#freelist_slots),*],
+                        slots: &[#(#slots),*],
                     };
-                    #pyo3_path::impl_::pyclass::PyClassItemsIter::new(&INTRINSIC_ITEMS, #pymethods_items)
+                    &INTRINSIC_ITEMS
                 }
+            }
+        };
+
+        let items_iter = quote! {
+            fn items_iter() -> #pyo3_path::impl_::pyclass::PyClassItemsIter {
+                #pyo3_path::impl_::pyclass::PyClassItemsIter::new(
+                    #default_slots,
+                    #intrinsic_items,
+                    #pymethods_items,
+                )
             }
         };
 
