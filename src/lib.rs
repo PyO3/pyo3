@@ -345,6 +345,7 @@
 
 #[macro_use]
 extern crate alloc;
+#[cfg(wip_feature_std)]
 extern crate std;
 
 pub use crate::class::*;
