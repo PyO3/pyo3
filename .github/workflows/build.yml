@@ -57,7 +57,7 @@ jobs:
           check-latest: true
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           # workaround for the above, only available for 3.9
           python-version: ${{ inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64' && format('cpython-{0}-macos-x86-64', inputs.python-version) || '' }}
