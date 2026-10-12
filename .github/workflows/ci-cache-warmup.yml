@@ -7,7 +7,11 @@ on:
   workflow_dispatch:
 
 env:
+  UV_LOCKED: 1
   CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
 
 jobs:
   resolve:
@@ -16,8 +20,10 @@ jobs:
       MSRV: ${{ steps.resolve-msrv.outputs.MSRV }}
       verbose: ${{ runner.debug == '1' }}
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
       - name: resolve MSRV
@@ -28,9 +34,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          save-cache: true
       - name: Install Rust toolchain
         run: |
           rustup toolchain install stable --profile minimal --no-self-update --component rust-src --target x86_64-pc-windows-gnu,x86_64-pc-windows-msvc
@@ -44,8 +55,7 @@ jobs:
         run: |
           set -ex
           sudo apt-get install -y mingw-w64 llvm
-          pip install nox
-          nox -s test-cross-compilation-windows
+          uv run --isolated --only-group nox nox -s test-cross-compilation-windows
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/cargo-xwin
@@ -55,7 +65,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/build-emscripten
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/build-emscripten
         with:
           save-cache: true
 
@@ -63,14 +75,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/build-wasi
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/build-wasi
         with:
           save-cache: true
 
   build-full:
+    permissions:
+      contents: read
+      pull-requests: read # dorny/paths-filter lists changed files in the reusable workflow.
     needs:
       - resolve
-    uses: ./.github/workflows/build.yml
+    uses: $/.github/workflows/build.yml
     with:
       sha: ${{ github.sha }}
       os: ${{ matrix.platform.os }}

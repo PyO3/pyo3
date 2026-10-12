@@ -226,6 +226,8 @@ about this topic.
 - [pycrdt](https://github.com/jupyter-server/pycrdt) _Python bindings for the Rust CRDT implementation [Yrs](https://github.com/y-crdt/y-crdt)._
 - [pydantic-core](https://github.com/pydantic/pydantic-core) _Core validation logic for pydantic written in Rust._
 - [primp](https://github.com/deedy5/primp) _The fastest python HTTP client that can impersonate web browsers by mimicking their headers and TLS/JA3/JA4/HTTP2 fingerprints._
+- [pyro-mysql](https://github.com/elbaro/pyro-mysql) _A high-performance MySQL driver for Python._
+- [pyro-postgres](https://github.com/elbaro/pyro-postgres) _A high-performance PostgreSQL driver for Python._
 - [quebec](https://github.com/ratazzi/quebec) _A database-backed background job queue for Python, inspired by Rails' Solid Queue._
 - [radiate](https://github.com/pkalivas/radiate): _A high-performance evolution engine for genetic programming and evolutionary algorithms._
 - [rateslib](https://github.com/attack68/rateslib) _A fixed income library for Python using Rust extensions._

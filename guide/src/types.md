@@ -19,7 +19,8 @@ PyO3's API offers three generic [smart pointers](glossary.md#smart-pointer): `Py
 For each of these the type parameter `T` will be filled by a [concrete Python type](#concrete-python-types).
 For example, a Python list object can be represented by `Py<PyList>`, `Bound<'py, PyList>`, and `Borrowed<'a, 'py, PyList>`.
 
-These smart pointers behave differently due to their lifetime parameters. `Py<T>` has no lifetime parameters, `Bound<'py, T>` has [the `'py` lifetime](./python-from-rust.md#the-py-lifetime) as a parameter, and `Borrowed<'a, 'py, T>` has the `'py` lifetime plus an additional lifetime `'a` to denote the lifetime it is borrowing data for. (You can read more about these lifetimes in the subsections below).
+These smart pointers behave differently due to their lifetime parameters.
+`Py<T>` has no lifetime parameters, `Bound<'py, T>` has [the `'py` lifetime](./python-from-rust.md#the-py-lifetime) as a parameter, and `Borrowed<'a, 'py, T>` has the `'py` lifetime plus an additional lifetime `'a` to denote the lifetime it is borrowing data for. (You can read more about these lifetimes in the subsections below).
 
 Python objects are reference counted, like [`std::sync::Arc`](https://doc.rust-lang.org/stable/std/sync/struct.Arc.html).
 A major reason for these smart pointers is to bring Python's reference counting to a Rust API.
@@ -50,7 +51,8 @@ The lack of binding to the `'py` lifetime also carries drawbacks:
 Because of the drawbacks `Bound<'py, T>` is preferred for many of PyO3's APIs.
 In particular, `Bound<'py, T>` is better for function arguments.
 
-To convert a `Py<T>` into a `Bound<'py, T>`, the `Py::bind` and `Py::into_bound` methods are available. `Bound<'py, T>` can be converted back into `Py<T>` using [`Bound::unbind`].
+To convert a `Py<T>` into a `Bound<'py, T>`, the `Py::bind` and `Py::into_bound` methods are available.
+`Bound<'py, T>` can be converted back into `Py<T>` using [`Bound::unbind`].
 
 ### `Bound<'py, T>`
 

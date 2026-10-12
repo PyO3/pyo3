@@ -249,6 +249,10 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// The returned slice uses type `Cell<T>` because it's theoretically possible for any call into the Python runtime
     /// to modify the values in the slice.
+    #[deprecated(
+        since = "0.30.0",
+        note = "this function is unsound, use unsafe fn `as_slice_ptr` instead"
+    )]
     pub fn as_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [ReadOnlyCell<T>]> {
         if self.is_c_contiguous() {
             unsafe {
@@ -272,6 +276,10 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// The returned slice uses type `Cell<T>` because it's theoretically possible for any call into the Python runtime
     /// to modify the values in the slice.
+    #[deprecated(
+        since = "0.30.0",
+        note = "this function is unsound, use unsafe fn `as_slice_ptr` instead"
+    )]
     pub fn as_mut_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [cell::Cell<T>]> {
         if !self.readonly() && self.is_c_contiguous() {
             unsafe {
@@ -294,6 +302,10 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// The returned slice uses type `Cell<T>` because it's theoretically possible for any call into the Python runtime
     /// to modify the values in the slice.
+    #[deprecated(
+        since = "0.30.0",
+        note = "this function is unsound, use unsafe fn `as_fortran_slice_ptr` instead"
+    )]
     pub fn as_fortran_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [ReadOnlyCell<T>]> {
         if mem::size_of::<T>() == self.item_size() && self.is_fortran_contiguous() {
             unsafe {
@@ -317,6 +329,10 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// The returned slice uses type `Cell<T>` because it's theoretically possible for any call into the Python runtime
     /// to modify the values in the slice.
+    #[deprecated(
+        since = "0.30.0",
+        note = "this function is unsound, use unsafe fn `as_fortran_slice_ptr` instead"
+    )]
     pub fn as_fortran_mut_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [cell::Cell<T>]> {
         if !self.readonly() && self.is_fortran_contiguous() {
             unsafe {
@@ -390,7 +406,7 @@ impl<T: Element> PyBuffer<T> {
             )));
         }
 
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyBuffer_ToContiguous(
                 target.as_mut_ptr().cast(),
                 #[cfg(Py_3_11)]
@@ -425,7 +441,7 @@ impl<T: Element> PyBuffer<T> {
 
         // Copy the buffer into the uninitialized space in the vector.
         // Due to T:Copy, we don't need to be concerned with Drop impls.
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyBuffer_ToContiguous(
                 vec.as_mut_ptr().cast(),
                 #[cfg(Py_3_11)]
@@ -480,7 +496,7 @@ impl<T: Element> PyBuffer<T> {
             )));
         }
 
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyBuffer_FromContiguous(
                 #[cfg(Py_3_11)]
                 self.raw(),
@@ -515,7 +531,7 @@ impl PyUntypedBuffer {
         let buf = {
             let mut buf = Box::<RawBuffer>::new_uninit();
             // SAFETY: RawBuffer is `#[repr(transparent)]` around FFI struct
-            err::error_on_minusone(obj.py(), unsafe {
+            err::error_on_negative(obj.py(), unsafe {
                 ffi::PyObject_GetBuffer(
                     obj.as_ptr(),
                     buf.as_mut_ptr().cast::<ffi::Py_buffer>(),
@@ -1008,6 +1024,7 @@ mod tests {
     }
 
     #[test]
+    #[expect(deprecated, reason = "testing deprecated method")]
     fn test_bytes_buffer() {
         Python::attach(|py| {
             let bytes = PyBytes::new(py, b"abcde");
@@ -1040,6 +1057,7 @@ mod tests {
     }
 
     #[test]
+    #[expect(deprecated, reason = "testing deprecated method")]
     fn test_array_buffer() {
         Python::attach(|py| {
             let array = py

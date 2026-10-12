@@ -338,7 +338,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     {
         let py = self.py();
         let item = item.into_bound_py_any(py)?;
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyList_SetItem(self.as_ptr(), get_ssize_index(index), item.into_ptr())
         })
     }
@@ -356,7 +356,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// This is equivalent to the Python statement `self[low:high] = v`.
     #[inline]
     fn set_slice(&self, low: usize, high: usize, seq: &Bound<'_, PyAny>) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
+        err::error_on_negative(self.py(), unsafe {
             ffi::PyList_SetSlice(
                 self.as_ptr(),
                 get_ssize_index(low),
@@ -381,7 +381,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     {
         let py = self.py();
         let item = item.into_pyobject_or_pyerr(py)?;
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyList_Append(self.as_ptr(), item.as_ptr())
         })
     }
@@ -395,7 +395,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     {
         let py = self.py();
         let item = item.into_pyobject_or_pyerr(py)?;
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyList_Insert(self.as_ptr(), get_ssize_index(index), item.as_ptr())
         })
     }
@@ -439,12 +439,12 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
 
     /// Sorts the list in-place. Equivalent to the Python expression `l.sort()`.
     fn sort(&self) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe { ffi::PyList_Sort(self.as_ptr()) })
+        err::error_on_negative(self.py(), unsafe { ffi::PyList_Sort(self.as_ptr()) })
     }
 
     /// Reverses the list in-place. Equivalent to the Python expression `l.reverse()`.
     fn reverse(&self) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe { ffi::PyList_Reverse(self.as_ptr()) })
+        err::error_on_negative(self.py(), unsafe { ffi::PyList_Reverse(self.as_ptr()) })
     }
 
     /// Return a new tuple containing the contents of the list; equivalent to the Python expression `tuple(list)`.
