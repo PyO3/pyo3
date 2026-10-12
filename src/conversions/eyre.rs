@@ -131,6 +131,8 @@ impl From<eyre::Report> for PyErr {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use crate::exceptions::{PyRuntimeError, PyValueError};
     use crate::platform::prelude::*;
     use crate::prelude::*;
