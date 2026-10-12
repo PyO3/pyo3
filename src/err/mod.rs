@@ -493,7 +493,7 @@ impl PyErr {
     /// Equivalent to `warnings.warn()` in Python.
     ///
     /// The `category` should be one of the `Warning` classes available in
-    /// [`pyo3::exceptions`](crate::exceptions), or a subclass.  The Python
+    /// [`pyo3::exceptions`](crate::exceptions), or a subclass. The Python
     /// object can be retrieved using [`Python::get_type()`].
     ///
     /// Example:
@@ -506,6 +506,9 @@ impl PyErr {
     ///     PyErr::warn(py, &user_warning, c"I am warning you", 0)?;
     ///     Ok(())
     /// })
+    /// # // warning may raise error with `PYTHONWARNINGS=error` environment variable;
+    /// # // don't specifically check for this condition in tests
+    /// # .or_else(|_: PyErr| Ok(()))
     /// # }
     /// ```
     pub fn warn<'py>(
