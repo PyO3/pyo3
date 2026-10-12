@@ -8,6 +8,10 @@ on:
   # See safety note / doc at the top of this file.
   pull_request_target: # zizmor: ignore[dangerous-triggers] Runs trusted base-branch code; see safety note above.
 
+env:
+  UV_LOCKED: 1
+  UV_PYTHON: "3.14"
+
 permissions:
   contents: read
 
@@ -20,7 +24,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           # avoid possibility of cache poisoning
           enable-cache: false
@@ -37,7 +41,7 @@ jobs:
           CODECOV_PR: ${{ github.event.number }}
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
-          uv run --locked --no-build --only-group codecov \
+          uv run --no-build --only-group codecov \
             codecovcli pr-base-picking \
               --base-sha "$CODECOV_BASE_SHA" \
               --pr "$CODECOV_PR" \

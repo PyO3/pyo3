@@ -3,6 +3,67 @@
 This guide can help you upgrade code through breaking changes from one PyO3 version to the next.
 For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
+## from 0.30.* to 0.31
+
+### Removed methods from `PyBuffer<T>`: `as_slice`, `as_mut_slice`, `as_fortran_slice`, and `as_fortran_mut_slice`
+
+<details open>
+<summary><small>Click to expand</small></summary>
+
+Previously, these methods could be used to modify the contents of the buffer in place.
+These functions were removed because the implementation was unsound.
+
+Instead you can use `copy_to_slice` (or `copy_to_fortran_slice`) to copy the buffer into a regular rust slice, make your changes, then use `copy_from_slice` (or `copy_from_fortran_slice`) to copy it back into the buffer.
+
+```rust,no_run
+# #![allow(dead_code)]
+use pyo3::prelude::*;
+# #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+use pyo3::buffer::PyBuffer;
+
+# #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+fn before(py: Python<'_>, buffer: &PyBuffer<i32>) {
+    # #[allow(deprecated)]
+    let slice = buffer.as_mut_slice(py).unwrap();
+    slice[0].set(42);
+}
+
+# #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+fn after(py: Python<'_>, buffer: &PyBuffer<i32>) {
+    let mut rust_buffer = vec![0; buffer.item_count()];
+    buffer.copy_to_slice(py, &mut rust_buffer).unwrap();
+    rust_buffer[0] = 42;
+    buffer.copy_from_slice(py, &rust_buffer).unwrap();
+}
+```
+
+Alternatively, you can call `as_slice_ptr` (or `as_fortran_slice_ptr`) to get a `NonNull<[T]>` instead.
+As with all rust pointers, there isn't much you can do with them safely, but you can pass them to C APIs or unsafely convert them into references if you have some other way to uphold rust's aliasing guarantees.
+
+```rust,no_run
+# #![allow(dead_code)]
+use pyo3::prelude::*;
+# #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+use pyo3::buffer::PyBuffer;
+
+# #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+fn before(py: Python<'_>, buffer: &PyBuffer<i32>) {
+    # #[allow(deprecated)]
+    let slice = buffer.as_mut_slice(py).unwrap();
+    slice[0].set(42);
+}
+
+# #[cfg(any(not(Py_LIMITED_API), Py_3_11))]
+fn after(buffer: &PyBuffer<i32>) {
+    let mut ptr = buffer.as_slice_ptr().unwrap();
+    // SAFETY: you have some other way to uphold rust's aliasing guarantees
+    let slice = unsafe { ptr.as_mut() };
+    slice[0] = 42; 
+}
+```
+
+</details>
+
 ## from 0.28.* to 0.29
 
 ### Removed implementations of `From<str::Utf8Error>`, `From<string::FromUtf16Error>`, and `From<char::DecodeUtf16Error>` for `PyErr`
@@ -471,6 +532,7 @@ For this reason, we chose to rename these to more modern terminology introduced 
   In GIL enabled builds there can only be 1 thread attached to the interpreter, in free-threading there can be more.
 - `Python::allow_threads` is now called `Python::detach`, it detaches a previously attached thread-state.
 - `pyo3::prepare_freethreaded_python` is now called `Python::initialize`.
+
 </details>
 
 ### Deprecation of `PyObject` type alias
@@ -1521,7 +1583,8 @@ This enables use of newer language features and simplifies maintenance of the pr
 `PyDict::get_item` in PyO3 0.19 and older was implemented using a Python API which would suppress all exceptions and return `None` in those cases.
 This included errors in `__hash__` and `__eq__` implementations of the key being looked up.
 
-Newer recommendations by the Python core developers advise against using these APIs which suppress exceptions, instead allowing exceptions to bubble upwards. `PyDict::get_item_with_error` already implemented this recommended behavior, so that API has been renamed to `PyDict::get_item`.
+Newer recommendations by the Python core developers advise against using these APIs which suppress exceptions, instead allowing exceptions to bubble upwards.
+`PyDict::get_item_with_error` already implemented this recommended behavior, so that API has been renamed to `PyDict::get_item`.
 
 Before:
 
@@ -1646,7 +1709,8 @@ fn add(a: u64, b: u64) -> u64 {
 <details>
 <summary><small>Click to expand</small></summary>
 
-The trait `IntoPyPointer`, which provided the `into_ptr` method on many types, has been removed. `into_ptr` is now available as an inherent method on all types that previously implemented this trait.
+The trait `IntoPyPointer`, which provided the `into_ptr` method on many types, has been removed.
+`into_ptr` is now available as an inherent method on all types that previously implemented this trait.
 </details>
 
 ### `AsPyPointer` now `unsafe` trait
@@ -2342,6 +2406,7 @@ The specific implications of this are:
 - If you wish to subclass one of these types _from Rust_ you must mark it `#[pyclass(subclass)]`, as you would if you wished to allow subclassing it from Python code.
 - Type objects are now mutable - Python code can set attributes on them.
 - `__module__` on types without `#[pyclass(module="mymodule")]` no longer returns `builtins`, it now raises `AttributeError`.
+
 </details>
 
 ## from 0.11.* to 0.12

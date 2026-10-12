@@ -15,6 +15,12 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 3
+    allow:
+      - dependency-type: "all"
+    groups:
+      cargo-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: "cargo"
     directory: "/pyo3-benches/"
@@ -36,6 +42,10 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 3
+    groups:
+      github-actions:
+        patterns:
+          - "*"
     labels:
       # dependabot default labels
       - "dependencies"
