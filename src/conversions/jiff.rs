@@ -19,9 +19,11 @@
 //! # Example: Convert a `datetime.datetime` to jiff `Zoned`
 //!
 //! ```rust
-//! # #![cfg_attr(windows, allow(unused_imports))]
+//! # #[cfg(not(windows))]
 //! # use jiff_02 as jiff;
+//! # #[cfg(not(windows))]
 //! use jiff::{Zoned, SignedDuration, ToSpan};
+//! # #[cfg(not(windows))]
 //! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
 //! # #[cfg(windows)]

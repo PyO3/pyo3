@@ -2300,9 +2300,6 @@ fn impl_pytypeinfo(cls: &Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStream {
     quote! {
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
 
-            const NAME: &str = <Self as #pyo3_path::PyClass>::NAME;
-            const MODULE: ::core::option::Option<&str> = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::MODULE;
-
             #type_hint
 
             #[inline]

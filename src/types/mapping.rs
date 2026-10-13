@@ -24,9 +24,6 @@ pub struct PyMapping(PyAny);
 pyobject_native_type_named!(PyMapping);
 
 unsafe impl PyTypeInfo for PyMapping {
-    const NAME: &'static str = "Mapping";
-    const MODULE: Option<&'static str> = Some("collections.abc");
-
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_identifier!("collections.abc", "Mapping");
 

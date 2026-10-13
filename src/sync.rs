@@ -10,12 +10,7 @@
 //!
 //! This module provides synchronization primitives which are able to synchronize under these conditions.
 use crate::platform::sync::Once;
-use crate::{
-    Bound, Py, Python,
-    internal::state::SuspendAttach,
-    sealed::Sealed,
-    types::{PyAny, PyString},
-};
+use crate::{Bound, Py, Python, internal::state::SuspendAttach, sealed::Sealed, types::PyString};
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
 use core::ops::Deref;
 use core::{cell::UnsafeCell, marker::PhantomData, mem::MaybeUninit};
@@ -29,30 +24,6 @@ pub(crate) mod once_lock;
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_13, wip_feature_std))]
 pub use self::mutex::{PyMutex, PyMutexGuard};
-
-/// Deprecated alias for [`pyo3::sync::critical_section::with_critical_section`][crate::sync::critical_section::with_critical_section]
-#[deprecated(
-    since = "0.28.0",
-    note = "use pyo3::sync::critical_section::with_critical_section instead"
-)]
-pub fn with_critical_section<F, R>(object: &Bound<'_, PyAny>, f: F) -> R
-where
-    F: FnOnce() -> R,
-{
-    crate::sync::critical_section::with_critical_section(object, f)
-}
-
-/// Deprecated alias for [`pyo3::sync::critical_section::with_critical_section2`][crate::sync::critical_section::with_critical_section2]
-#[deprecated(
-    since = "0.28.0",
-    note = "use pyo3::sync::critical_section::with_critical_section2 instead"
-)]
-pub fn with_critical_section2<F, R>(a: &Bound<'_, PyAny>, b: &Bound<'_, PyAny>, f: F) -> R
-where
-    F: FnOnce() -> R,
-{
-    crate::sync::critical_section::with_critical_section2(a, b, f)
-}
 pub use self::once_lock::PyOnceLock;
 
 #[deprecated(

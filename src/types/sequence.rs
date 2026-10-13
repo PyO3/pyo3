@@ -23,9 +23,6 @@ pub struct PySequence(PyAny);
 pyobject_native_type_named!(PySequence);
 
 unsafe impl PyTypeInfo for PySequence {
-    const NAME: &'static str = "Sequence";
-    const MODULE: Option<&'static str> = Some("collections.abc");
-
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_identifier!("collections.abc", "Sequence");
 
