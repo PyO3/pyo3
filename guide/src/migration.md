@@ -264,7 +264,7 @@ These should be used instead.
 
 Before:
 
-```rust
+```rust,ignore
 # #![allow(deprecated)]
 # use pyo3::prelude::*;
 # use pyo3::types::PyNone;
@@ -1884,7 +1884,7 @@ Starting with PyO3 0.18, this is deprecated and a future PyO3 version will requi
 
 Before, x in the below example would be required to be passed from Python code:
 
-```rust,compile_fail,ignore
+```rust,ignore
 # #![allow(dead_code)]
 # use pyo3::prelude::*;
 
@@ -1967,7 +1967,7 @@ These are equivalent to calling `collections.abc.Mapping.register(MappingPyClass
 
 For example, for a mapping class defined in Rust:
 
-```rust,compile_fail
+```rust,ignore
 use pyo3::prelude::*;
 use std::collections::HashMap;
 
@@ -1987,7 +1987,7 @@ impl Mapping {
 
 You must register the class with `collections.abc.Mapping` before the downcast will work:
 
-```rust,compile_fail
+```rust,ignore
 let m = Py::new(py, Mapping { index }).unwrap();
 assert!(m.as_ref(py).downcast::<PyMapping>().is_err());
 PyMapping::register::<Mapping>(py).unwrap();
@@ -2015,7 +2015,7 @@ This may cause inference errors.
 
 Before:
 
-```rust,compile_fail
+```rust,ignore
 # use pyo3::prelude::*;
 #
 # fn main() {
@@ -2132,7 +2132,7 @@ Migration from `#[pyproto]` to `#[pymethods]` is straightforward; copying the ex
 
 Before:
 
-```rust,compile_fail
+```rust,ignore
 use pyo3::prelude::*;
 use pyo3::class::{PyObjectProtocol, PyIterProtocol};
 use pyo3::types::PyString;
@@ -2157,7 +2157,7 @@ impl PyIterProtocol for MyClass {
 
 After
 
-```rust,compile_fail
+```rust,ignore
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 
@@ -2238,7 +2238,7 @@ Prior to PyO3 0.16 the `wrap_pymodule!` and `wrap_pyfunction!` macros could use 
 
 For example, the following code was legal before 0.16, but in 0.16 is rejected because the `wrap_pymodule!` macro cannot access the `private_submodule` function:
 
-```rust,compile_fail
+```rust,ignore
 mod foo {
     use pyo3::prelude::*;
 
@@ -2348,7 +2348,7 @@ To migrate just move the affected methods from a `#[pyproto]` to a `#[pymethods]
 
 Before:
 
-```rust,compile_fail
+```rust,ignore
 use pyo3::prelude::*;
 use pyo3::class::basic::PyObjectProtocol;
 
@@ -2463,7 +2463,7 @@ Just construct the `Result::Err` variant directly.
 
 Before:
 
-```rust,compile_fail
+```rust,ignore
 let result: PyResult<()> = PyErr::new::<TypeError, _>("error message").into();
 ```
 
@@ -2527,7 +2527,7 @@ Now there is only one way to define the conversion, `IntoPy`, so downstream crat
 
 Before:
 
-```rust,compile_fail
+```rust,ignore
 # use pyo3::prelude::*;
 struct MyPyObjectWrapper(PyObject);
 
@@ -2557,7 +2557,7 @@ Similarly, code which was using the `FromPy` trait can be trivially rewritten to
 
 Before:
 
-```rust,compile_fail
+```rust,ignore
 # use pyo3::prelude::*;
 # Python::with_gil(|py| {
 let obj = PyObject::from_py(1.234, py);
@@ -2645,7 +2645,7 @@ There can be two fixes:
 
    Before:
 
-   ```rust,compile_fail
+   ```rust,ignore
    use pyo3::prelude::*;
    use std::rc::Rc;
    use std::cell::RefCell;
@@ -2680,7 +2680,7 @@ There can be two fixes:
 
    Before:
 
-   ```rust,compile_fail
+   ```rust,ignore
    use pyo3::prelude::*;
 
    #[pyclass]
@@ -2714,7 +2714,7 @@ To migrate, just pass a `py` argument to any calls to these methods.
 
 Before:
 
-```rust,compile_fail
+```rust,ignore
 # pyo3::Python::attach(|py| {
 py.None().get_refcnt();
 # })
@@ -2743,7 +2743,7 @@ Or if you use `ObjectProtocol` by `use pyo3::prelude::*`, you have to do nothing
 
 Before:
 
-```rust,compile_fail,ignore
+```rust,ignore
 use pyo3::ObjectProtocol;
 
 # pyo3::Python::with_gil(|py| {
@@ -2784,7 +2784,7 @@ While PyO3 itself still requires specialization and nightly Rust, now you don't 
 
 Before:
 
-```rust,compile_fail
+```rust,ignore
 #[pyclass]
 struct MyClass {}
 
@@ -2874,7 +2874,7 @@ If you need [`PyRef`] or [`PyRefMut`], just call `.borrow()` or `.borrow_mut()` 
 
 Before:
 
-```rust,compile_fail
+```rust,ignore
 # use pyo3::prelude::*;
 # #[pyclass]
 # struct MyClass {}
@@ -2904,7 +2904,7 @@ In addition, you can also extract `&PyCell<T>`, though you rarely need it.
 
 Before:
 
-```compile_fail
+```rust,ignore
 let obj: &PyAny = create_obj();
 let obj_ref: &MyClass = obj.extract().unwrap();
 let obj_ref_mut: &mut MyClass = obj.extract().unwrap();
@@ -2939,7 +2939,7 @@ So if your protocol methods take `&T` or `&mut T` (where `T: PyClass`), please u
 
 Before:
 
-```rust,compile_fail
+```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::class::PySequenceProtocol;
 #[pyclass]
@@ -2958,7 +2958,7 @@ impl PySequenceProtocol for ByteSequence {
 
 After:
 
-```rust,compile_fail
+```rust,ignore
 # use pyo3::prelude::*;
 # use pyo3::class::PySequenceProtocol;
 #[pyclass]

@@ -1512,9 +1512,6 @@ struct MyClass {
 impl pyo3::types::DerefToPyAny for MyClass {}
 
 unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
-    const NAME: &'static str = "MyClass";
-    const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
-
     #[inline]
     fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
         <Self as pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()

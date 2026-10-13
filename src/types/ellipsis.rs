@@ -28,9 +28,6 @@ impl PyEllipsis {
 }
 
 unsafe impl PyTypeInfo for PyEllipsis {
-    const NAME: &'static str = "ellipsis";
-    const MODULE: Option<&'static str> = None;
-
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_identifier!("types", "EllipsisType");
 

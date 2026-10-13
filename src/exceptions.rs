@@ -205,9 +205,6 @@ macro_rules! create_exception_type_object {
 
         // SAFETY: macro caller has upheld the safety contracts
         unsafe impl $crate::type_object::PyTypeInfo for $name {
-            const NAME: &'static str = stringify!($name);
-            const MODULE: ::core::option::Option<&'static str> =
-                ::core::option::Option::Some(stringify!($module));
             $crate::create_exception_type_hint!($module, $name);
 
             #[inline]
