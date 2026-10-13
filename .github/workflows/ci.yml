@@ -285,7 +285,7 @@ jobs:
           # Also test Python 3.15 and 3.15t, on ubuntu
           # (run for all OSes on build-full)
           - rust: stable
-            python-version: "3.15-dev"
+            python-version: "3.15"
             platform:
               {
                 os: "ubuntu-latest",
@@ -293,7 +293,7 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
           - rust: stable
-            python-version: "3.15t-dev"
+            python-version: "3.15t"
             platform:
               {
                 os: "ubuntu-latest",
@@ -334,8 +334,8 @@ jobs:
             "3.13",
             "3.14",
             "3.14t",
-            "3.15-dev",
-            "3.15t-dev",
+            "3.15",
+            "3.15t",
             "pypy3.11",
             "graalpy25.4", # 3.13
           ]
@@ -684,7 +684,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.15-dev"
+          python-version: "3.15"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
