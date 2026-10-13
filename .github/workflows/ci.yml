@@ -293,7 +293,7 @@ jobs:
                 rust-target: "x86_64-unknown-linux-gnu",
               }
           - rust: stable
-            python-version: "3.15t-dev"
+            python-version: "3.15t"
             platform:
               {
                 os: "ubuntu-latest",
