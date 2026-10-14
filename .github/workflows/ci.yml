@@ -541,6 +541,26 @@ jobs:
           rustup default nightly
       - run: cargo rustdoc --lib --no-default-features --features full,jiff-02 -Zunstable-options --config "build.rustdocflags=[\"--cfg\", \"docsrs\"]"
 
+  publish-dry-run:
+    needs: [fmt]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+      # Mirrors the crates.io publish step of release.yml, e.g. catches an outdated Cargo.lock
+      - run: cargo publish --workspace --dry-run
+
   emscripten:
     name: emscripten
     if: ${{ contains(github.event.pull_request.labels.*.name, 'CI-build-full') || github.event_name != 'pull_request' }}
@@ -929,6 +949,7 @@ jobs:
       - valgrind
       - careful
       - docsrs
+      - publish-dry-run
       - emscripten
       - wasm32-wasip1
       - no_std
