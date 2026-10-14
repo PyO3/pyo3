@@ -219,6 +219,9 @@ pub trait PyClassImpl: Sized + 'static {
     /// #[pyclass(extends=...)]
     const IS_SUBCLASS: bool = false;
 
+    /// #[pyclass(freelist = N)]
+    const HAS_FREELIST: bool = false;
+
     /// #[pyclass(mapping)]
     const IS_MAPPING: bool = false;
 
@@ -994,17 +997,22 @@ pub unsafe extern "C" fn alloc_with_freelist<T: PyClassWithFreeList>(
     subtype: *mut ffi::PyTypeObject,
     nitems: ffi::Py_ssize_t,
 ) -> *mut ffi::PyObject {
-    let py = unsafe { Python::assume_attached() };
+    // Python 3.9's python3.dll does not export PyObject_GC_IsTracked, which is needed
+    // to safely restore GC tracking after reuse.
+    #[cfg(not(all(windows, Py_LIMITED_API, not(Py_3_10))))]
+    {
+        let py = unsafe { Python::assume_attached() };
 
-    let self_type = T::type_object_raw(py);
-    // If this type is a variable type or the subtype is not equal to this type, we cannot use the
-    // freelist
-    if nitems == 0 && ptr::eq(subtype, self_type) {
-        let mut free_list = T::get_free_list(py);
-        if let Some(obj) = free_list.pop() {
-            drop(free_list);
-            unsafe { ffi::PyObject_Init(obj.as_ptr(), subtype) };
-            return obj.as_ptr() as _;
+        let self_type = T::type_object_raw(py);
+        // If this type is a variable type or the subtype is not equal to this type, we cannot use
+        // the freelist
+        if nitems == 0 && ptr::eq(subtype, self_type) {
+            let mut free_list = T::get_free_list(py);
+            if let Some(obj) = free_list.pop() {
+                drop(free_list);
+                unsafe { ffi::PyObject_Init(obj.as_ptr(), subtype) };
+                return obj.as_ptr() as _;
+            }
         }
     }
 
@@ -1025,19 +1033,20 @@ pub unsafe extern "C" fn free_with_freelist<T: PyClassWithFreeList>(obj: *mut c_
             T::type_object_raw(Python::assume_attached()),
             ffi::Py_TYPE(obj.as_ptr())
         );
-        let mut free_list = T::get_free_list(Python::assume_attached());
-        if let Some(obj) = free_list.insert(obj) {
-            drop(free_list);
-            let ty = ffi::Py_TYPE(obj.as_ptr());
+        // See `alloc_with_freelist` for why these builds do not retain allocations.
+        #[cfg(not(all(windows, Py_LIMITED_API, not(Py_3_10))))]
+        let Some(obj) = T::get_free_list(Python::assume_attached()).insert(obj) else {
+            return;
+        };
+        let ty = ffi::Py_TYPE(obj.as_ptr());
 
-            // Deduce appropriate inverse of PyType_GenericAlloc
-            let free = if ffi::PyType_IS_GC(ty) != 0 {
-                ffi::PyObject_GC_Del
-            } else {
-                ffi::PyObject_Free
-            };
-            free(obj.as_ptr().cast());
-        }
+        // Deduce appropriate inverse of PyType_GenericAlloc
+        let free = if ffi::PyType_IS_GC(ty) != 0 {
+            ffi::PyObject_GC_Del
+        } else {
+            ffi::PyObject_Free
+        };
+        free(obj.as_ptr().cast());
     }
 }
 
