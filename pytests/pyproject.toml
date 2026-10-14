@@ -28,7 +28,6 @@ requires-python = ">=3.9"
     "I001",   # unsorted imports
     "PYI020", # quoted annotations
     "PYI029", # redundant `__str__` definition
-    "PYI034", # `__new__` returning the class instead of `Self`
     "UP037",  # quoted annotations
 ]
 
