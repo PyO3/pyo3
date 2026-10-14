@@ -337,6 +337,7 @@ jobs:
             "3.15",
             "3.15t",
             "pypy3.11",
+            "pypy3.12",
             "graalpy25.4", # 3.13
           ]
         platform:
