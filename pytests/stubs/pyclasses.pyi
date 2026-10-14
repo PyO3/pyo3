@@ -3,6 +3,23 @@ from _typeshed import Incomplete
 from typing import Final, SupportsIndex, final
 from typing_extensions import disjoint_base
 
+__all__ = [
+    "AssertingBaseClass",
+    "ClassWithDecorators",
+    "ClassWithDict",
+    "ClassWithoutConstructor",
+    "EmptyClass",
+    "Number",
+    "PlainObject",
+    "PyClassIter",
+    "PyClassOptionAsyncIter",
+    "PyClassOptionIter",
+    "PyClassResultOptionIter",
+    "PyClassThreadIter",
+    "SubClassWithInit",
+    "map_a_class",
+]
+
 @disjoint_base
 class AssertingBaseClass:
     """

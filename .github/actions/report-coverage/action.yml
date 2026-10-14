@@ -12,7 +12,7 @@ runs:
   steps:
   - name: Generate coverage report
     shell: bash
-    run: uvx nox -s generate-coverage-report -- --codecov --output-path=coverage.json
+    run: uv run --isolated --only-group nox nox -s generate-coverage-report -- --codecov --output-path=coverage.json
 
   - name: Upload coverage report
     uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0

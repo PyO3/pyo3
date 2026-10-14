@@ -1,5 +1,14 @@
 from typing import Any
 
+__all__ = [
+    "accepts_bool",
+    "detach_during_finalization",
+    "get_item_and_run_callback",
+    "get_type_fully_qualified_name",
+    "hammer_attaching_in_thread",
+    "issue_219",
+]
+
 def accepts_bool(val: bool) -> bool: ...
 def detach_during_finalization() -> Any: ...
 def get_item_and_run_callback(dict: dict, callback: Any) -> None: ...

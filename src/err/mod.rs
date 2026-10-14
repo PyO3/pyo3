@@ -514,7 +514,7 @@ impl PyErr {
         message: &CStr,
         stacklevel: i32,
     ) -> PyResult<()> {
-        error_on_minusone(py, unsafe {
+        error_on_negative(py, unsafe {
             ffi::PyErr_WarnEx(
                 category.as_ptr(),
                 message.as_ptr(),
@@ -548,7 +548,7 @@ impl PyErr {
             None => core::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
         };
-        error_on_minusone(py, unsafe {
+        error_on_negative(py, unsafe {
             ffi::PyErr_WarnExplicit(
                 category.as_ptr(),
                 message.as_ptr(),
@@ -757,47 +757,30 @@ where
     }
 }
 
-/// Returns Ok if the error code is not -1.
+/// Returns Ok if the error code is non-negative.
 #[inline]
-pub(crate) fn error_on_minusone<T: SignedInteger>(py: Python<'_>, result: T) -> PyResult<()> {
-    if result != T::MINUS_ONE {
+pub(crate) fn error_on_negative<T: From<i8> + Ord>(py: Python<'_>, result: T) -> PyResult<()> {
+    if result >= T::from(0) {
         Ok(())
     } else {
+        debug_assert!(result == T::from(-1));
         Err(PyErr::fetch(py))
     }
 }
 
-/// Returns Ok wrapping the result if the error code is not -1.
+/// Returns Ok wrapping the result if the error code is non-negative.
 #[inline]
-pub(crate) fn error_on_minusone_with_result<T: SignedInteger>(
+pub(crate) fn error_on_negative_with_result<T: From<i8> + Ord>(
     py: Python<'_>,
     result: T,
 ) -> PyResult<T> {
-    if result != T::MINUS_ONE {
+    if result >= T::from(0) {
         Ok(result)
     } else {
+        debug_assert!(result == T::from(-1));
         Err(PyErr::fetch(py))
     }
 }
-
-pub(crate) trait SignedInteger: Eq {
-    const MINUS_ONE: Self;
-}
-
-macro_rules! impl_signed_integer {
-    ($t:ty) => {
-        impl SignedInteger for $t {
-            const MINUS_ONE: Self = -1;
-        }
-    };
-}
-
-impl_signed_integer!(i8);
-impl_signed_integer!(i16);
-impl_signed_integer!(i32);
-impl_signed_integer!(i64);
-impl_signed_integer!(i128);
-impl_signed_integer!(isize);
 
 #[cfg(test)]
 mod tests {

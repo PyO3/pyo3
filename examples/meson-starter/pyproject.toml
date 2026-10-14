@@ -1,0 +1,28 @@
+[build-system]
+requires = [
+    "meson-python>=0.18",
+    "meson>=1.12.1",
+    "tomli; python_version < '3.11'",
+]
+build-backend = "_build_backend"
+backend-path = ["."]
+
+[project]
+name = "meson-starter"
+version = "0.1.0"
+requires-python = ">=3.10"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Rust",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS :: MacOS X",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.meson-python.args]
+setup = ["--vsenv"]

@@ -33,12 +33,21 @@ def test(session: nox.Session):
     # hypothesis itself depends on PyO3 so newer Python versions may fail
     # to build
     try_install_binary("hypothesis", ">=6.156.1")
-    ignored_paths = []
+    # The stubs are generated from a build with `experimental-async,experimental-inspect`,
+    # so only such a build exports the members they declare. The `test-introspection`
+    # session runs this test against one.
+    ignored_paths = ["tests/test_stubs.py"]
     if sys.version_info < (3, 10):
         # Match syntax is only available in Python >= 3.10
         ignored_paths.append("tests/test_enums_match.py")
     ignore_args = [f"--ignore={path}" for path in ignored_paths]
-    session.run("pytest", *ignore_args, *unhandled_posargs)
+
+    extra_args = []
+    # https://github.com/oracle/graalpython/issues/1211
+    if sys.implementation.name == "graalpy":
+        extra_args.append("--assert=plain")
+
+    session.run("pytest", *extra_args, *ignore_args, *unhandled_posargs)
 
 
 @nox.session

@@ -8,7 +8,7 @@ use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::types::PyBytes;
 use crate::types::bytes::PyBytesMethods;
-use crate::{Bound, Py, PyAny, PyResult, Python, ffi};
+use crate::{Bound, Py, PyAny, PyResult, Python, err, ffi};
 #[cfg(RustPython)]
 use crate::{
     sync::PyOnceLock,
@@ -346,7 +346,7 @@ impl<'py> PyStringMethods<'py> for Bound<'py, PyString> {
             // SAFETY: self is a valid str object
             _ => unsafe { ffi::PyUnicode_GetLength(self.as_ptr()) },
         };
-        crate::err::error_on_minusone(self.py(), len)?;
+        err::error_on_negative(self.py(), len)?;
         Ok(len as usize)
     }
 

@@ -28,9 +28,6 @@ impl PyNotImplemented {
 }
 
 unsafe impl PyTypeInfo for PyNotImplemented {
-    const NAME: &'static str = "NotImplementedType";
-    const MODULE: Option<&'static str> = None;
-
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_identifier!("types", "NotImplementedType");
 
