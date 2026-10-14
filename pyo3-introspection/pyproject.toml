@@ -7,12 +7,12 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Rust",
 ]
+license-files = ["LICENSE-APACHE", "LICENSE-MIT"]
 dynamic = [
     "authors",
     "description",
     "keywords",
     "license",
-    "license-files",
     "maintainers",
     "readme",
     "version",
