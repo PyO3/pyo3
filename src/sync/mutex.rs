@@ -85,6 +85,23 @@ pub(crate) struct Guard {
     panicking: bool,
 }
 
+// Critical sections own the lock and unlock operations, so their poison guard
+// must track unwinding without unlocking the mutex itself.
+#[cfg(all(Py_3_14, Py_GIL_DISABLED))]
+pub struct PoisonGuard<'a> {
+    flag: &'a Flag,
+    guard: Guard,
+    _phantom: PhantomData<*const ()>,
+}
+
+#[cfg(all(Py_3_14, Py_GIL_DISABLED))]
+impl Drop for PoisonGuard<'_> {
+    #[inline]
+    fn drop(&mut self) {
+        self.flag.done(&self.guard);
+    }
+}
+
 /// Wrapper for [`PyMutex`](https://docs.python.org/3/c-api/init.html#c.PyMutex), exposing an RAII guard interface.
 ///
 /// Compared with `std::sync::Mutex` or `parking_lot::Mutex`, this is a very
@@ -131,6 +148,19 @@ pub struct PyMutexGuard<'a, T: ?Sized> {
     // this is equivalent to impl !Send, which we can't do
     // because negative trait bounds aren't supported yet
     _phantom: PhantomData<*const ()>,
+}
+
+#[cfg(all(Py_3_14, Py_GIL_DISABLED))]
+impl<T: ?Sized> PyMutex<T> {
+    pub(super) fn poison_guard(&self) -> PoisonGuard<'_> {
+        // Critical-section entry has never rejected an already-poisoned mutex.
+        let guard = self.poison.guard().unwrap_or_else(PoisonError::into_inner);
+        PoisonGuard {
+            flag: &self.poison,
+            guard,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 /// SAFETY: `T` must be `Sync` for a [`PyMutexGuard<T>`] to be `Sync`
