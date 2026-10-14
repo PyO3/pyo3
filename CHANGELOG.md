@@ -10,7 +10,15 @@ To see unreleased changes, please see the [CHANGELOG on the main branch guide](h
 
 <!-- towncrier release notes start -->
 
+## [0.30.1] - 2026-10-14
+
+### Packaging
+
+- Support PyPy 3.12. [#6448](https://github.com/PyO3/pyo3/pull/6448)
+
 ## [0.30.0] - 2026-10-13
+
+NB PyO3 0.30.0 failed to push to crates.io due to a CI issue, so 0.30.1 was prepared and pushed with minimal other changes other than confirming support for PyPy 3.12.
 
 ### Packaging
 
@@ -2811,7 +2819,8 @@ Yanked
 
 - Initial release
 
-[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.30.0...HEAD
+[Unreleased]: https://github.com/pyo3/pyo3/compare/v0.30.1...HEAD
+[0.30.1]: https://github.com/pyo3/pyo3/compare/v0.30.0...v0.30.1
 [0.30.0]: https://github.com/pyo3/pyo3/compare/v0.29.3...v0.30.0
 [0.29.3]: https://github.com/pyo3/pyo3/compare/v0.29.2...v0.29.3
 [0.29.2]: https://github.com/pyo3/pyo3/compare/v0.29.1...v0.29.2

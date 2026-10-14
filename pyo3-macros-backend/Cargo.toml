@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-macros-backend"
-version = "0.30.0"
+version = "0.30.1"
 description = "Code generation for PyO3 package"
 authors.workspace = true
 keywords.workspace = true

@@ -1121,7 +1121,7 @@ impl PythonAbi {
     }
 
     #[deprecated(
-        since = "0.30.0",
+        since = "0.30.1",
         note = "use `PythonAbi::from_stable_abi` and pass the stable ABI to target explicitly; selecting it from the `abi3`/`abi3t` cargo features is handled internally by PyO3's build scripts"
     )]
     pub fn from_build_env(

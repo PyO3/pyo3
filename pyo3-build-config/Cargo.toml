@@ -1,6 +1,6 @@
 [package]
 name = "pyo3-build-config"
-version = "0.30.0"
+version = "0.30.1"
 description = "Build configuration for the PyO3 ecosystem"
 authors.workspace = true
 keywords.workspace = true
