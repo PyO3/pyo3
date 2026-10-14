@@ -94,3 +94,18 @@ enum IntoPyObject5<'a, 'py> {
         g: &'a str,
     },
 } // enum case
+
+crate::pyprotocol! {
+    /// A protocol
+    #[pyo3(crate = "crate", name = "_Protocol")]
+    Protocol {
+        #[pyo3(signature = (x = 1, /))]
+        fn method(&self, x: i32) -> i32;
+        fn no_args(&self);
+    }
+}
+
+crate::pyprotocol! {
+    #[pyo3(crate = "crate")]
+    ExtendedProtocol(Protocol::TYPE_HINT) {}
+}

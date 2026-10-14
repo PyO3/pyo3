@@ -5,9 +5,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use pyo3_macros_backend::{
-    PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions,
+    PyClassArgs, PyClassMethodsType, PyFunctionOptions, PyModuleOptions, PyProtocol,
     build_derive_from_pyobject, build_derive_into_pyobject, build_py_class, build_py_enum,
-    build_py_function, build_py_methods, pymodule_function_impl, pymodule_module_impl,
+    build_py_function, build_py_methods, build_py_protocol, pymodule_function_impl,
+    pymodule_module_impl,
 };
 use quote::quote;
 use syn::{Item, parse_macro_input};
@@ -155,6 +156,29 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
         #expanded
     )
     .into()
+}
+
+/// Declares a `typing.Protocol` for the generated type stubs.
+///
+/// ```ignore
+/// pyo3::pyprotocol! {
+///     /// A binary stream that can be read from and written to
+///     pub SupportsReadWrite {
+///         #[pyo3(signature = (n = -1, /))]
+///         fn read(&self, n: isize) -> Py<PyBytes>;
+///         fn write(&self, data: &[u8]) -> usize;
+///     }
+/// }
+/// ```
+///
+/// This defines a unit struct whose `TYPE_HINT` constant can be used as e.g.
+/// `FromPyObject::INPUT_TYPE`. See the [type stub section of the guide][1] for details.
+///
+#[doc = concat!("[1]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/type-stub.html#protocols")]
+#[proc_macro]
+pub fn pyprotocol(input: TokenStream) -> TokenStream {
+    let protocol = parse_macro_input!(input as PyProtocol);
+    build_py_protocol(protocol).unwrap_or_compile_error().into()
 }
 
 #[proc_macro_derive(IntoPyObject, attributes(pyo3))]

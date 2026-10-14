@@ -23,9 +23,32 @@ from . import (
     sequence as sequence,
     subclassing as subclassing,
 )
-from _typeshed import Incomplete
-from typing import Final
+from _typeshed import Incomplete, SupportsRead, SupportsWrite
+from typing import Final, Protocol, SupportsIndex, type_check_only
 
 NO_STD: Final[bool]
+
+@type_check_only
+class SupportsClose(Protocol):
+    """
+    Only referenced as a base of `SupportsTypeshedReadWriteClose`
+    """
+    def close(self, /) -> None: ...
+
+@type_check_only
+class SupportsReadWrite(Protocol):
+    """
+    A binary stream that can be read from and written to
+    """
+    def read(self, n: int = ..., /) -> bytes: ...
+    def write(self, data: bytes, /) -> SupportsIndex: ...
+
+@type_check_only
+class SupportsTypeshedReadWriteClose(
+    SupportsRead[bytes], SupportsWrite[bytes], SupportsClose, Protocol
+):
+    """
+    Built from the protocols of typeshed and `SupportsClose`
+    """
 
 def __getattr__(name: str) -> Incomplete: ...
