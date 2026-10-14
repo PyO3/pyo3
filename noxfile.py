@@ -33,6 +33,9 @@ except ImportError:
 
 nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "rumdl", "docs", "typos"]
 
+# by default make warnings from inner processes fatal
+os.environ.setdefault("PYTHONWARNINGS", "error")
+
 PYO3_DIR = Path(__file__).parent
 PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).absolute()
 PYO3_GUIDE_SRC = PYO3_DIR / "guide" / "src"
