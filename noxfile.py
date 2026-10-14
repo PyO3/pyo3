@@ -2000,7 +2000,7 @@ def _run_cargo_test(
         _run_cargo(session, "careful", "setup")
         command.append("careful")
 
-    command.extend(("test", "--no-fail-fast"))
+    command.extend(("test", "--no-fail-fast", "--locked"))
 
     if "release" in session.posargs:
         command.append("--release")
