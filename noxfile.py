@@ -1474,58 +1474,13 @@ def test_version_limits(session: nox.Session):
 
 
 def _check_raw_dylib_macro(session: nox.Session):
-    """Check that extern_libpython! macro covers all supported Python DLL names."""
-    min_version, max_version = _parse_supported_interpreter_version("cpython")
-    min_minor = int(min_version.split(".")[1])
-    max_minor = int(max_version.split(".")[1])
+    """Check x86 raw-dylib private-function workaround covers all required _Py* imports.
 
-    # Build the set of DLL names that default_lib_name_windows can produce
-    expected_dlls = {"python3", "python3_d"}
-    for minor in range(min_minor, max_minor + 2):  # allow prerelease of next version
-        expected_dlls.add(f"python3{minor}")
-        expected_dlls.add(f"python3{minor}_d")
-        if minor >= 13:
-            expected_dlls.add(f"python3{minor}t")
-            expected_dlls.add(f"python3{minor}t_d")
-        if minor >= 15:
-            expected_dlls.add("python3t")
-            expected_dlls.add("python3t_d")
-
-    # PyPy DLL names (libpypy3.X-c.dll)
-    pypy_min, pypy_max = _parse_supported_interpreter_version("pypy")
-    pypy_min_minor = int(pypy_min.split(".")[1])
-    pypy_max_minor = int(pypy_max.split(".")[1])
-    for minor in range(
-        pypy_min_minor,
-        pypy_max_minor + 2,  # allow prerelease of next version
-    ):
-        expected_dlls.add(f"libpypy3.{minor}-c")
-
-    # GraalPy DLL (python-native.dll)
-    expected_dlls.add("python-native")
-
-    # Parse the DLL name list in the extern_libpython!(@impl ...) invocation
+    Note: DLL name enumeration is no longer needed because the link name is now
+    generated at build time by ``pyo3-ffi/build.rs`` (or meson) into a macro file,
+    so ``extern_libpython!`` does not hard-code any library names.
+    """
     lib_rs = (PYO3_DIR / "pyo3-ffi" / "src" / "impl_" / "macros.rs").read_text()
-    found_dlls = set(re.findall(r'"((?:python(?!XY)|libpypy)[^"]+)"', lib_rs))
-
-    missing = expected_dlls - found_dlls
-    extra = found_dlls - expected_dlls
-    errors = []
-    if missing:
-        errors.append(
-            f"Missing DLL names in extern_libpython! macro: {sorted(missing)}"
-        )
-    if extra:
-        errors.append(f"Extra DLL names in extern_libpython! macro: {sorted(extra)}")
-    if errors:
-        session.error(
-            "\n".join(errors)
-            + "\n\nUpdate the extern_libpython! macro in pyo3-ffi/src/impl_/macros.rs"
-            + " to match supported Python versions in pyo3-ffi/Cargo.toml"
-        )
-    session.log(
-        f"extern_libpython! macro covers all {len(expected_dlls)} expected DLL names ✓"
-    )
 
     private_fn_allowlist = set(re.findall(r"\[\s*(_Py[A-Za-z0-9_]*)\s*\]", lib_rs))
     required_private_fns = _raw_dylib_x86_private_functions()

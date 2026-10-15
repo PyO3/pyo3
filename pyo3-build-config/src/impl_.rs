@@ -2461,7 +2461,7 @@ fn load_cross_compile_config(
 }
 
 /// Generates the default library name for the target platform.
-fn default_lib_name_for_target(abi: PythonAbi, target: &Triple) -> String {
+pub(super) fn default_lib_name_for_target(abi: PythonAbi, target: &Triple) -> String {
     if target.operating_system == OperatingSystem::Windows {
         // assume not mingw
         default_lib_name_windows(abi, false)

@@ -2,14 +2,13 @@ project(
   'pyo3-ffi',
   'rust',
   meson_version : '>= 1.12',
-  version : '0.29.2',
+  version : '0.30.0',
   license : 'MIT OR Apache-2.0'
 )
 
 MINIMUM_SUPPORTED_VERSION_MINOR = 8
 STABLE_ABI_MAX_MINOR = 15
-MINIMUM_SUPPORTED_VERSION_PYPY_MINOR = 11
-MAXIMUM_SUPPORTED_VERSION_PYPY_MINOR = 11
+
 
 extra_args = []
 
@@ -20,6 +19,8 @@ extra_args += [
   '--check-cfg', 'cfg(PyPy)',
   '--check-cfg', 'cfg(GraalPy)',
   '--check-cfg', 'cfg(RustPython)',
+  '--check-cfg', 'cfg(pyo3_use_raw_dylib)',
+  '--check-cfg', 'cfg(pyo3_meson_build)',
   '--check-cfg', 'cfg(py_sys_config, values("Py_DEBUG", "Py_REF_DEBUG", "Py_TRACE_REFS", "COUNT_ALLOCS"))',
 ]
 
@@ -28,33 +29,6 @@ extra_args += [
 foreach i : range(MINIMUM_SUPPORTED_VERSION_MINOR, STABLE_ABI_MAX_MINOR + 2)
   extra_args += ['--check-cfg', f'cfg(Py_3_@i@)']
 endforeach
-
-# Allow all possible 'pyo3_dll' cfg values for raw-dylib linking on Windows.
-dll_names = ['python3', 'python3_d', 'python3t', 'python3t_d']
-
-foreach i : range(MINIMUM_SUPPORTED_VERSION_MINOR, STABLE_ABI_MAX_MINOR + 2)
-  # CPython DLL names.
-  dll_names += [f'python3@i@', f'python3@i@_d']
-  if i >= 13
-    dll_names += [f'python3@i@t', f'python3@i@t_d']
-  endif
-endforeach
-
-foreach i : range(MINIMUM_SUPPORTED_VERSION_PYPY_MINOR, MAXIMUM_SUPPORTED_VERSION_PYPY_MINOR + 2)
-  # PyPy DLL names.
-  dll_names += [f'libpypy3.@i@-c']
-endforeach
-
-# GraalPy DLL name
-dll_names += ['python-native']
-
-dll_names_quoted = []
-foreach name : dll_names
-  dll_names_quoted += f'"@name@"'
-endforeach
-
-pyo3_dll_values = ', '.join(dll_names_quoted)
-extra_args += ['--check-cfg', f'cfg(pyo3_dll, values(@pyo3_dll_values@))']
 
 
 fs = import('fs')
@@ -167,8 +141,76 @@ if is_windows
   else
     py_lib_name = 'python' + abi + (py_debug ? '_d' : '')
   endif
-  extra_args += ['--cfg', 'pyo3_use_raw_dylib', '--cfg', f'pyo3_dll="@py_lib_name@"']
+
+  # raw-dylib linking: generate the `pyo3_libpython_link!` macro definition for
+  # the auto-detected Python shared library. The build script (build.rs) does not
+  # run under meson, so we generate the macro here. `structured_sources` below
+  # places the generated file in the build directory next to
+  # `src/impl_/libpython_link_bridge.rs`, so that the bridge can include it with
+  # a plain relative path.
+  import_name_type = host_machine.cpu_family() == 'x86' ? ', import_name_type = "undecorated"' : ''
+  pyo3_libpython_link = custom_target(
+    'pyo3_libpython_link',
+    output: 'pyo3_libpython_link.rs',
+    command: [py, '-c',
+      '''import sys
+name, import_name_type, path = sys.argv[1:4]
+with open(path, "w") as f:
+    f.write(f"""// @generated - do not edit.
+macro_rules! pyo3_libpython_link {{
+    ($abi:literal {{ $($body:tt)* }}) => {{
+        #[link(name = "{name}", kind = "raw-dylib"{import_name_type})]
+        unsafe extern $abi {{ $($body)* }}
+    }};
+}}
+""")
+''',
+      py_lib_name, import_name_type, '@OUTPUT@'],
+  )
+
+  extra_args += ['--cfg', 'pyo3_use_raw_dylib', '--cfg', 'pyo3_meson_build']
 endif
+
+
+# Because pyo3-ffi has generated sources on Windows (the macro above), all of
+# its sources are passed to `library()` as `structured_sources`. On Windows this
+# mirrors the crate into the build directory, where the generated file takes
+# the place of what `OUT_DIR` provides for cargo builds; on other platforms
+# the crate is compiled directly from the source tree.
+#
+# The file list is captured at configure time; adding a new source file to the
+# crate requires reconfiguring the build.
+src_root = []
+src_dirs = {}
+foreach entry : run_command(
+    py, '-c',
+    '''import os, sys
+base = os.path.join(sys.argv[1], "src")
+for dirpath, dirnames, filenames in os.walk(base):
+    dirnames.sort()
+    for filename in sorted(filenames):
+        if filename.endswith(".rs") and filename != "lib.rs":
+            path = os.path.relpath(os.path.join(dirpath, filename), base).replace(os.sep, "/")
+            print(os.path.dirname(path) or ".", "src/" + path, sep="|")
+''',
+    meson.current_source_dir(),
+    check: true,
+  ).stdout().strip().split('\n')
+  if entry != ''
+    parts = entry.split('|')
+    if parts[0] == '.'
+      src_root += [parts[1]]
+    else
+      src_dirs += {parts[0]: src_dirs.get(parts[0], []) + [parts[1]]}
+    endif
+  endif
+endforeach
+
+if is_windows
+  src_dirs += {'impl_': src_dirs.get('impl_', []) + [pyo3_libpython_link]}
+endif
+
+ffi_sources = structured_sources(['src/lib.rs'] + src_root, src_dirs)
 
 
 # Compiler features used by PyO3.
@@ -187,7 +229,7 @@ foreach cfg, minor_version_required : rustc_features
 endforeach
 
 
-lib = pkg_obj.library('pyo3_ffi', rust_args : extra_args)
+lib = pkg_obj.library('pyo3_ffi', ffi_sources, rust_args : extra_args)
 dep = declare_dependency(
   link_with : lib,
   variables : {
