@@ -24,6 +24,7 @@ use crate::{
 
 use core::ops::DerefMut;
 use core::{
+    convert::identity,
     ffi::CStr,
     ffi::{c_int, c_void},
     marker::PhantomData,
@@ -1125,9 +1126,11 @@ impl ThreadCheckerImpl {
 
     fn can_drop(&self, py: Python<'_>, type_name: &'static str) -> bool {
         if thread::current().id() != self.0 {
-            PyRuntimeError::new_err(format!(
+            py_format!(
+                py,
                 "{type_name} is unsendable, but is being dropped on another thread"
-            ))
+            )
+            .map_or_else(identity, |msg| PyRuntimeError::new_err(msg.unbind()))
             .write_unraisable(py, None);
             return false;
         }
