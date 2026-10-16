@@ -243,9 +243,12 @@ macro_rules! extern_libpython_items {
 /// Helper macro to declare `extern` blocks that link against libpython on Windows
 /// using `raw-dylib`, eliminating the need for import libraries.
 ///
-/// The build script sets a `pyo3_dll` cfg value to the target DLL name (e.g. `python312`),
-/// and this macro expands to the appropriate `#[link(name = "...", kind = "raw-dylib")]`
-/// attribute for that DLL.
+/// The build system auto-detects the target Python shared library at build time
+/// and generates the `pyo3_libpython_link!` macro (included in the crate root),
+/// which expands to the appropriate `#[link(name = "...", kind = "raw-dylib")]`
+/// attribute for that library. Because the library name is resolved automatically
+/// per build, any Python version or implementation (CPython, PyPy, GraalPy, ...)
+/// is supported without changes to this crate's source.
 ///
 /// # Usage
 ///
@@ -267,49 +270,22 @@ macro_rules! extern_libpython_items {
 macro_rules! extern_libpython {
     // Explicit ABI
     ($abi:literal { $($body:tt)* }) => {
-        extern_libpython!(@impl $abi { $($body)* }
-            // abi3
-            "python3", "python3_d",
-            // abi3t
-            "python3t", "python3t_d",
-            // Python 3.9 - 3.15
-            "python39", "python39_d",
-            "python310", "python310_d",
-            "python311", "python311_d",
-            "python312", "python312_d",
-            "python313", "python313_d",
-            "python314", "python314_d",
-            "python315", "python315_d",
-            "python316", "python316_d",
-            // free-threaded builds (3.13+)
-            "python313t", "python313t_d",
-            "python314t", "python314t_d",
-            "python315t", "python315t_d",
-            "python316t", "python316t_d",
-            // PyPy (DLL is libpypy3.X-c.dll, not pythonXY.dll)
-            "libpypy3.11-c",
-            "libpypy3.12-c",
-            "libpypy3.13-c",
-            // GraalPy DLL
-            "python-native",
-        );
+        extern_libpython!(@impl $abi { $($body)* });
     };
-    // Internal: generate cfg_attr for each DLL name. One of these will be selected
-    // by `pyo3-ffi`'s `build.rs`.
+    // Internal: with raw-dylib linking on Windows, the generated
+    // `pyo3_libpython_link!` macro supplies the `#[link(name = "...",
+    // kind = "raw-dylib")]` attribute for the detected Python DLL.
     //
-    // On x86 Windows, Python DLLs export undecorated symbol names (no leading
-    // underscore), but the default for raw-dylib on x86 is fully-decorated
-    // (cdecl adds a `_` prefix). We use `import_name_type = "undecorated"` to
-    // match. The `import_name_type` key is only valid on x86, so we need
-    // separate cfg_attr arms per architecture.
-    (@impl $abi:literal { $($body:tt)* } $($dll:literal),* $(,)?) => {
-        $(
-            #[cfg_attr(all(windows, pyo3_use_raw_dylib, target_arch = "x86", pyo3_dll = $dll),
-                link(name = $dll, kind = "raw-dylib", import_name_type = "undecorated"))]
-            #[cfg_attr(all(windows, pyo3_use_raw_dylib, not(target_arch = "x86"), pyo3_dll = $dll),
-                link(name = $dll, kind = "raw-dylib"))]
-        )*
-        #[cfg_attr(all(windows, not(pyo3_use_raw_dylib)), link(name = "pythonXY"))]
+    // Otherwise (or on other platforms), a plain `unsafe extern` block is used.
+    // On Windows the `link(name = "pythonXY")` attribute is an empty placeholder
+    // resolved by the build script's `cargo:rustc-link-lib=pythonXY:` alias.
+    (@impl $abi:literal { $($body:tt)* }) => {
+        #[cfg(all(windows, pyo3_use_raw_dylib))]
+        pyo3_libpython_link! {
+            $abi { extern_libpython_items! { $($body)* } }
+        }
+        #[cfg(not(all(windows, pyo3_use_raw_dylib)))]
+        #[cfg_attr(windows, link(name = "pythonXY"))]
         unsafe extern $abi {
             extern_libpython_items! { $($body)* }
         }

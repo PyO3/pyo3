@@ -9,6 +9,7 @@
 
 mod errors;
 mod impl_;
+mod raw_dylib;
 
 use std::{env, process::Command, str::FromStr, sync::LazyLock};
 
@@ -18,6 +19,7 @@ pub use impl_::{
     PythonVersion, StableAbi, Triple, cross_compiling_from_to, find_all_sysconfigdata,
     parse_sysconfigdata,
 };
+pub use raw_dylib::{generate_libpython_link_macro_content, libpython_import_name_type};
 
 use target_lexicon::{Architecture, OperatingSystem};
 

@@ -429,6 +429,14 @@ pub const fn _cstr_from_utf8_with_nul_checked(s: &str) -> &core::ffi::CStr {
     }
 }
 
+// The build system auto-detects the Python shared library and generates a
+// `pyo3_libpython_link!` macro defining the `#[link(name = "...",
+// kind = "raw-dylib")]` attribute for it. It is included here, before any
+// modules, so that it is visible to every `extern_libpython!` expansion site
+// below.
+#[cfg(all(windows, pyo3_use_raw_dylib))]
+include!("impl_/libpython_link_bridge.rs");
+
 // Macros for declaring `extern` blocks that link against libpython.
 #[path = "impl_/macros.rs"]
 #[macro_use]
