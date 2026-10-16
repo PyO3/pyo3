@@ -29,7 +29,7 @@ Use [`cargo-generate`](https://crates.io/crates/cargo-generate):
 
 ```bash
 $ cargo install cargo-generate
-$ cargo generate --git https://github.com/PyO3/pyo3 examples/maturin-starter
+$ cargo generate --git https://github.com/PyO3/pyo3 examples/maturin-starter-nostd
 ```
 
 (`cargo generate` will take a little while to clone the PyO3 repo first; be patient when waiting for the command to run.)
