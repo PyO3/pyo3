@@ -200,6 +200,7 @@ about this topic.
 - [css-inline](https://github.com/Stranger6667/css-inline/tree/master/bindings/python) _CSS inlining for Python implemented in Rust._
 - [datafusion-python](https://github.com/apache/arrow-datafusion-python) _A Python library that binds to Apache Arrow in-memory query engine DataFusion._
 - [deltalake-python](https://github.com/delta-io/delta-rs/tree/main/python) _Native Delta Lake Python binding based on delta-rs with Pandas integration._
+- [epyxid](https://github.com/shpaker/epyxid) _Fast, globally unique and sortable XID generator, a Python binding to [xid-rs](https://github.com/kazk/xid-rs)._
 - [fastbloom](https://github.com/yankun1992/fastbloom) _A fast [bloom filter](https://github.com/yankun1992/fastbloom#BloomFilter) | [counting bloom filter](https://github.com/yankun1992/fastbloom#countingbloomfilter) implemented by Rust for Rust and Python!_
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
 - [fast-paseto](https://github.com/CodingCogs-OSS/Fast-Paseto) _High-performance PASETO (Platform-Agnostic Security Tokens) implementation with Python bindings._
