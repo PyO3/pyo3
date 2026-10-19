@@ -269,7 +269,11 @@ fn packed_get_set_all() {
         py_run!(py, inst, "assert inst.items == [1, 2, 3]");
         py_run!(py, inst, "assert inst.object == [4, 5]");
         py_run!(py, inst, "assert inst.wide.first() == 3");
-        py_run!(py, inst, "inst.wide = inst.wide; assert inst.wide.first() == 3");
+        py_run!(
+            py,
+            inst,
+            "inst.wide = inst.wide; assert inst.wide.first() == 3"
+        );
         py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
         py_run!(py, inst, "inst.real = -0.5; assert inst.real == -0.5");
         py_run!(
