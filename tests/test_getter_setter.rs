@@ -216,6 +216,22 @@ fn get_all_and_set() {
     });
 }
 
+/// a 16-byte aligned field large enough for the optimizer to copy it with aligned SSE loads
+/// (`movaps`), which fault on a misaligned address: on x86-64 this is the case where reading a
+/// packed field through a reference crashes in release builds rather than silently working
+#[pyclass(from_py_object)]
+#[derive(Clone, Copy)]
+struct Wide {
+    data: [u128; 8],
+}
+
+#[pymethods]
+impl Wide {
+    fn first(&self) -> u128 {
+        self.data[0]
+    }
+}
+
 /// every field after `shift` is misaligned, so the getters must not read them through references
 #[pyclass(get_all, set_all)]
 #[repr(C, packed)]
@@ -226,6 +242,7 @@ struct Packed {
     text: String,
     items: Vec<u32>,
     object: Py<PyAny>,
+    wide: Wide,
 }
 
 #[test]
@@ -240,6 +257,7 @@ fn packed_get_set_all() {
                 text: "ten".to_string(),
                 items: vec![1, 2, 3],
                 object: PyList::new(py, [4u8, 5]).unwrap().into_any().unbind(),
+                wide: Wide { data: [3; 8] },
             },
         )
         .unwrap();
@@ -250,6 +268,8 @@ fn packed_get_set_all() {
         py_run!(py, inst, "assert inst.text == 'ten'");
         py_run!(py, inst, "assert inst.items == [1, 2, 3]");
         py_run!(py, inst, "assert inst.object == [4, 5]");
+        py_run!(py, inst, "assert inst.wide.first() == 3");
+        py_run!(py, inst, "inst.wide = inst.wide; assert inst.wide.first() == 3");
         py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
         py_run!(py, inst, "inst.real = -0.5; assert inst.real == -0.5");
         py_run!(
