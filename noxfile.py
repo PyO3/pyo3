@@ -1801,21 +1801,51 @@ def test_introspection(session: nox.Session):
             "import pyo3_pytests; print(pyo3_pytests.pyo3_pytests.__file__)",
             silent=True,
         ).strip()
-        _run_cargo(
-            session,
-            "run",
-            "-p",
-            "pyo3-introspection",
-            "--",
-            lib_file,
-            "pyo3_pytests",
-            stub_dir,
-        )
-        _run(session, "ruff", "format", stub_dir)
-        _ensure_directory_equals(Path(stub_dir), Path("pytests/stubs"))
+        for variant_lib_file in _introspection_library_variants(
+            session, Path(lib_file), Path(stub_dir)
+        ):
+            variant_stub_dir = Path(stub_dir) / variant_lib_file.stem
+            _run_cargo(
+                session,
+                "run",
+                "-p",
+                "pyo3-introspection",
+                "--",
+                str(variant_lib_file),
+                "pyo3_pytests",
+                str(variant_stub_dir),
+            )
+            _run(session, "ruff", "format", str(variant_stub_dir))
+            _ensure_directory_equals(variant_stub_dir, Path("pytests/stubs"))
         # The stubs only match a module built with the features used above, so this test
         # is skipped by the regular `pytests` session and runs here instead.
         _run(session, "pytest", "pytests/tests/test_stubs.py")
+
+
+def _introspection_library_variants(
+    session: nox.Session, lib_file: Path, work_dir: Path
+) -> list[Path]:
+    """Returns the built library and copies of it post-processed like release wheels can be."""
+    variants = [lib_file]
+
+    def variant(name: str, *command: str) -> None:
+        output = work_dir / f"{name}{lib_file.suffix}"
+        shutil.copy(lib_file, output)
+        session.run(*command, str(output), external=True)
+        variants.append(output)
+
+    if sys.platform == "linux":
+        # Removes .symtab: the introspection symbols are only left in .dynsym
+        variant("stripped", "strip", "--strip-all")
+    elif sys.platform == "darwin":
+        variant("stripped", "strip", "-x")
+        # Universal2 wheels contain a fat Mach-O binary
+        fat_file = work_dir / f"fat{lib_file.suffix}"
+        session.run(
+            "lipo", "-create", str(lib_file), "-output", str(fat_file), external=True
+        )
+        variants.append(fat_file)
+    return variants
 
 
 def _ensure_directory_equals(expected_dir: Path, actual_dir: Path):
