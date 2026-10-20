@@ -296,9 +296,9 @@ impl<'a, 'py> FromPyObject<'a, 'py> for PyBackedBytes {
     const INPUT_TYPE: PyStaticExpr = type_hint_union!(PyBytes::TYPE_HINT, PyByteArray::TYPE_HINT);
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
-        if let Ok(bytes) = obj.cast::<PyBytes>() {
+        if let Some(bytes) = obj.cast_or_opt::<PyBytes>() {
             Ok(Self::from(bytes.to_owned()))
-        } else if let Ok(bytearray) = obj.cast::<PyByteArray>() {
+        } else if let Some(bytearray) = obj.cast_or_opt::<PyByteArray>() {
             Ok(Self::from(bytearray.to_owned()))
         } else {
             Err(CastError::new(
