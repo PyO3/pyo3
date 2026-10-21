@@ -389,6 +389,8 @@ impl<'a, const REF: bool> Container<'a, REF> {
         if into_py_with.is_some() {
             // We don't know what into_py_with is doing
             PyExpr::module_attr("_typeshed", "Incomplete")
+        } else if REF {
+            PyExpr::from_into_py_object(parse_quote!(&#ty), None)
         } else {
             PyExpr::from_into_py_object(ty.clone(), None)
         }
@@ -572,33 +574,22 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
     #[cfg(feature = "experimental-inspect")]
     let output_type = {
         let pyo3_crate_path = &ctx.pyo3_path;
-        let output_type = if tokens
-            .generics
-            .params
-            .iter()
-            .all(|p| matches!(p, syn::GenericParam::Lifetime(_)))
-        {
-            match &tokens.data {
-                syn::Data::Enum(en) => Enum::<REF>::new(en, &tokens.ident)?.output_type(),
-                syn::Data::Struct(st) => {
-                    let ident = &tokens.ident;
-                    Container::<REF>::new(
-                        Some(Ident::new("self", Span::call_site())),
-                        &st.fields,
-                        parse_quote!(#ident),
-                        options,
-                    )?
-                    .output_type()
-                }
-                syn::Data::Union(_) => {
-                    // Not supported at this point
-                    PyExpr::module_attr("_typeshed", "Incomplete")
-                }
+        let output_type = match &tokens.data {
+            syn::Data::Enum(en) => Enum::<REF>::new(en, &tokens.ident)?.output_type(),
+            syn::Data::Struct(st) => {
+                let ident = &tokens.ident;
+                Container::<REF>::new(
+                    Some(Ident::new("self", Span::call_site())),
+                    &st.fields,
+                    parse_quote!(#ident),
+                    options,
+                )?
+                .output_type()
             }
-        } else {
-            // We don't know how to deal with generic parameters
-            // Blocked by https://github.com/rust-lang/rust/issues/76560
-            PyExpr::module_attr("_typeshed", "Incomplete")
+            syn::Data::Union(_) => {
+                // Not supported at this point
+                PyExpr::module_attr("_typeshed", "Incomplete")
+            }
         }
         .to_introspection_token_stream(pyo3_crate_path);
         quote! { const OUTPUT_TYPE: #pyo3_path::inspect::PyStaticExpr = #output_type; }
