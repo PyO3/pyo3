@@ -932,3 +932,32 @@ fn test_from_py_object_interns_keys() {
         );
     });
 }
+
+#[cfg(feature = "experimental-inspect")]
+#[test]
+fn test_generic_input_type() {
+    #[derive(FromPyObject)]
+    struct Newtype<T>(T);
+
+    #[derive(FromPyObject)]
+    struct Tuple<A, B>(A, B);
+
+    #[derive(FromPyObject)]
+    enum Enum<T> {
+        A(T),
+        B(T, T),
+    }
+
+    assert_eq!(
+        <Newtype<String> as FromPyObject<'_, '_>>::INPUT_TYPE.to_string(),
+        "builtins.str"
+    );
+    assert_eq!(
+        <Tuple<String, bool> as FromPyObject<'_, '_>>::INPUT_TYPE.to_string(),
+        "tuple[builtins.str, builtins.bool]"
+    );
+    assert_eq!(
+        <Enum<String> as FromPyObject<'_, '_>>::INPUT_TYPE.to_string(),
+        "builtins.str | tuple[builtins.str, builtins.str]"
+    );
+}
