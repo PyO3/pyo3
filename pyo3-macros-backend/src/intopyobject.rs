@@ -377,10 +377,37 @@ impl<'a, const REF: bool> Container<'a, REF> {
                      }| { Self::field_output_type(into_py_with, &field.ty) },
                 )),
             ),
-            ContainerType::Struct(_) => {
-                // TODO: implement using a Protocol?
-                PyExpr::module_attr("_typeshed", "Incomplete")
+            ContainerType::Struct(fields) => {
+                // TODO: use a TypedDict?
+                let key_type = fields
+                    .iter()
+                    .map(|f| Self::field_key_type(&f.item))
+                    .reduce(PyExpr::union)
+                    .expect("Structs have at least one field");
+                let value_type = fields
+                    .iter()
+                    .map(|f| Self::field_output_type(&f.into_py_with, &f.field.ty))
+                    .reduce(PyExpr::union)
+                    .expect("Structs have at least one field");
+                PyExpr::subscript(
+                    PyExpr::builtin("dict"),
+                    PyExpr::tuple([key_type, value_type]),
+                )
             }
+        }
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn field_key_type(item: &Option<ItemOption>) -> PyExpr {
+        match item.as_ref().and_then(|item| item.0.as_ref()) {
+            None | Some(syn::Lit::Str(_) | syn::Lit::Char(_) | syn::Lit::CStr(_)) => {
+                PyExpr::builtin("str")
+            }
+            Some(syn::Lit::Int(_) | syn::Lit::Byte(_)) => PyExpr::builtin("int"),
+            Some(syn::Lit::Float(_)) => PyExpr::builtin("float"),
+            Some(syn::Lit::Bool(_)) => PyExpr::builtin("bool"),
+            Some(syn::Lit::ByteStr(_)) => PyExpr::builtin("bytes"),
+            Some(_) => PyExpr::module_attr("_typeshed", "Incomplete"),
         }
     }
 
