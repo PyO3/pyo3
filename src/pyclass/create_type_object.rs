@@ -573,9 +573,9 @@ unsafe extern "C" fn no_constructor_defined(
                 .map_or_else(|_| "<unknown>".into(), |s| s.to_string());
             let qualname = tpobj.qualname();
             let qualname = qualname.map_or_else(|_| "<unknown>".into(), |s| s.to_string());
-            Err(crate::exceptions::PyTypeError::new_err(format!(
-                "cannot create '{module}.{qualname}' instances"
-            )))
+            Err(crate::exceptions::PyTypeError::new_err(
+                py_format!(py, "cannot create '{module}.{qualname}' instances")?.unbind(),
+            ))
         })
     }
 }

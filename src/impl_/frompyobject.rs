@@ -2,6 +2,7 @@ use crate::Bound;
 use crate::platform::prelude::*;
 use crate::types::any::PyAnyMethods;
 use crate::{FromPyObject, PyAny, PyErr, PyResult, Python, exceptions::PyTypeError};
+use core::convert::identity;
 
 #[cold]
 pub fn failed_to_extract_enum(
@@ -86,11 +87,14 @@ fn failed_to_extract_struct_field(
     struct_name: &str,
     field_name: &str,
 ) -> PyErr {
-    let new_err = PyTypeError::new_err(format!(
-        "failed to extract field {struct_name}.{field_name}"
-    ));
-    new_err.set_cause(py, ::core::option::Option::Some(inner_err));
-    new_err
+    py_format!(py, "failed to extract field {struct_name}.{field_name}").map_or_else(
+        identity,
+        |msg| {
+            let new_err = PyTypeError::new_err(msg.unbind());
+            new_err.set_cause(py, ::core::option::Option::Some(inner_err));
+            new_err
+        },
+    )
 }
 
 pub fn extract_tuple_struct_field<'a, 'py, T>(
@@ -136,7 +140,9 @@ fn failed_to_extract_tuple_struct_field(
     struct_name: &str,
     index: usize,
 ) -> PyErr {
-    let new_err = PyTypeError::new_err(format!("failed to extract field {struct_name}.{index}"));
-    new_err.set_cause(py, ::core::option::Option::Some(inner_err));
-    new_err
+    py_format!(py, "failed to extract field {struct_name}.{index}").map_or_else(identity, |msg| {
+        let new_err = PyTypeError::new_err(msg.unbind());
+        new_err.set_cause(py, ::core::option::Option::Some(inner_err));
+        new_err
+    })
 }
