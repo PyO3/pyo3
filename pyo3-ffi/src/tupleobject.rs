@@ -10,7 +10,6 @@ extern_libpython! {
 }
 
 #[inline]
-#[cfg(not(RustPython))]
 pub unsafe fn PyTuple_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_TUPLE_SUBCLASS)
 }
@@ -22,8 +21,6 @@ pub unsafe fn PyTuple_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 extern_libpython! {
-    #[cfg(RustPython)]
-    pub fn PyTuple_Check(op: *mut PyObject) -> c_int;
     #[cfg(RustPython)]
     pub fn PyTuple_CheckExact(op: *mut PyObject) -> c_int;
 
