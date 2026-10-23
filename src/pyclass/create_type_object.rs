@@ -126,8 +126,6 @@ struct PyTypeBuilder {
     slots: Vec<ffi::PyType_Slot>,
     method_defs: Vec<ffi::PyMethodDef>,
     member_defs: Vec<ffi::PyMemberDef>,
-    /// Kept in definition order; a class has few properties, so a linear lookup is fine, and
-    /// unlike a hash map it needs no random seed while the module is being imported.
     getset_builders: Vec<(&'static CStr, GetSetDefBuilder)>,
     /// Used to patch the type objects for the things there's no
     /// PyType_FromSpec API for... there's no reason this should work,
