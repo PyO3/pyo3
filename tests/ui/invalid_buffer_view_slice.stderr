@@ -1,0 +1,99 @@
+error[E0277]: C contiguity is not guaranteed by the requested buffer flags
+    --> tests/ui/invalid_buffer_view_slice.rs:9:18
+     |
+   9 |             view.as_contiguous_slice(py);
+     |                  ^^^^^^^^^^^^^^^^^^^ the trait `buffer::flags::GuaranteesCContiguous` is not implemented for `buffer::flags::PyBufferFlags<true, true, true, true, false, 0>`
+     |
+     = note: use `.c_contiguous()` when building a buffer request to guarantee C contiguity
+note: required by a bound in `PyBufferView::<T, Flag>::as_contiguous_slice`
+ --> src/buffer.rs
+  |
+  |     pub fn as_contiguous_slice<'a>(&'a self, _py: Python<'a>) -> &'a [ReadOnlyCell<T>]
+  |            ------------------- required by a bound in this associated function
+  |     where
+  |         Flag: flags::GuaranteesCContiguous,
+  |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyBufferView::<T, Flag>::as_contiguous_slice`
+
+error[E0277]: Fortran contiguity is not guaranteed by the requested buffer flags
+    --> tests/ui/invalid_buffer_view_slice.rs:11:18
+     |
+  11 |             view.as_fortran_contiguous_slice(py);
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `buffer::flags::GuaranteesFContiguous` is not implemented for `buffer::flags::PyBufferFlags<true, true, true, true, false, 0>`
+     |
+     = note: use `.f_contiguous()` when building a buffer request to guarantee Fortran contiguity
+note: required by a bound in `PyBufferView::<T, Flag>::as_fortran_contiguous_slice`
+ --> src/buffer.rs
+  |
+  |     pub fn as_fortran_contiguous_slice<'a>(&'a self, _py: Python<'a>) -> &'a [ReadOnlyCell<T>]
+  |            --------------------------- required by a bound in this associated function
+  |     where
+  |         Flag: flags::GuaranteesFContiguous,
+  |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyBufferView::<T, Flag>::as_fortran_contiguous_slice`
+
+error[E0277]: C contiguity is not guaranteed by the requested buffer flags
+    --> tests/ui/invalid_buffer_view_slice.rs:17:18
+     |
+  17 |             view.as_contiguous_mut_slice(py);
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^ the trait `buffer::flags::GuaranteesCContiguous` is not implemented for `buffer::flags::PyBufferFlags<false, false, false, false, true, 0>`
+     |
+     = note: use `.c_contiguous()` when building a buffer request to guarantee C contiguity
+note: required by a bound in `PyBufferView::<T, Flag>::as_contiguous_mut_slice`
+ --> src/buffer.rs
+  |
+  |     pub fn as_contiguous_mut_slice<'a>(&'a self, _py: Python<'a>) -> &'a [cell::Cell<T>]
+  |            ----------------------- required by a bound in this associated function
+  |     where
+  |         Flag: flags::GuaranteesCContiguous + flags::GuaranteesWritable,
+  |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyBufferView::<T, Flag>::as_contiguous_mut_slice`
+
+error[E0277]: Fortran contiguity is not guaranteed by the requested buffer flags
+    --> tests/ui/invalid_buffer_view_slice.rs:19:18
+     |
+  19 |             view.as_fortran_contiguous_mut_slice(py);
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `buffer::flags::GuaranteesFContiguous` is not implemented for `buffer::flags::PyBufferFlags<false, false, false, false, true, 0>`
+     |
+     = note: use `.f_contiguous()` when building a buffer request to guarantee Fortran contiguity
+note: required by a bound in `PyBufferView::<T, Flag>::as_fortran_contiguous_mut_slice`
+ --> src/buffer.rs
+  |
+  |     pub fn as_fortran_contiguous_mut_slice<'a>(&'a self, _py: Python<'a>) -> &'a [cell::Cell<T>]
+  |            ------------------------------- required by a bound in this associated function
+  |     where
+  |         Flag: flags::GuaranteesFContiguous + flags::GuaranteesWritable,
+  |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyBufferView::<T, Flag>::as_fortran_contiguous_mut_slice`
+
+error[E0277]: writability is not guaranteed by the requested buffer flags
+    --> tests/ui/invalid_buffer_view_slice.rs:25:18
+     |
+  25 |             view.as_contiguous_mut_slice(py);
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^ the trait `buffer::flags::GuaranteesWritable` is not implemented for `buffer::flags::PyBufferFlags<true, true, true, false, false, 1>`
+     |
+     = note: use `.writable()` when building a buffer request to guarantee writability
+note: required by a bound in `PyBufferView::<T, Flag>::as_contiguous_mut_slice`
+ --> src/buffer.rs
+  |
+  |     pub fn as_contiguous_mut_slice<'a>(&'a self, _py: Python<'a>) -> &'a [cell::Cell<T>]
+  |            ----------------------- required by a bound in this associated function
+  |     where
+  |         Flag: flags::GuaranteesCContiguous + flags::GuaranteesWritable,
+  |                                              ^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyBufferView::<T, Flag>::as_contiguous_mut_slice`
+
+error[E0277]: writability is not guaranteed by the requested buffer flags
+    --> tests/ui/invalid_buffer_view_slice.rs:31:18
+     |
+  31 |             view.as_fortran_contiguous_mut_slice(py);
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `buffer::flags::GuaranteesWritable` is not implemented for `buffer::flags::PyBufferFlags<true, true, true, false, false, 2>`
+     |
+     = note: use `.writable()` when building a buffer request to guarantee writability
+note: required by a bound in `PyBufferView::<T, Flag>::as_fortran_contiguous_mut_slice`
+ --> src/buffer.rs
+  |
+  |     pub fn as_fortran_contiguous_mut_slice<'a>(&'a self, _py: Python<'a>) -> &'a [cell::Cell<T>]
+  |            ------------------------------- required by a bound in this associated function
+  |     where
+  |         Flag: flags::GuaranteesFContiguous + flags::GuaranteesWritable,
+  |                                              ^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `PyBufferView::<T, Flag>::as_fortran_contiguous_mut_slice`
+
+error: aborting due to 6 previous errors
+
+For more information about this error, try `rustc --explain E0277`.
