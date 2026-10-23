@@ -4,7 +4,6 @@
 use crate::exceptions::PyAttributeError;
 use crate::impl_::pymethods::{Deleter, PyDeleterDef};
 use crate::internal::get_slot::{TP_CLEAR, get_slot};
-use crate::platform::collections::HashMap;
 use crate::platform::prelude::*;
 #[cfg(not(Py_3_10))]
 use crate::types::typeobject::PyTypeMethods;
@@ -73,7 +72,7 @@ where
                 slots: Vec::new(),
                 method_defs: Vec::new(),
                 member_defs: Vec::new(),
-                getset_builders: HashMap::new(),
+                getset_builders: Vec::new(),
                 #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
                 cleanup: Vec::new(),
                 tp_base: base,
@@ -127,7 +126,9 @@ struct PyTypeBuilder {
     slots: Vec<ffi::PyType_Slot>,
     method_defs: Vec<ffi::PyMethodDef>,
     member_defs: Vec<ffi::PyMemberDef>,
-    getset_builders: HashMap<&'static CStr, GetSetDefBuilder>,
+    /// Kept in definition order; a class has few properties, so a linear lookup is fine, and
+    /// unlike a hash map it needs no random seed while the module is being imported.
+    getset_builders: Vec<(&'static CStr, GetSetDefBuilder)>,
     /// Used to patch the type objects for the things there's no
     /// PyType_FromSpec API for... there's no reason this should work,
     /// except for that it does and we have tests.
@@ -176,23 +177,25 @@ impl PyTypeBuilder {
         }
     }
 
+    fn getset_builder(&mut self, name: &'static CStr) -> &mut GetSetDefBuilder {
+        let index = match self.getset_builders.iter().position(|(n, _)| *n == name) {
+            Some(index) => index,
+            None => {
+                self.getset_builders
+                    .push((name, GetSetDefBuilder::default()));
+                self.getset_builders.len() - 1
+            }
+        };
+        &mut self.getset_builders[index].1
+    }
+
     fn pymethod_def(&mut self, def: &PyMethodDefType) {
         match def {
-            PyMethodDefType::Getter(getter) => self
-                .getset_builders
-                .entry(getter.name)
-                .or_default()
-                .add_getter(getter),
-            PyMethodDefType::Setter(setter) => self
-                .getset_builders
-                .entry(setter.name)
-                .or_default()
-                .add_setter(setter),
-            PyMethodDefType::Deleter(deleter) => self
-                .getset_builders
-                .entry(deleter.name)
-                .or_default()
-                .add_deleter(deleter),
+            PyMethodDefType::Getter(getter) => self.getset_builder(getter.name).add_getter(getter),
+            PyMethodDefType::Setter(setter) => self.getset_builder(setter.name).add_setter(setter),
+            PyMethodDefType::Deleter(deleter) => {
+                self.getset_builder(deleter.name).add_deleter(deleter)
+            }
             PyMethodDefType::Method(def) => self.method_defs.push(def.into_raw()),
             // These class attributes are added after the type gets created by LazyStaticType
             PyMethodDefType::ClassAttribute(_) => {}
