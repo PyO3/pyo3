@@ -137,6 +137,9 @@ fn main() {
         "base/src/lib.rs".into(),
         // similarly, just a component of `invalid_pymodule_in_root.rs`
         "empty.rs".into(),
+        // The internal poison hook only exists for free-threaded mutexes with std.
+        #[cfg(not(all(Py_3_14, Py_GIL_DISABLED, not(Py_LIMITED_API), wip_feature_std)))]
+        "pymutex_poison_guard.rs".into(),
         #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
         "abi3_nativetype_inheritance".into(),
         #[cfg(any(not(Py_LIMITED_API), Py_3_12))]

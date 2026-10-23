@@ -186,6 +186,10 @@ where
 /// This is structurally equivalent to the use of the paired Py_BEGIN_CRITICAL_SECTION_MUTEX and
 /// Py_END_CRITICAL_SECTION C-API macros.
 ///
+/// On free-threaded builds, a panic escaping `f` poisons a poisoning `PyMutex`.
+/// Existing poison does not prevent entry into the critical section.
+/// This is a no-op on GIL-enabled builds.
+///
 /// # Safety
 ///
 /// The caller must ensure the closure cannot implicitly release the critical section. See the
@@ -208,6 +212,9 @@ where
     {
         let mut guard = CSGuard(unsafe { core::mem::zeroed() });
         unsafe { crate::ffi::PyCriticalSection_BeginMutex(&raw mut guard.0, mutex.inner().get()) };
+        // Drop the poison guard before the critical section releases the lock.
+        #[cfg(wip_feature_std)]
+        let _poison = mutex.poison_guard(super::mutex_trait_sealed::Token);
         f(EnteredCriticalSection(unsafe { mutex.data() }))
     }
     #[cfg(not(Py_GIL_DISABLED))]
@@ -237,6 +244,9 @@ where
 ///
 /// A no-op on GIL-enabled builds, where the critical section API is exposed as
 /// a no-op by the Python C API.
+///
+/// On free-threaded builds, a panic escaping `f` poisons each poisoning `PyMutex`.
+/// Existing poison does not prevent entry into the critical section.
 ///
 /// # Safety
 ///
@@ -272,6 +282,12 @@ where
             m2.inner().get(),
         )
     };
+    // Both poison guards must drop before the critical section releases the locks.
+    #[cfg(all(Py_GIL_DISABLED, wip_feature_std))]
+    let _poison = (
+        m1.poison_guard(super::mutex_trait_sealed::Token),
+        m2.poison_guard(super::mutex_trait_sealed::Token),
+    );
     f(
         EnteredCriticalSection(unsafe { m1.data() }),
         Some(EnteredCriticalSection(unsafe { m2.data() })),
@@ -649,5 +665,269 @@ mod tests {
             let mutex = alloc::sync::Arc::new(PyMutex::<i32>::new(0));
             with_critical_section_mutex(py, &mutex, |_| ());
         });
+    }
+
+    #[cfg(all(Py_3_14, not(Py_LIMITED_API), wip_feature_std, panic = "unwind"))]
+    mod poisoning {
+        use super::super::{
+            EnteredCriticalSection, with_critical_section_mutex, with_critical_section_mutex2,
+        };
+        use crate::{
+            Python,
+            sync::{PyMutex, nonpoison},
+        };
+        use alloc::{boxed::Box, sync::Arc};
+        use core::{cell::Cell, panic::AssertUnwindSafe};
+        use std::panic::{catch_unwind, panic_any};
+
+        const PANIC: &str = "critical-section poisoning test";
+
+        fn catch_panic(f: impl FnOnce()) {
+            let payload = catch_unwind(AssertUnwindSafe(f)).expect_err("closure must panic");
+            assert_eq!(payload.downcast_ref::<&str>(), Some(&PANIC));
+        }
+
+        fn assert_poisoned(mutex: &PyMutex<()>, expected: bool) {
+            assert!(!mutex.is_locked());
+            assert_eq!(mutex.lock().is_err(), expected);
+            assert!(!mutex.is_locked());
+        }
+
+        fn poison(mutex: &PyMutex<()>) {
+            catch_panic(|| {
+                let _guard = mutex.lock().unwrap();
+                panic_any(PANIC);
+            });
+            assert_poisoned(mutex, true);
+        }
+
+        // Preserve the current no-op behavior on GIL builds. Whether those builds
+        // should poison without locking is a separate API decision.
+        #[test]
+        fn single_mutex() {
+            Python::attach(|py| {
+                let mutex = PyMutex::new(());
+                catch_panic(|| {
+                    with_critical_section_mutex(py, &mutex, |_| {
+                        assert_eq!(mutex.is_locked(), cfg!(Py_GIL_DISABLED));
+                        panic_any(PANIC);
+                    });
+                });
+                assert_poisoned(&mutex, cfg!(Py_GIL_DISABLED));
+            });
+        }
+
+        #[test]
+        fn two_mutexes() {
+            Python::attach(|py| {
+                let m1 = PyMutex::new(());
+                let m2 = PyMutex::new(());
+                catch_panic(|| {
+                    with_critical_section_mutex2(py, &m1, &m2, |_, second| {
+                        assert!(second.is_some());
+                        assert_eq!(m1.is_locked(), cfg!(Py_GIL_DISABLED));
+                        assert_eq!(m2.is_locked(), cfg!(Py_GIL_DISABLED));
+                        panic_any(PANIC);
+                    });
+                });
+                assert_poisoned(&m1, cfg!(Py_GIL_DISABLED));
+                assert_poisoned(&m2, cfg!(Py_GIL_DISABLED));
+            });
+        }
+
+        #[test]
+        fn same_mutex() {
+            Python::attach(|py| {
+                let mutex = PyMutex::new(());
+                catch_panic(|| {
+                    with_critical_section_mutex2(py, &mutex, &mutex, |_, second| {
+                        assert!(second.is_none());
+                        assert_eq!(mutex.is_locked(), cfg!(Py_GIL_DISABLED));
+                        panic_any(PANIC);
+                    });
+                });
+                assert_poisoned(&mutex, cfg!(Py_GIL_DISABLED));
+            });
+        }
+
+        #[test]
+        fn mixed_mutexes() {
+            Python::attach(|py| {
+                for poisoning_first in [true, false] {
+                    let poisoning = PyMutex::new(());
+                    let plain = nonpoison::PyMutex::new(());
+                    catch_panic(|| {
+                        let f =
+                            |_: EnteredCriticalSection<'_, ()>, second: Option<EnteredCriticalSection<'_, ()>>| {
+                                assert!(second.is_some());
+                                assert_eq!(poisoning.is_locked(), cfg!(Py_GIL_DISABLED));
+                                assert_eq!(plain.is_locked(), cfg!(Py_GIL_DISABLED));
+                                panic_any(PANIC);
+                            };
+                        if poisoning_first {
+                            with_critical_section_mutex2(py, &poisoning, &plain, f);
+                        } else {
+                            with_critical_section_mutex2(py, &plain, &poisoning, f);
+                        }
+                    });
+                    assert_poisoned(&poisoning, cfg!(Py_GIL_DISABLED));
+                    assert!(!plain.is_locked());
+                    drop(plain.lock());
+                }
+            });
+        }
+
+        #[test]
+        fn deref_mutex() {
+            Python::attach(|py| {
+                let mutex = Arc::new(Box::new(PyMutex::new(())));
+                catch_panic(|| {
+                    with_critical_section_mutex(py, &mutex, |_| panic_any(PANIC));
+                });
+                assert_poisoned(&mutex, cfg!(Py_GIL_DISABLED));
+            });
+        }
+
+        #[test]
+        fn normal_return() {
+            Python::attach(|py| {
+                let m1 = PyMutex::new(());
+                let m2 = PyMutex::new(());
+                let plain = nonpoison::PyMutex::new(());
+                assert_eq!(with_critical_section_mutex(py, &m1, |_| 42), 42);
+                assert_eq!(with_critical_section_mutex2(py, &m1, &m2, |_, _| 42), 42);
+                assert_eq!(
+                    with_critical_section_mutex2(py, &m1, &m1, |_, second| {
+                        assert!(second.is_none());
+                        42
+                    }),
+                    42
+                );
+                assert_eq!(with_critical_section_mutex2(py, &m1, &plain, |_, _| 42), 42);
+                assert_poisoned(&m1, false);
+                assert_poisoned(&m2, false);
+            });
+        }
+
+        #[test]
+        fn nonpoisoning_mutexes() {
+            Python::attach(|py| {
+                let m1 = nonpoison::PyMutex::new(());
+                let m2 = nonpoison::PyMutex::new(());
+                catch_panic(|| with_critical_section_mutex(py, &m1, |_| panic_any(PANIC)));
+                catch_panic(|| with_critical_section_mutex2(py, &m1, &m2, |_, _| panic_any(PANIC)));
+                catch_panic(|| {
+                    with_critical_section_mutex2(py, &m1, &m1, |_, second| {
+                        assert!(second.is_none());
+                        panic_any(PANIC);
+                    })
+                });
+                assert!(!m1.is_locked());
+                assert!(!m2.is_locked());
+                drop(m1.lock());
+                drop(m2.lock());
+            });
+        }
+
+        #[test]
+        fn already_poisoned_entry() {
+            Python::attach(|py| {
+                let poisoned = PyMutex::new(());
+                let fresh = PyMutex::new(());
+                poison(&poisoned);
+                assert_eq!(with_critical_section_mutex(py, &poisoned, |_| 42), 42);
+                assert_eq!(
+                    with_critical_section_mutex2(py, &poisoned, &poisoned, |_, second| {
+                        assert!(second.is_none());
+                        42
+                    }),
+                    42
+                );
+                assert_eq!(
+                    with_critical_section_mutex2(py, &poisoned, &fresh, |_, _| 42),
+                    42
+                );
+                assert_eq!(
+                    with_critical_section_mutex2(py, &fresh, &poisoned, |_, _| 42),
+                    42
+                );
+                assert_poisoned(&poisoned, true);
+                assert_poisoned(&fresh, false);
+            });
+        }
+
+        #[test]
+        fn already_poisoned_and_fresh_panic() {
+            Python::attach(|py| {
+                for poisoned_first in [true, false] {
+                    let poisoned = PyMutex::new(());
+                    let fresh = PyMutex::new(());
+                    poison(&poisoned);
+                    let (m1, m2) = if poisoned_first {
+                        (&poisoned, &fresh)
+                    } else {
+                        (&fresh, &poisoned)
+                    };
+                    catch_panic(|| {
+                        with_critical_section_mutex2(py, m1, m2, |_, _| panic_any(PANIC))
+                    });
+                    assert_poisoned(&poisoned, true);
+                    assert_poisoned(&fresh, cfg!(Py_GIL_DISABLED));
+                }
+            });
+        }
+
+        #[test]
+        fn entering_during_unwind() {
+            struct EnterOnDrop<'a, 'py> {
+                py: Python<'py>,
+                m1: &'a PyMutex<()>,
+                m2: &'a PyMutex<()>,
+                entered: &'a Cell<usize>,
+            }
+            impl Drop for EnterOnDrop<'_, '_> {
+                fn drop(&mut self) {
+                    assert!(std::thread::panicking());
+                    with_critical_section_mutex(self.py, self.m1, |_| {
+                        self.entered.set(self.entered.get() + 1)
+                    });
+                    with_critical_section_mutex2(self.py, self.m1, self.m2, |_, _| {
+                        self.entered.set(self.entered.get() + 1)
+                    });
+                    with_critical_section_mutex2(self.py, self.m1, self.m1, |_, _| {
+                        self.entered.set(self.entered.get() + 1)
+                    });
+                }
+            }
+            Python::attach(|py| {
+                let m1 = PyMutex::new(());
+                let m2 = PyMutex::new(());
+                let entered = Cell::new(0);
+                catch_panic(|| {
+                    let _guard = EnterOnDrop {
+                        py,
+                        m1: &m1,
+                        m2: &m2,
+                        entered: &entered,
+                    };
+                    panic_any(PANIC);
+                });
+                assert_eq!(entered.get(), 3);
+                assert_poisoned(&m1, false);
+                assert_poisoned(&m2, false);
+            });
+        }
+
+        #[test]
+        fn panic_caught_inside() {
+            Python::attach(|py| {
+                let m1 = PyMutex::new(());
+                let m2 = PyMutex::new(());
+                with_critical_section_mutex(py, &m1, |_| catch_panic(|| panic_any(PANIC)));
+                with_critical_section_mutex2(py, &m1, &m2, |_, _| catch_panic(|| panic_any(PANIC)));
+                assert_poisoned(&m1, false);
+                assert_poisoned(&m2, false);
+            });
+        }
     }
 }
