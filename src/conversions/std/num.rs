@@ -81,7 +81,7 @@ macro_rules! extract_int {
         // See https://github.com/PyO3/pyo3/pull/3742 for details
         if cfg!(Py_3_10) && !$force_index_call {
             err_if_invalid_value($obj.py(), $error_val, unsafe { $pylong_as($obj.as_ptr()) })
-        } else if let Ok(long) = $obj.cast::<crate::types::PyInt>() {
+        } else if let Some(long) = $obj.cast_or_opt::<crate::types::PyInt>() {
             // fast path - checking for subclass of `int` just checks a bit in the type $object
             err_if_invalid_value($obj.py(), $error_val, unsafe { $pylong_as(long.as_ptr()) })
         } else {
@@ -263,13 +263,12 @@ impl<'py> FromPyObject<'_, 'py> for u8 {
         obj: Borrowed<'_, 'py, PyAny>,
         _: crate::conversion::private::Token,
     ) -> Option<impl FromPyObjectSequence<Target = u8>> {
-        if let Ok(bytes) = obj.cast::<PyBytes>() {
-            Some(BytesSequenceExtractor::Bytes(bytes))
-        } else if let Ok(byte_array) = obj.cast::<PyByteArray>() {
-            Some(BytesSequenceExtractor::ByteArray(byte_array))
-        } else {
-            None
-        }
+        obj.cast_or_opt::<PyBytes>()
+            .map(BytesSequenceExtractor::Bytes)
+            .or_else(|| {
+                obj.cast_or_opt::<PyByteArray>()
+                    .map(BytesSequenceExtractor::ByteArray)
+            })
     }
 }
 
