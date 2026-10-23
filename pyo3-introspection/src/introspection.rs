@@ -55,6 +55,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
         } = chunk
         {
             if name == main_module_name {
+                attach_to_root(chunk, id, &chunks_by_id, &mut chunks_by_parent)?;
                 let type_hint_for_annotation_id = introspection_id_to_type_hint_for_root_module(
                     chunk,
                     &chunks_by_id,
@@ -74,6 +75,140 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
         }
     }
     bail!("No module named {main_module_name} found")
+}
+
+/// Adds to the root module the classes declared with `attach_to_root` that it refers to.
+///
+/// A library crate cannot know the id of the root module it will be linked into, so a class it
+/// declares itself (e.g. a `Protocol` for one of its `FromPyObject` implementations) cannot set
+/// `parent`. These chunks are `#[used]` statics, linked in whether they are used or not, so only
+/// the ones an annotation reachable from the root module refers to are kept.
+fn attach_to_root<'a>(
+    root: &'a Chunk,
+    root_id: &'a str,
+    chunks_by_id: &HashMap<&str, &'a Chunk>,
+    chunks_by_parent: &mut HashMap<&'a str, Vec<&'a Chunk>>,
+) -> Result<()> {
+    let mut attached = Vec::new();
+    let mut to_visit = vec![root];
+    while let Some(chunk) = to_visit.pop() {
+        let (id, members) = match chunk {
+            Chunk::Module { id, members, .. } => (Some(id.as_str()), members.as_slice()),
+            Chunk::Class { id, .. } => (Some(id.as_str()), [].as_slice()),
+            Chunk::Function { id, .. } | Chunk::Attribute { id, .. } => {
+                (id.as_deref(), [].as_slice())
+            }
+        };
+        to_visit.extend(
+            id.and_then(|id| chunks_by_parent.get(id))
+                .into_iter()
+                .flatten(),
+        );
+        to_visit.extend(
+            members
+                .iter()
+                .filter_map(|id| chunks_by_id.get(id.as_str())),
+        );
+        for id in referenced_ids(chunk) {
+            let Some(&class) = chunks_by_id.get(id) else {
+                continue;
+            };
+            if matches!(
+                class,
+                Chunk::Class {
+                    attach_to_root: true,
+                    ..
+                }
+            ) && !attached.contains(&id)
+            {
+                attached.push(id);
+                to_visit.push(class);
+            }
+        }
+    }
+    let root_members = chunks_by_parent.entry(root_id).or_default();
+    // Classes from different crates may share a name, which the root module can only hold once
+    let Chunk::Module { members, .. } = root else {
+        unreachable!("the root is a module")
+    };
+    let mut names = members
+        .iter()
+        .filter_map(|id| chunks_by_id.get(id.as_str()).copied())
+        .chain(root_members.iter().copied())
+        .map(chunk_name)
+        .collect::<HashSet<_>>();
+    for id in attached {
+        let class = chunks_by_id[id];
+        let name = chunk_name(class);
+        ensure!(
+            names.insert(name),
+            "Class {id} can't be added to the root module, which already has a member named {name}"
+        );
+        root_members.push(class);
+    }
+    Ok(())
+}
+
+fn chunk_name(chunk: &Chunk) -> &str {
+    match chunk {
+        Chunk::Module { name, .. }
+        | Chunk::Class { name, .. }
+        | Chunk::Function { name, .. }
+        | Chunk::Attribute { name, .. } => name,
+    }
+}
+
+/// The introspection ids the expressions of a chunk refer to
+fn referenced_ids(chunk: &Chunk) -> Vec<&str> {
+    fn visit<'a>(expr: &'a ChunkExpr, output: &mut Vec<&'a str>) {
+        match expr {
+            ChunkExpr::Id { id } => output.push(id),
+            ChunkExpr::Attribute { value, .. } => visit(value, output),
+            ChunkExpr::BinOp { left, right, .. }
+            | ChunkExpr::Subscript {
+                value: left,
+                slice: right,
+            } => {
+                visit(left, output);
+                visit(right, output);
+            }
+            ChunkExpr::Tuple { elts } | ChunkExpr::List { elts } => {
+                elts.iter().for_each(|e| visit(e, output))
+            }
+            ChunkExpr::Name { .. } | ChunkExpr::Constant { .. } => (),
+        }
+    }
+
+    let exprs: Vec<&ChunkExpr> = match chunk {
+        Chunk::Module { .. } => Vec::new(),
+        Chunk::Class {
+            bases, decorators, ..
+        } => bases.iter().chain(decorators).collect(),
+        Chunk::Function {
+            arguments,
+            decorators,
+            returns,
+            ..
+        } => arguments
+            .posonlyargs
+            .iter()
+            .chain(&arguments.args)
+            .chain(&arguments.vararg)
+            .chain(&arguments.kwonlyargs)
+            .chain(&arguments.kwarg)
+            .flat_map(|a| a.annotation.iter().chain(&a.default))
+            .chain(decorators)
+            .chain(returns)
+            .collect(),
+        Chunk::Attribute {
+            value, annotation, ..
+        } => value.iter().chain(annotation).collect(),
+    };
+    let mut output = Vec::new();
+    for expr in exprs {
+        visit(expr, &mut output);
+    }
+    output
 }
 
 #[expect(clippy::too_many_arguments)]
@@ -158,6 +293,7 @@ fn convert_members<'a>(
                 decorators,
                 doc,
                 parent: _,
+                attach_to_root: _,
             } => classes.push(convert_class(
                 id,
                 name,
@@ -753,6 +889,8 @@ enum Chunk {
         parent: Option<String>,
         #[serde(default)]
         doc: Option<String>,
+        #[serde(default)]
+        attach_to_root: bool,
     },
     Function {
         #[serde(default)]
@@ -851,4 +989,24 @@ pub enum ChunkConstant {
 #[serde(rename_all = "lowercase")]
 pub enum ChunkOperator {
     BitOr,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn attached_class_name_conflict_is_an_error() {
+        let chunks = [
+            r#"{"type": "module", "id": "m", "name": "m", "members": ["f", "c"]}"#,
+            r#"{"type": "function", "id": "f", "name": "f", "arguments": {"args": [{"name": "a", "annotation": {"type": "id", "id": "lib::P"}}]}}"#,
+            r#"{"type": "class", "id": "lib::P", "name": "P", "attach_to_root": true}"#,
+            r#"{"type": "class", "id": "c", "name": "P"}"#,
+        ]
+        .map(|chunk| serde_json::from_str(chunk).unwrap());
+        assert_eq!(
+            parse_chunks(&chunks, "m").unwrap_err().to_string(),
+            "Class lib::P can't be added to the root module, which already has a member named P"
+        );
+    }
 }
