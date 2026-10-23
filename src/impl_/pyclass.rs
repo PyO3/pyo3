@@ -31,6 +31,7 @@ use core::{
 };
 
 mod assertions;
+pub mod default_slots;
 pub mod doc;
 mod lazy_type_object;
 #[macro_use]
@@ -303,6 +304,7 @@ mod generic_pyclass {
 pub struct PyClassItemsIter {
     /// Iteration state
     idx: usize,
+    pub(crate) default_slots: default_slots::DefaultPyO3Slots,
     /// Items from the `#[pyclass]` macro
     pyclass_items: &'static PyClassItems,
     /// Items from the `#[pymethods]` macro
@@ -315,6 +317,7 @@ pub struct PyClassItemsIter {
 
 impl PyClassItemsIter {
     pub fn new(
+        default_slots: default_slots::DefaultPyO3Slots,
         pyclass_items: &'static PyClassItems,
         #[cfg(not(feature = "multiple-pymethods"))] pymethods_items: &'static PyClassItems,
         #[cfg(feature = "multiple-pymethods")] pymethods_items: Box<
@@ -323,6 +326,7 @@ impl PyClassItemsIter {
     ) -> Self {
         Self {
             idx: 0,
+            default_slots,
             pyclass_items,
             pymethods_items,
         }

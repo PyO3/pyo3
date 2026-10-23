@@ -95,7 +95,7 @@ macro_rules! trampoline {
             ///
             /// The interpreter must be attached
             #[inline]
-            pub(crate) unsafe fn inner($($arg_names: $arg_types),*, f: $name::Func) -> $ret {
+            pub unsafe fn inner($($arg_names: $arg_types),*, f: $name::Func) -> $ret {
                 // SAFETY: caller upholds requirements
                 unsafe { trampoline(|py| f(py, $($arg_names,)*)) }
             }

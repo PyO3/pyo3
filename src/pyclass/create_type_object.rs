@@ -316,6 +316,12 @@ impl PyTypeBuilder {
     /// # Safety
     /// All slots in the PyClassItemsIter should be correct
     unsafe fn class_items(mut self, iter: PyClassItemsIter) -> Self {
+        if let Some(repr) = iter.default_slots.tp_repr {
+            unsafe { self.push_slot(ffi::Py_tp_repr, repr as *mut c_void) };
+        }
+        if let Some(int) = iter.default_slots.nb_int {
+            unsafe { self.push_slot(ffi::Py_nb_int, int as *mut c_void) };
+        }
         for items in iter {
             for slot in items.slots {
                 unsafe { self.push_slot(slot.slot, slot.pfunc) };
