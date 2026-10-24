@@ -13,7 +13,7 @@ use goblin::pe::PE;
 use serde::Deserialize;
 use std::borrow::Cow;
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 use std::{fs, str};
 
@@ -27,11 +27,59 @@ pub fn introspect_cdylib(library_path: impl AsRef<Path>, main_module_name: &str)
 
 /// Parses the introspection chunks found in the binary
 fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
-    let mut chunks_by_id = HashMap::<&str, &Chunk>::new();
-    let mut chunks_by_parent = HashMap::<&str, Vec<&Chunk>>::new();
+    let (chunks_by_id, chunks_by_parent) = index_chunks(chunks);
+    // We look for the root chunk
+    let Some(root) = chunks
+        .iter()
+        .find(|chunk| matches!(chunk, Chunk::Module { name, .. } if name == main_module_name))
+    else {
+        bail!("No module named {main_module_name} found")
+    };
+    // Structural classes become plain classes of the modules they are placed in
+    let structural_classes = place_structural_classes(root, &chunks_by_id, &chunks_by_parent);
+    let (chunks_by_id, chunks_by_parent) = index_chunks(
+        chunks
+            .iter()
+            .filter(|chunk| !matches!(chunk, Chunk::StructuralClass { .. }))
+            .chain(&structural_classes),
+    );
+    let Chunk::Module {
+        id,
+        name,
+        members,
+        doc,
+        incomplete,
+    } = root
+    else {
+        unreachable!("the root is a module")
+    };
+    let type_hint_for_annotation_id =
+        introspection_id_to_type_hint_for_root_module(root, &chunks_by_id, &chunks_by_parent);
+    convert_module(
+        id,
+        name,
+        members,
+        *incomplete,
+        doc.as_deref(),
+        &chunks_by_id,
+        &chunks_by_parent,
+        &type_hint_for_annotation_id,
+    )
+}
+
+type ChunksById<'a> = HashMap<&'a str, &'a Chunk>;
+type ChunksByParent<'a> = HashMap<&'a str, Vec<&'a Chunk>>;
+
+fn index_chunks<'a>(
+    chunks: impl IntoIterator<Item = &'a Chunk>,
+) -> (ChunksById<'a>, ChunksByParent<'a>) {
+    let mut chunks_by_id = HashMap::new();
+    let mut chunks_by_parent = HashMap::<_, Vec<_>>::new();
     for chunk in chunks {
         let (id, parent) = match chunk {
-            Chunk::Module { id, .. } => (Some(id.as_str()), None),
+            Chunk::Module { id, .. } | Chunk::StructuralClass { id, .. } => {
+                (Some(id.as_str()), None)
+            }
             Chunk::Class { id, parent, .. } => (Some(id.as_str()), parent.as_deref()),
             Chunk::Function { id, parent, .. } | Chunk::Attribute { id, parent, .. } => {
                 (id.as_deref(), parent.as_deref())
@@ -44,115 +92,140 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
             chunks_by_parent.entry(parent).or_default().push(chunk);
         }
     }
-    // We look for the root chunk
-    for chunk in chunks {
-        if let Chunk::Module {
-            id,
-            name,
-            members,
-            doc,
-            incomplete,
-        } = chunk
-        {
-            if name == main_module_name {
-                attach_to_root(chunk, id, &chunks_by_id, &mut chunks_by_parent)?;
-                let type_hint_for_annotation_id = introspection_id_to_type_hint_for_root_module(
-                    chunk,
-                    &chunks_by_id,
-                    &chunks_by_parent,
-                );
-                return convert_module(
-                    id,
-                    name,
-                    members,
-                    *incomplete,
-                    doc.as_deref(),
-                    &chunks_by_id,
-                    &chunks_by_parent,
-                    &type_hint_for_annotation_id,
-                );
-            }
-        }
-    }
-    bail!("No module named {main_module_name} found")
+    (chunks_by_id, chunks_by_parent)
 }
 
-/// Adds to the root module the classes declared with `attach_to_root` that it refers to.
+/// Turns the structural classes the module tree refers to into classes of its modules.
 ///
-/// A library crate cannot know the id of the root module it will be linked into, so a class it
-/// declares itself (e.g. a `Protocol` for one of its `FromPyObject` implementations) cannot set
-/// `parent`. These chunks are `#[used]` statics, linked in whether they are used or not, so only
-/// the ones an annotation reachable from the root module refers to are kept.
-fn attach_to_root<'a>(
-    root: &'a Chunk,
-    root_id: &'a str,
-    chunks_by_id: &HashMap<&str, &'a Chunk>,
-    chunks_by_parent: &mut HashMap<&'a str, Vec<&'a Chunk>>,
-) -> Result<()> {
-    let mut attached = Vec::new();
-    let mut to_visit = vec![root];
-    while let Some(chunk) = to_visit.pop() {
-        let (id, members) = match chunk {
-            Chunk::Module { id, members, .. } => (Some(id.as_str()), members.as_slice()),
-            Chunk::Class { id, .. } => (Some(id.as_str()), [].as_slice()),
-            Chunk::Function { id, .. } | Chunk::Attribute { id, .. } => {
-                (id.as_deref(), [].as_slice())
-            }
+/// A structural class (e.g. a `Protocol`) only exists in the stubs and may be declared by a
+/// library crate that cannot know which modules use it. Each one an annotation refers to is put
+/// in the deepest module containing all the modules that use it, under a new name if that module
+/// already has a member with the same name. The unused ones are left out.
+fn place_structural_classes(
+    root: &Chunk,
+    chunks_by_id: &ChunksById<'_>,
+    chunks_by_parent: &ChunksByParent<'_>,
+) -> Vec<Chunk> {
+    // For each structural class, the path of module ids from the root to where it is placed
+    let mut placements = BTreeMap::<&str, Vec<&str>>::new();
+    let mut module_member_names = HashMap::<&str, HashSet<String>>::new();
+    let mut modules_to_visit = vec![(root, Vec::new())];
+    while let Some((module, mut path)) = modules_to_visit.pop() {
+        let Chunk::Module { id, members, .. } = module else {
+            unreachable!("only modules are visited")
         };
-        to_visit.extend(
-            id.and_then(|id| chunks_by_parent.get(id))
-                .into_iter()
-                .flatten(),
-        );
-        to_visit.extend(
-            members
-                .iter()
-                .filter_map(|id| chunks_by_id.get(id.as_str())),
-        );
-        for id in referenced_ids(chunk) {
-            let Some(&class) = chunks_by_id.get(id) else {
-                continue;
-            };
-            if matches!(
-                class,
-                Chunk::Class {
-                    attach_to_root: true,
-                    ..
-                }
-            ) && !attached.contains(&id)
-            {
-                attached.push(id);
-                to_visit.push(class);
+        path.push(id.as_str());
+        let mut to_visit = Vec::new();
+        for member in chunks_by_parent
+            .get(id.as_str())
+            .into_iter()
+            .flatten()
+            .chain(
+                members
+                    .iter()
+                    .filter_map(|id| chunks_by_id.get(id.as_str())),
+            )
+            .copied()
+        {
+            module_member_names
+                .entry(id)
+                .or_default()
+                .insert(chunk_name(member).into());
+            if matches!(member, Chunk::Module { .. }) {
+                modules_to_visit.push((member, path.clone()));
+            } else {
+                to_visit.push(member);
             }
         }
+        // The structural classes used by the module, including by the structural classes it uses
+        let mut used = HashSet::new();
+        while let Some(chunk) = to_visit.pop() {
+            to_visit.extend(
+                chunk_id(chunk)
+                    .and_then(|id| chunks_by_parent.get(id))
+                    .into_iter()
+                    .flatten(),
+            );
+            for id in referenced_ids(chunk) {
+                if let Some(&class @ Chunk::StructuralClass { .. }) = chunks_by_id.get(id) {
+                    if used.insert(id) {
+                        to_visit.push(class);
+                    }
+                }
+            }
+        }
+        for id in used {
+            placements
+                .entry(id)
+                .and_modify(|placement| {
+                    let common = placement
+                        .iter()
+                        .zip(&path)
+                        .take_while(|(l, r)| l == r)
+                        .count();
+                    placement.truncate(common);
+                })
+                .or_insert_with(|| path.clone());
+        }
     }
-    let root_members = chunks_by_parent.entry(root_id).or_default();
-    // Classes from different crates may share a name, which the root module can only hold once
-    let Chunk::Module { members, .. } = root else {
-        unreachable!("the root is a module")
-    };
-    let mut names = members
-        .iter()
-        .filter_map(|id| chunks_by_id.get(id.as_str()).copied())
-        .chain(root_members.iter().copied())
-        .map(chunk_name)
-        .collect::<HashSet<_>>();
-    for id in attached {
-        let class = chunks_by_id[id];
-        let name = chunk_name(class);
-        ensure!(
-            names.insert(name),
-            "Class {id} can't be added to the root module, which already has a member named {name}"
-        );
-        root_members.push(class);
+
+    // Placements are sorted by id, so the renaming is stable
+    placements
+        .into_iter()
+        .map(|(id, path)| {
+            let Chunk::StructuralClass {
+                name, kind, doc, ..
+            } = chunks_by_id[id]
+            else {
+                unreachable!("only structural classes are placed")
+            };
+            let module_id = *path.last().expect("the root module is always in the path");
+            let names = module_member_names.entry(module_id).or_default();
+            let name = if names.contains(name) {
+                (2..)
+                    .map(|i| format!("_{name}{i}"))
+                    .find(|name| !names.contains(name))
+                    .expect("there is always a free name")
+            } else {
+                name.clone()
+            };
+            names.insert(name.clone());
+            let typing = |attr: &str| ChunkExpr::Attribute {
+                value: Box::new(ChunkExpr::Name {
+                    id: "typing".into(),
+                }),
+                attr: attr.into(),
+            };
+            let base = match kind {
+                StructuralClassKind::Protocol => typing("Protocol"),
+            };
+            Chunk::Class {
+                id: id.into(),
+                name,
+                bases: vec![base],
+                // It is not defined at runtime
+                decorators: vec![typing("type_check_only")],
+                parent: Some(module_id.into()),
+                doc: doc.clone(),
+            }
+        })
+        .collect()
+}
+
+fn chunk_id(chunk: &Chunk) -> Option<&str> {
+    match chunk {
+        Chunk::Module { id, .. } | Chunk::Class { id, .. } | Chunk::StructuralClass { id, .. } => {
+            Some(id)
+        }
+        Chunk::Function { id, .. } | Chunk::Attribute { id, .. } => id.as_deref(),
     }
-    Ok(())
 }
 
 fn chunk_name(chunk: &Chunk) -> &str {
     match chunk {
         Chunk::Module { name, .. }
         | Chunk::Class { name, .. }
+        | Chunk::StructuralClass { name, .. }
         | Chunk::Function { name, .. }
         | Chunk::Attribute { name, .. } => name,
     }
@@ -180,7 +253,7 @@ fn referenced_ids(chunk: &Chunk) -> Vec<&str> {
     }
 
     let exprs: Vec<&ChunkExpr> = match chunk {
-        Chunk::Module { .. } => Vec::new(),
+        Chunk::Module { .. } | Chunk::StructuralClass { .. } => Vec::new(),
         Chunk::Class {
             bases, decorators, ..
         } => bases.iter().chain(decorators).collect(),
@@ -293,7 +366,6 @@ fn convert_members<'a>(
                 decorators,
                 doc,
                 parent: _,
-                attach_to_root: _,
             } => classes.push(convert_class(
                 id,
                 name,
@@ -336,6 +408,9 @@ fn convert_members<'a>(
                 doc.as_deref(),
                 type_hint_for_annotation_id,
             )),
+            Chunk::StructuralClass { id, .. } => {
+                bail!("Structural class {id} cannot be the member of a module or a class")
+            }
         }
     }
     // We sort elements to get a stable output
@@ -889,8 +964,15 @@ enum Chunk {
         parent: Option<String>,
         #[serde(default)]
         doc: Option<String>,
+    },
+    /// A class that only exists in the stubs, placed by [`place_structural_classes`]
+    #[serde(rename = "structural_class")]
+    StructuralClass {
+        id: String,
+        name: String,
+        kind: StructuralClassKind,
         #[serde(default)]
-        attach_to_root: bool,
+        doc: Option<String>,
     },
     Function {
         #[serde(default)]
@@ -921,6 +1003,12 @@ enum Chunk {
         #[serde(default)]
         doc: Option<String>,
     },
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum StructuralClassKind {
+    Protocol,
 }
 
 #[derive(Deserialize)]
@@ -995,18 +1083,74 @@ pub enum ChunkOperator {
 mod tests {
     use super::*;
 
+    /// A function `name` with an argument annotated with the class `annotation_id`
+    fn function(id: &str, parent: Option<&str>, annotation_id: &str) -> String {
+        let parent = parent.map_or(String::new(), |p| format!(r#""parent": "{p}","#));
+        format!(
+            r#"{{"type": "function", "id": "{id}", "name": "{id}", {parent} "arguments": {{"args": [{{"name": "a", "annotation": {{"type": "id", "id": "{annotation_id}"}}}}]}}}}"#
+        )
+    }
+
+    fn class_names(module: &Module) -> Vec<&str> {
+        module.classes.iter().map(|c| c.name.as_str()).collect()
+    }
+
     #[test]
-    fn attached_class_name_conflict_is_an_error() {
+    fn structural_classes_are_placed_where_they_are_used() {
         let chunks = [
-            r#"{"type": "module", "id": "m", "name": "m", "members": ["f", "c"]}"#,
-            r#"{"type": "function", "id": "f", "name": "f", "arguments": {"args": [{"name": "a", "annotation": {"type": "id", "id": "lib::P"}}]}}"#,
-            r#"{"type": "class", "id": "lib::P", "name": "P", "attach_to_root": true}"#,
-            r#"{"type": "class", "id": "c", "name": "P"}"#,
+            r#"{"type": "module", "id": "m", "name": "m", "members": ["a", "b"]}"#.into(),
+            r#"{"type": "module", "id": "a", "name": "a", "members": ["fa"]}"#.into(),
+            r#"{"type": "module", "id": "b", "name": "b", "members": ["fb", "gb", "c"]}"#.into(),
+            r#"{"type": "class", "id": "c", "name": "C"}"#.into(),
+            function("fa", None, "lib::OnlyA"),
+            function("fb", None, "lib::Shared"),
+            function("gb", None, "lib::C"),
+            // Also used by `a`, so it goes to the common parent `m`
+            function("ga", Some("a"), "lib::Shared"),
+            // Only used by `lib::OnlyA`, so it goes where `lib::OnlyA` is used
+            function("method", Some("lib::OnlyA"), "lib::Nested"),
+            r#"{"type": "structural_class", "kind": "protocol", "id": "lib::OnlyA", "name": "OnlyA"}"#.into(),
+            r#"{"type": "structural_class", "kind": "protocol", "id": "lib::Shared", "name": "Shared"}"#.into(),
+            r#"{"type": "structural_class", "kind": "protocol", "id": "lib::Nested", "name": "Nested"}"#.into(),
+            // `b` already has a `C` member
+            r#"{"type": "structural_class", "kind": "protocol", "id": "lib::C", "name": "C"}"#.into(),
+            r#"{"type": "structural_class", "kind": "protocol", "id": "lib::Unused", "name": "Unused"}"#.into(),
         ]
-        .map(|chunk| serde_json::from_str(chunk).unwrap());
+        .map(|chunk: String| serde_json::from_str(&chunk).unwrap());
+        let module = parse_chunks(&chunks, "m").unwrap();
+        assert_eq!(class_names(&module), ["Shared"]);
+        let [a, b] = &module.modules[..] else {
+            panic!("expected two submodules")
+        };
+        assert_eq!(class_names(a), ["Nested", "OnlyA"]);
+        assert_eq!(class_names(b), ["C", "_C2"]);
+        let protocol = &a.classes[1];
         assert_eq!(
-            parse_chunks(&chunks, "m").unwrap_err().to_string(),
-            "Class lib::P can't be added to the root module, which already has a member named P"
+            protocol.bases,
+            [Expr::Attribute {
+                value: Box::new(Expr::Name {
+                    id: "typing".into()
+                }),
+                attr: "Protocol".into()
+            }]
+        );
+        assert_eq!(
+            protocol.decorators,
+            [Expr::Attribute {
+                value: Box::new(Expr::Name {
+                    id: "typing".into()
+                }),
+                attr: "type_check_only".into()
+            }]
+        );
+        // The annotations refer to the new name
+        let gb = b.functions.iter().find(|f| f.name == "gb").unwrap();
+        assert_eq!(
+            gb.arguments.arguments[0].annotation,
+            Some(Expr::Attribute {
+                value: Box::new(Expr::Name { id: "m.b".into() }),
+                attr: "_C2".into()
+            })
         );
     }
 }

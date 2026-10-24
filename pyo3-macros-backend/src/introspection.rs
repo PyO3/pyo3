@@ -113,6 +113,9 @@ pub fn class_introspection_code(
 }
 
 /// A `typing.Protocol` class declared with `pyprotocol!`
+///
+/// It is a structural class: it only exists in the stubs, and the stub generator picks the module
+/// it goes in, since the protocol may be declared in a library crate that can't know the modules.
 pub fn protocol_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     ident: &Ident,
@@ -120,25 +123,13 @@ pub fn protocol_introspection_code(
     doc: Option<&PythonDoc>,
 ) -> TokenStream {
     let mut desc = BTreeMap::from([
-        ("type", IntrospectionNode::String("class".into())),
+        ("type", IntrospectionNode::String("structural_class".into())),
+        ("kind", IntrospectionNode::String("protocol".into())),
         (
             "id",
             IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
         ),
         ("name", IntrospectionNode::String(name.into())),
-        (
-            "bases",
-            IntrospectionNode::List(vec![PyExpr::module_attr("typing", "Protocol").into()]),
-        ),
-        // The protocol only exists in the stubs, not at runtime
-        (
-            "decorators",
-            IntrospectionNode::List(vec![
-                PyExpr::module_attr("typing", "type_check_only").into(),
-            ]),
-        ),
-        // The protocol may be declared in a library crate that can't know the root module id
-        ("attach_to_root", IntrospectionNode::Bool(true)),
     ]);
     if let Some(doc) = doc {
         desc.insert("doc", IntrospectionNode::Doc(doc));
