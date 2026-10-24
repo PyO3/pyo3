@@ -1,7 +1,12 @@
 from . import SupportsReadWrite, SupportsTypeshedReadWriteClose
 from .pyclasses import EmptyClass
 
-__all__ = ["cross_module_imports", "with_custom_type_annotations", "write_to"]
+__all__ = [
+    "cross_module_imports",
+    "with_custom_type_annotations",
+    "write_and_close",
+    "write_to",
+]
 
 def cross_module_imports(_a: EmptyClass) -> None: ...
 def with_custom_type_annotations(
