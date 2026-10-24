@@ -104,8 +104,3 @@ crate::pyprotocol! {
         fn no_args(&self);
     }
 }
-
-crate::pyprotocol! {
-    #[pyo3(crate = "crate")]
-    ExtendedProtocol(Protocol::TYPE_HINT) {}
-}

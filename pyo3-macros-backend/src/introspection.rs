@@ -117,15 +117,8 @@ pub fn protocol_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
     ident: &Ident,
     name: &str,
-    bases: impl IntoIterator<Item = PyExpr>,
     doc: Option<&PythonDoc>,
 ) -> TokenStream {
-    // `Protocol` must come after the protocols it extends for a consistent MRO
-    let bases = bases
-        .into_iter()
-        .chain([PyExpr::module_attr("typing", "Protocol")])
-        .map(Into::into)
-        .collect();
     let mut desc = BTreeMap::from([
         ("type", IntrospectionNode::String("class".into())),
         (
@@ -133,7 +126,10 @@ pub fn protocol_introspection_code(
             IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
         ),
         ("name", IntrospectionNode::String(name.into())),
-        ("bases", IntrospectionNode::List(bases)),
+        (
+            "bases",
+            IntrospectionNode::List(vec![PyExpr::module_attr("typing", "Protocol").into()]),
+        ),
         // The protocol only exists in the stubs, not at runtime
         (
             "decorators",

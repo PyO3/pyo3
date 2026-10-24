@@ -49,8 +49,6 @@ pub enum PyExpr {
     Constant(PyConstant),
     /// The `typing` module, or `typing_extensions` when targeting a Python older than `3.{version_3_x}`
     TypingOrExtensionsIfLess { version_3_x: u8 },
-    /// A Rust constant expression of type `PyStaticExpr`
-    Static(Expr),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -196,10 +194,6 @@ impl PyExpr {
         })
     }
 
-    pub fn from_static_expr(expr: Expr) -> Self {
-        Self::Static(expr)
-    }
-
     pub fn str_constant(value: impl Into<String>) -> Self {
         Self::Constant(PyConstant::Str(value.into()))
     }
@@ -328,7 +322,6 @@ impl PyExpr {
                     quote! { #pyo3_crate_path::inspect::PyStaticExpr::Constant { value: #pyo3_crate_path::inspect::PyStaticConstant::Ellipsis } }
                 }
             },
-            Self::Static(expr) => quote! { #expr },
             Self::TypingOrExtensionsIfLess { version_3_x } => {
                 let ident = format_ident!("typing_or_extensions_if_not_3_{version_3_x}");
                 quote! { #pyo3_crate_path::impl_::introspection::#ident() }
