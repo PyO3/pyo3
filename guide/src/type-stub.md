@@ -84,6 +84,7 @@ PyO3 also provides the smaller `pyo3-introspection` binary that allows to genera
 ## Protocols
 
 `pyprotocol!` declares a [`typing.Protocol`](https://typing.python.org/en/latest/spec/protocol.html) for objects a `FromPyObject` implementation accepts by their methods.
+Like `FromPyObject::INPUT_TYPE`, it is only available with the `experimental-inspect` feature.
 It also works in library crates:
 
 ```rust,ignore

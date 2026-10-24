@@ -95,6 +95,7 @@ enum IntoPyObject5<'a, 'py> {
     },
 } // enum case
 
+#[cfg(feature = "experimental-inspect")]
 crate::pyprotocol! {
     /// A protocol
     #[pyo3(crate = "crate", name = "_Protocol")]

@@ -1,16 +1,12 @@
 //! `pyprotocol!`: declares a `typing.Protocol` that only exists in the generated type stubs.
 
 use crate::combine_errors::CombineErrors;
-#[cfg(feature = "experimental-inspect")]
 use crate::introspection::{function_introspection_code, protocol_introspection_code};
 use crate::method::FnArg;
-#[cfg(feature = "experimental-inspect")]
 use crate::py_expr::PyExpr;
 use crate::pyfunction::{FunctionSignature, PyFunctionOptions};
 use crate::pymethod::check_generic;
-use crate::utils::Ctx;
-#[cfg(feature = "experimental-inspect")]
-use crate::utils::get_doc;
+use crate::utils::{Ctx, get_doc};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::ext::IdentExt;
@@ -78,14 +74,12 @@ pub fn build_py_protocol(protocol: PyProtocol) -> Result<TokenStream> {
         .unraw()
         .to_string();
 
-    let mut introspection = Vec::new();
-    #[cfg(feature = "experimental-inspect")]
-    introspection.push(protocol_introspection_code(
+    let mut introspection = vec![protocol_introspection_code(
         pyo3_path,
         &ident,
         &python_name,
         get_doc(&attrs, None).as_ref(),
-    ));
+    )];
     let parent: syn::Type = syn::parse_quote!(#ident);
     introspection.extend(
         methods
@@ -94,33 +88,23 @@ pub fn build_py_protocol(protocol: PyProtocol) -> Result<TokenStream> {
             .try_combine_syn_errors()?,
     );
 
-    #[cfg(feature = "experimental-inspect")]
-    let type_hint = quote! {
-        #[doc(hidden)]
-        pub const _PYO3_INTROSPECTION_ID: &'static str =
-            ::core::concat!(::core::module_path!(), "::", ::core::stringify!(#ident));
-
-        /// The protocol as a type hint, e.g. for `FromPyObject::INPUT_TYPE`
-        pub const TYPE_HINT: #pyo3_path::inspect::PyStaticExpr =
-            #pyo3_path::inspect::PyStaticExpr::PyClass(
-                #pyo3_path::inspect::PyClassNameStaticExpr::new(
-                    &#pyo3_path::inspect::PyStaticExpr::Name { id: #python_name },
-                    Self::_PYO3_INTROSPECTION_ID,
-                ),
-            );
-    };
-    #[cfg(not(feature = "experimental-inspect"))]
-    let type_hint = {
-        let _ = (pyo3_path, python_name);
-        quote! {}
-    };
-
     Ok(quote! {
         #(#attrs)*
         #vis struct #ident;
 
         impl #ident {
-            #type_hint
+            #[doc(hidden)]
+            pub const _PYO3_INTROSPECTION_ID: &'static str =
+                ::core::concat!(::core::module_path!(), "::", ::core::stringify!(#ident));
+
+            /// The protocol as a type hint, e.g. for `FromPyObject::INPUT_TYPE`
+            pub const TYPE_HINT: #pyo3_path::inspect::PyStaticExpr =
+                #pyo3_path::inspect::PyStaticExpr::PyClass(
+                    #pyo3_path::inspect::PyClassNameStaticExpr::new(
+                        &#pyo3_path::inspect::PyStaticExpr::Name { id: #python_name },
+                        Self::_PYO3_INTROSPECTION_ID,
+                    ),
+                );
         }
 
         #(#introspection)*
@@ -164,11 +148,7 @@ fn method_introspection_code(
         .skip(1)
         .map(FnArg::parse)
         .try_combine_syn_errors()?;
-    #[cfg_attr(
-        not(feature = "experimental-inspect"),
-        expect(unused_variables, reason = "only used by the introspection")
-    )]
-    let signature = if let Some(signature) = options.signature {
+    let mut signature = if let Some(signature) = options.signature {
         FunctionSignature::from_arguments_and_attribute(arguments, signature)?
     } else {
         // Implementations name their parameters freely, e.g. `io.BytesIO.write(self, buffer, /)`,
@@ -179,41 +159,32 @@ fn method_introspection_code(
         signature
     };
 
-    #[cfg(feature = "experimental-inspect")]
-    {
-        let mut signature = signature;
-        // Rust calls these methods: the arguments are converted to Python and the result back
-        for argument in &mut signature.arguments {
-            if let FnArg::Regular(arg) = argument {
-                arg.annotation = Some(PyExpr::from_into_py_object(arg.ty.clone(), None));
-            }
+    // Rust calls these methods: the arguments are converted to Python and the result back
+    for argument in &mut signature.arguments {
+        if let FnArg::Regular(arg) = argument {
+            arg.annotation = Some(PyExpr::from_into_py_object(arg.ty.clone(), None));
         }
-        let python_name = options
-            .name
-            .as_ref()
-            .map_or(&sig.ident, |name| &name.value.0)
-            .unraw()
-            .to_string();
-        Ok(function_introspection_code(
-            &ctx.pyo3_path,
-            None,
-            &python_name,
-            &signature,
-            Some("self"),
-            match &sig.output {
-                syn::ReturnType::Type(_, t) => PyExpr::from_from_py_object((**t).clone(), None),
-                syn::ReturnType::Default => PyExpr::none(),
-            },
-            std::iter::empty(),
-            false,
-            false,
-            get_doc(attrs, None).as_ref(),
-            Some(parent),
-        ))
     }
-    #[cfg(not(feature = "experimental-inspect"))]
-    {
-        let _ = (parent, ctx);
-        Ok(TokenStream::new())
-    }
+    let python_name = options
+        .name
+        .as_ref()
+        .map_or(&sig.ident, |name| &name.value.0)
+        .unraw()
+        .to_string();
+    Ok(function_introspection_code(
+        &ctx.pyo3_path,
+        None,
+        &python_name,
+        &signature,
+        Some("self"),
+        match &sig.output {
+            syn::ReturnType::Type(_, t) => PyExpr::from_from_py_object((**t).clone(), None),
+            syn::ReturnType::Default => PyExpr::none(),
+        },
+        std::iter::empty(),
+        false,
+        false,
+        get_doc(attrs, None).as_ref(),
+        Some(parent),
+    ))
 }

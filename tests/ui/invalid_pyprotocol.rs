@@ -1,3 +1,5 @@
+//@with-experimental-inspect
+
 pyo3::pyprotocol! {
     WithBody {
         fn method(&self) {}
