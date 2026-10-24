@@ -1,6 +1,8 @@
 from typing import final
 from typing_extensions import disjoint_base
 
+__all__ = ["SubDict", "Subclass", "Subclassable"]
+
 @final
 class SubDict(dict):
     def __new__(cls, /) -> SubDict: ...

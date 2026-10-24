@@ -555,27 +555,16 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     #[cfg(feature = "experimental-inspect")]
     let input_type = {
         let pyo3_crate_path = &ctx.pyo3_path;
-        let input_type = if tokens
-            .generics
-            .params
-            .iter()
-            .all(|p| matches!(p, syn::GenericParam::Lifetime(_)))
-        {
-            match &tokens.data {
-                syn::Data::Enum(en) => Enum::new(en, &tokens.ident, options)?.input_type(),
-                syn::Data::Struct(st) => {
-                    let ident = &tokens.ident;
-                    Container::new(&st.fields, parse_quote!(#ident), options.clone())?.input_type()
-                }
-                syn::Data::Union(_) => {
-                    // Not supported at this point
-                    PyExpr::module_attr("_typeshed", "Incomplete")
-                }
+        let input_type = match &tokens.data {
+            syn::Data::Enum(en) => Enum::new(en, &tokens.ident, options)?.input_type(),
+            syn::Data::Struct(st) => {
+                let ident = &tokens.ident;
+                Container::new(&st.fields, parse_quote!(#ident), options.clone())?.input_type()
             }
-        } else {
-            // We don't know how to deal with generic parameters
-            // Blocked by https://github.com/rust-lang/rust/issues/76560
-            PyExpr::module_attr("_typeshed", "Incomplete")
+            syn::Data::Union(_) => {
+                // Not supported at this point
+                PyExpr::module_attr("_typeshed", "Incomplete")
+            }
         }
         .to_introspection_token_stream(pyo3_crate_path);
         quote! { const INPUT_TYPE: #pyo3_crate_path::inspect::PyStaticExpr = #input_type; }

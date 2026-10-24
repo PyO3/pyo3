@@ -12,7 +12,7 @@ use crate::platform::prelude::*;
 use crate::{Bound, IntoPyObject, PyErr, PyResult, Python, types::PyBytes};
 #[cfg(not(Py_LIMITED_API))]
 use crate::{
-    err::error_on_minusone,
+    err,
     ffi::{
         self,
         compat::{
@@ -92,7 +92,7 @@ impl<'py> PyBytesWriter<'py> {
     #[cfg(not(Py_LIMITED_API))]
     unsafe fn set_len(&mut self, new_len: usize) -> PyResult<()> {
         unsafe {
-            error_on_minusone(
+            err::error_on_negative(
                 self.python,
                 PyBytesWriter_Resize(self.writer.as_ptr(), new_len as _),
             )

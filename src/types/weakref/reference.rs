@@ -10,7 +10,7 @@ use crate::types::PyType;
 use crate::types::any::PyAny;
 #[cfg(any(PyPy, GraalPy, Py_LIMITED_API, RustPython))]
 use crate::types::typeobject::PyTypeMethods;
-use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, ffi};
+use crate::{Bound, BoundObject, IntoPyObject, IntoPyObjectExt, ffi};
 
 use super::PyWeakrefMethods;
 
@@ -148,27 +148,13 @@ impl PyWeakrefReference {
     where
         C: IntoPyObject<'py>,
     {
-        fn inner<'py>(
-            object: &Bound<'py, PyAny>,
-            callback: Borrowed<'_, 'py, PyAny>,
-        ) -> PyResult<Bound<'py, PyWeakrefReference>> {
-            unsafe {
-                Bound::from_owned_ptr_or_err(
-                    object.py(),
-                    ffi::PyWeakref_NewRef(object.as_ptr(), callback.as_ptr()),
-                )
-                .cast_into_unchecked()
-            }
-        }
-
         let py = object.py();
-        inner(
-            object,
-            callback
-                .into_pyobject_or_pyerr(py)?
-                .into_any()
-                .as_borrowed(),
-        )
+        let callback = callback.into_pyobject_or_pyerr(py)?;
+        unsafe {
+            ffi::PyWeakref_NewRef(object.as_ptr(), callback.as_ptr())
+                .assume_owned_or_err(py)
+                .cast_into_unchecked()
+        }
     }
 }
 

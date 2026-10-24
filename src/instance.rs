@@ -2021,129 +2021,6 @@ impl<T> Py<T> {
         self.bind(py).as_any().call_method0(name).map(Bound::unbind)
     }
 
-    /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
-    ///
-    /// # Safety
-    ///
-    /// - `ptr` must be a valid pointer to a Python object (or null, which will cause a panic)
-    /// - `ptr` must be an owned Python reference, as the `Py<T>` will assume ownership
-    ///
-    /// # Panics
-    ///
-    /// Panics if `ptr` is null.
-    #[inline]
-    #[track_caller]
-    #[deprecated(note = "use `Bound::from_owned_ptr` instead", since = "0.28.0")]
-    pub unsafe fn from_owned_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
-        match NonNull::new(ptr) {
-            Some(nonnull_ptr) => {
-                // SAFETY: caller has upheld the safety contract, ptr is known to be non-null
-                unsafe { Self::from_non_null(nonnull_ptr) }
-            }
-            None => panic_on_null(py),
-        }
-    }
-
-    /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
-    ///
-    /// If `ptr` is null then the current Python exception is fetched as a [`PyErr`].
-    ///
-    /// # Safety
-    ///
-    /// - `ptr` must be a valid pointer to a Python object, or null
-    /// - a non-null `ptr` must be an owned Python reference, as the `Py<T>` will assume ownership
-    #[inline]
-    #[deprecated(note = "use `Bound::from_owned_ptr_or_err` instead", since = "0.28.0")]
-    pub unsafe fn from_owned_ptr_or_err(
-        py: Python<'_>,
-        ptr: *mut ffi::PyObject,
-    ) -> PyResult<Py<T>> {
-        match NonNull::new(ptr) {
-            Some(nonnull_ptr) => Ok(
-                // SAFETY: caller has upheld the safety contract, ptr is known to be non-null
-                unsafe { Self::from_non_null(nonnull_ptr) },
-            ),
-            None => Err(PyErr::fetch(py)),
-        }
-    }
-
-    /// Create a `Py<T>` instance by taking ownership of the given FFI pointer.
-    ///
-    /// If `ptr` is null then `None` is returned.
-    ///
-    /// # Safety
-    ///
-    /// - `ptr` must be a valid pointer to a Python object, or null
-    /// - a non-null `ptr` must be an owned Python reference, as the `Py<T>` will assume ownership
-    #[inline]
-    #[deprecated(note = "use `Bound::from_owned_ptr_or_opt` instead", since = "0.28.0")]
-    pub unsafe fn from_owned_ptr_or_opt(_py: Python<'_>, ptr: *mut ffi::PyObject) -> Option<Self> {
-        NonNull::new(ptr).map(|nonnull_ptr| {
-            // SAFETY: caller has upheld the safety contract
-            unsafe { Self::from_non_null(nonnull_ptr) }
-        })
-    }
-
-    /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
-    ///
-    /// # Safety
-    /// `ptr` must be a pointer to a Python object of type T.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `ptr` is null.
-    #[inline]
-    #[track_caller]
-    #[deprecated(note = "use `Borrowed::from_borrowed_ptr` instead", since = "0.28.0")]
-    pub unsafe fn from_borrowed_ptr(py: Python<'_>, ptr: *mut ffi::PyObject) -> Py<T> {
-        // SAFETY: caller has upheld the safety contract
-        #[allow(deprecated)]
-        unsafe { Self::from_borrowed_ptr_or_opt(py, ptr) }.unwrap_or_else(|| panic_on_null(py))
-    }
-
-    /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
-    ///
-    /// If `ptr` is null then the current Python exception is fetched as a `PyErr`.
-    ///
-    /// # Safety
-    /// `ptr` must be a pointer to a Python object of type T.
-    #[inline]
-    #[deprecated(
-        note = "use `Borrowed::from_borrowed_ptr_or_err` instead",
-        since = "0.28.0"
-    )]
-    pub unsafe fn from_borrowed_ptr_or_err(
-        py: Python<'_>,
-        ptr: *mut ffi::PyObject,
-    ) -> PyResult<Self> {
-        // SAFETY: caller has upheld the safety contract
-        #[allow(deprecated)]
-        unsafe { Self::from_borrowed_ptr_or_opt(py, ptr) }.ok_or_else(|| PyErr::fetch(py))
-    }
-
-    /// Create a `Py<T>` instance by creating a new reference from the given FFI pointer.
-    ///
-    /// If `ptr` is null then `None` is returned.
-    ///
-    /// # Safety
-    /// `ptr` must be a pointer to a Python object of type T, or null.
-    #[inline]
-    #[deprecated(
-        note = "use `Borrowed::from_borrowed_ptr_or_opt` instead",
-        since = "0.28.0"
-    )]
-    pub unsafe fn from_borrowed_ptr_or_opt(
-        _py: Python<'_>,
-        ptr: *mut ffi::PyObject,
-    ) -> Option<Self> {
-        NonNull::new(ptr).map(|nonnull_ptr| {
-            // SAFETY: ptr is a valid python object, thread is attached to the interpreter
-            unsafe { ffi::Py_INCREF(ptr) };
-            // SAFETY: caller has upheld the safety contract, and object was just made owned
-            unsafe { Self::from_non_null(nonnull_ptr) }
-        })
-    }
-
     /// For internal conversions.
     ///
     /// # Safety
@@ -2485,6 +2362,8 @@ fn panic_on_null(py: Python<'_>) -> ! {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::{Bound, IntoPyObject, Py};
     #[cfg(all(feature = "macros", panic = "unwind"))]
     use crate::exceptions::PyValueError;
@@ -2858,16 +2737,9 @@ a = A()
         Python::attach(|py| {
             const NULL: *mut ffi::PyObject = core::ptr::null_mut();
 
-            #[expect(deprecated, reason = "Py<T> constructors")]
             // SAFETY: calling all constructors with null pointer to test panic behavior
             for constructor in unsafe {
                 [
-                    (|py| {
-                        Py::<PyAny>::from_owned_ptr(py, NULL);
-                    }) as fn(Python<'_>),
-                    (|py| {
-                        Py::<PyAny>::from_borrowed_ptr(py, NULL);
-                    }) as fn(Python<'_>),
                     (|py| {
                         Bound::from_owned_ptr(py, NULL);
                     }) as fn(Python<'_>),

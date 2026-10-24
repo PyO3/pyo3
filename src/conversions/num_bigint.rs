@@ -435,7 +435,7 @@ fn int_to_u32_vec<const SIGNED: bool>(long: &Bound<'_, PyInt>) -> PyResult<Vec<u
     // SAFETY: `buffer` has capacity for `n_digits` u32s, which `_PyLong_AsByteArray`
     // fully initializes on success; `set_len` is only reached on success
     unsafe {
-        crate::err::error_on_minusone(
+        crate::err::error_on_negative(
             long.py(),
             ffi::_PyLong_AsByteArray(
                 long.as_ptr().cast(),

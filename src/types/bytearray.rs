@@ -338,6 +338,8 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
 #[allow(clippy::disallowed_types, reason = "tests")]
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};
     use crate::{Bound, Py, PyAny, Python, exceptions};
 
@@ -484,7 +486,7 @@ mod tests {
     #[test]
     fn test_data_integrity_in_critical_section() {
         use crate::instance::Py;
-        use crate::platform::sync::non_poison::Mutex;
+        use crate::platform::sync::nonpoison::Mutex;
         use crate::sync::{MutexExt, critical_section::with_critical_section};
 
         use core::sync::atomic::{AtomicBool, Ordering};

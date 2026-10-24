@@ -22,9 +22,7 @@ use crate::{Borrowed, Bound, Py, PyAny, PyClass, PyErr, PyResult, Python, ffi};
 use core::ffi::CStr;
 use core::ffi::{c_int, c_void};
 use core::fmt;
-use core::panic::AssertUnwindSafe;
 use core::ptr::{NonNull, null_mut};
-use std::panic::catch_unwind;
 
 use super::pyclass::PyClassImpl;
 use super::trampoline;
@@ -377,9 +375,18 @@ where
         PyBorrowedUnbound::from_non_null(NonNull::new_unchecked(slf)).cast_unchecked::<T>()
     };
 
-    let retval = match catch_unwind(AssertUnwindSafe(move || unsafe {
-        traverse_impl::<T>(slf, visit, arg, tp_traverse::<T>)
-    })) {
+    let call_traverse_impl =
+        move || unsafe { traverse_impl::<T>(slf, visit, arg, tp_traverse::<T>) };
+
+    let retval = cfg_select! {
+        all(panic = "unwind", wip_feature_std) => {
+            std::panic::catch_unwind(core::panic::AssertUnwindSafe(call_traverse_impl))
+        },
+
+        _ => Ok::<_, core::convert::Infallible>(call_traverse_impl()),
+    };
+
+    let retval = match retval {
         Ok(Ok(())) => 0,
         Ok(Err(traverse_error)) => traverse_error.into_inner(),
         Err(_err) => -1,

@@ -3,6 +3,23 @@ from _typeshed import Incomplete
 from typing import Final, SupportsIndex, final
 from typing_extensions import disjoint_base
 
+__all__ = [
+    "AssertingBaseClass",
+    "ClassWithDecorators",
+    "ClassWithDict",
+    "ClassWithoutConstructor",
+    "EmptyClass",
+    "Number",
+    "PlainObject",
+    "PyClassIter",
+    "PyClassOptionAsyncIter",
+    "PyClassOptionIter",
+    "PyClassResultOptionIter",
+    "PyClassThreadIter",
+    "SubClassWithInit",
+    "map_a_class",
+]
+
 @disjoint_base
 class AssertingBaseClass:
     """
@@ -163,4 +180,4 @@ class SubClassWithInit(dict):
 
 def map_a_class(
     cls: EmptyClass | tuple[EmptyClass, EmptyClass] | Incomplete,
-) -> EmptyClass | tuple[EmptyClass, EmptyClass] | Incomplete: ...
+) -> EmptyClass | tuple[EmptyClass, EmptyClass] | dict[str | int, EmptyClass]: ...

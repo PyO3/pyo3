@@ -9,7 +9,7 @@ use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyDict, PyList, PyType, PyTypeMethods};
-use crate::{Py, Python, ffi};
+use crate::{Py, Python, err, ffi};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 ///
@@ -24,9 +24,6 @@ pub struct PyMapping(PyAny);
 pyobject_native_type_named!(PyMapping);
 
 unsafe impl PyTypeInfo for PyMapping {
-    const NAME: &'static str = "Mapping";
-    const MODULE: Option<&'static str> = Some("collections.abc");
-
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_identifier!("collections.abc", "Mapping");
 
@@ -124,7 +121,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     #[inline]
     fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyMapping_Size(self.as_ptr()) };
-        crate::err::error_on_minusone(self.py(), v)?;
+        err::error_on_negative(self.py(), v)?;
         Ok(v as usize)
     }
 

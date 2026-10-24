@@ -42,20 +42,6 @@ pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 ///
 /// `is_exact_type_of` must only return true for objects whose type is exactly `Self`.
 pub unsafe trait PyTypeInfo: Sized {
-    /// Class name.
-    #[deprecated(
-        since = "0.28.0",
-        note = "prefer using `::type_object(py).name()` to get the correct runtime value"
-    )]
-    const NAME: &'static str;
-
-    /// Module name, if any.
-    #[deprecated(
-        since = "0.28.0",
-        note = "prefer using `::type_object(py).module()` to get the correct runtime value"
-    )]
-    const MODULE: Option<&'static str>;
-
     /// Provides the full python type as a type hint.
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_identifier!("_typeshed", "Incomplete");

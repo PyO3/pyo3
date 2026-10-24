@@ -1,9 +1,12 @@
 on:
   workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: false
     inputs:
       sha:
-        required: true
         type: string
+        default: ""
       os:
         required: true
         type: string
@@ -27,41 +30,48 @@ on:
         default: false
 
 env:
+  UV_LOCKED: 1
+  CARGO_TERM_COLOR: always
   NOX_DEFAULT_VENV_BACKEND: uv
-  UV_CONSTRAINT: ${{ github.workspace }}/.github/uv-constraints.txt
 
 jobs:
   build:
+    permissions:
+      contents: read
+      pull-requests: read # dorny/paths-filter lists changed files.
     continue-on-error: ${{ endsWith(inputs.python-version, '-dev') || contains(fromJSON('["beta", "nightly"]'), inputs.rust) }}
     runs-on: ${{ inputs.os }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ inputs.sha }}
 
       # installs using setup-python do not work for arm macOS 3.9 and below
       - if: ${{ !(inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64') }}
         name: Set up Python ${{ inputs.python-version }}
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ inputs.python-version }}
           architecture: ${{ inputs.python-architecture }}
           check-latest: true
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           # workaround for the above, only available for 3.9
           python-version: ${{ inputs.os == 'macos-latest' && contains(fromJSON('["3.9"]'), inputs.python-version) && inputs.python-architecture == 'x64' && format('cpython-{0}-macos-x86-64', inputs.python-version) || '' }}
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ inputs.rust }}
-          targets: ${{ inputs.rust-target }}
+        shell: bash
+        env:
+          RUST_TOOLCHAIN: ${{ inputs.rust }}
+          RUST_TARGET: ${{ inputs.rust-target }}
+        run: |
           # rust-src needed to correctly format errors, see #1865
-          components: rust-src
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --no-self-update --component rust-src --target "$RUST_TARGET" --allow-downgrade
+          rustup default "$RUST_TOOLCHAIN"
 
       # On windows 32 bit, we are running on an x64 host, so we need to specifically set the target
       # NB we don't do this for *all* jobs because it breaks coverage of proc macros to have an
@@ -72,7 +82,7 @@ jobs:
         run: |
           echo "CARGO_BUILD_TARGET=i686-pc-windows-msvc" >> $GITHUB_ENV
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
 
@@ -82,13 +92,13 @@ jobs:
 
       - if: inputs.rust == inputs.MSRV
         name: Prepare MSRV package versions
-        run: uvx nox -s set-msrv-package-versions
+        run: uv run --isolated --only-group nox nox -s set-msrv-package-versions
 
       - if: inputs.rust != 'stable'
         name: Ignore changed error messages for ui tests (still run for coverage)
         run: echo "UI_TEST=ignore" >> "$GITHUB_ENV"
 
-      - uses: dorny/paths-filter@v4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         if: ${{ inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy') }}
         id: ffi-changes
         with:
@@ -104,25 +114,25 @@ jobs:
       - name: Run pyo3-ffi-check
         # TODO: investigate graalpy failures
         if: ${{ endsWith(inputs.python-version, '-dev') || (steps.ffi-changes.outputs.changed == 'true' && inputs.rust == 'stable' && !startsWith(inputs.python-version, 'graalpy')) }}
-        run: uvx nox -s ffi-check
+        run: uv run --isolated --only-group nox nox -s ffi-check
 
-      - uses: ./.github/actions/prepare-coverage
+      - uses: $/.github/actions/prepare-coverage
         if: ${{ inputs.os != 'windows-11-arm' }} # https://github.com/rust-lang/rust/issues/150123
 
       - name: Build docs
-        run: uvx nox -s docs
+        run: uv run --isolated --only-group nox nox -s docs
 
       - name: Run Rust tests
-        run: uvx nox -s test-rust
+        run: uv run --isolated --only-group nox nox -s test-rust
 
       - name: Test python examples and tests
         shell: bash
-        run: uvx nox -s test-py
+        run: uv run --isolated --only-group nox nox -s test-py
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
-      - uses: ./.github/actions/report-coverage
-        if: ${{ inputs.os != 'windows-11-arm' }} # https://github.com/rust-lang/rust/issues/150123
+      - uses: $/.github/actions/report-coverage
+        if: ${{ inputs.sha && inputs.os != 'windows-11-arm' }} # https://github.com/rust-lang/rust/issues/150123
         with:
           name: ${{ inputs.os }}/${{ inputs.python-version }}/${{ inputs.rust }}
           token: ${{ secrets.CODECOV_TOKEN }}

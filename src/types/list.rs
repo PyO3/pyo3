@@ -8,7 +8,7 @@ use crate::internal_tricks::get_ssize_index;
 use crate::platform::prelude::*;
 use crate::types::sequence::PySequenceMethods;
 use crate::types::{PySequence, PyTuple};
-use crate::{Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python};
+use crate::{Bound, BoundObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python};
 #[cfg(RustPython)]
 use crate::{
     Py,
@@ -336,14 +336,11 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     where
         I: IntoPyObject<'py>,
     {
-        fn inner(list: &Bound<'_, PyList>, index: usize, item: Bound<'_, PyAny>) -> PyResult<()> {
-            err::error_on_minusone(list.py(), unsafe {
-                ffi::PyList_SetItem(list.as_ptr(), get_ssize_index(index), item.into_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(self, index, item.into_bound_py_any(py)?)
+        let item = item.into_bound_py_any(py)?;
+        err::error_on_negative(py, unsafe {
+            ffi::PyList_SetItem(self.as_ptr(), get_ssize_index(index), item.into_ptr())
+        })
     }
 
     /// Deletes the `index`th element of self.
@@ -359,7 +356,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// This is equivalent to the Python statement `self[low:high] = v`.
     #[inline]
     fn set_slice(&self, low: usize, high: usize, seq: &Bound<'_, PyAny>) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
+        err::error_on_negative(self.py(), unsafe {
             ffi::PyList_SetSlice(
                 self.as_ptr(),
                 get_ssize_index(low),
@@ -382,17 +379,11 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     where
         I: IntoPyObject<'py>,
     {
-        fn inner(list: &Bound<'_, PyList>, item: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
-            err::error_on_minusone(list.py(), unsafe {
-                ffi::PyList_Append(list.as_ptr(), item.as_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(
-            self,
-            item.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let item = item.into_pyobject_or_pyerr(py)?;
+        err::error_on_negative(py, unsafe {
+            ffi::PyList_Append(self.as_ptr(), item.as_ptr())
+        })
     }
 
     /// Inserts an item at the specified index.
@@ -402,22 +393,11 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     where
         I: IntoPyObject<'py>,
     {
-        fn inner(
-            list: &Bound<'_, PyList>,
-            index: usize,
-            item: Borrowed<'_, '_, PyAny>,
-        ) -> PyResult<()> {
-            err::error_on_minusone(list.py(), unsafe {
-                ffi::PyList_Insert(list.as_ptr(), get_ssize_index(index), item.as_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(
-            self,
-            index,
-            item.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let item = item.into_pyobject_or_pyerr(py)?;
+        err::error_on_negative(py, unsafe {
+            ffi::PyList_Insert(self.as_ptr(), get_ssize_index(index), item.as_ptr())
+        })
     }
 
     /// Determines if self contains `value`.
@@ -459,12 +439,12 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
 
     /// Sorts the list in-place. Equivalent to the Python expression `l.sort()`.
     fn sort(&self) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe { ffi::PyList_Sort(self.as_ptr()) })
+        err::error_on_negative(self.py(), unsafe { ffi::PyList_Sort(self.as_ptr()) })
     }
 
     /// Reverses the list in-place. Equivalent to the Python expression `l.reverse()`.
     fn reverse(&self) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe { ffi::PyList_Reverse(self.as_ptr()) })
+        err::error_on_negative(self.py(), unsafe { ffi::PyList_Reverse(self.as_ptr()) })
     }
 
     /// Return a new tuple containing the contents of the list; equivalent to the Python expression `tuple(list)`.
@@ -900,6 +880,8 @@ impl<'py> IntoIterator for &Bound<'py, PyList> {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use crate::platform::prelude::*;
     use crate::types::any::PyAnyMethods;
     use crate::types::list::PyListMethods;

@@ -767,7 +767,7 @@ impl<'py> Python<'py> {
     /// [1]: https://docs.python.org/3/c-api/exceptions.html?highlight=pyerr_checksignals#c.PyErr_CheckSignals
     /// [2]: https://docs.python.org/3/library/signal.html
     pub fn check_signals(self) -> PyResult<()> {
-        err::error_on_minusone(self, unsafe { ffi::PyErr_CheckSignals() })
+        err::error_on_negative(self, unsafe { ffi::PyErr_CheckSignals() })
     }
 }
 
@@ -796,6 +796,8 @@ impl<'unbound> Python<'unbound> {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::*;
     use crate::platform::prelude::*;
     use crate::{
