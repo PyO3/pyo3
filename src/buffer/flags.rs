@@ -108,22 +108,6 @@ impl<
 }
 
 #[diagnostic::on_unimplemented(
-    message = "writability is not guaranteed by the requested buffer flags",
-    note = "use `.writable()` when building a buffer request to guarantee writability"
-)]
-pub trait GuaranteesWritable {}
-#[diagnostic::do_not_recommend]
-impl<
-    const FORMAT: bool,
-    const SHAPE: bool,
-    const STRIDE: bool,
-    const INDIRECT: bool,
-    const CONTIGUITY: u8,
-> GuaranteesWritable for PyBufferFlags<FORMAT, SHAPE, STRIDE, INDIRECT, true, CONTIGUITY>
-{
-}
-
-#[diagnostic::on_unimplemented(
     message = "C contiguity is not guaranteed by the requested buffer flags",
     note = "use `.c_contiguous()` when building a buffer request to guarantee C contiguity"
 )]

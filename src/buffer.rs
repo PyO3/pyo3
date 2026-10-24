@@ -364,25 +364,25 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// Returns null if the buffer is not C-style contiguous
     pub fn as_slice_ptr(&self) -> Option<NonNull<[T]>> {
-        self.slice_pointer_internal(self.is_c_contiguous())
+        self.is_c_contiguous()
+            .then(|| self.slice_pointer_internal())
+            .flatten()
     }
 
     /// Gets the buffer memory as a slice.
     ///
     /// This function returns null if the buffer is not Fortran-style contiguous
     pub fn as_fortran_slice_ptr(&self) -> Option<NonNull<[T]>> {
-        self.slice_pointer_internal(self.is_fortran_contiguous())
+        self.is_fortran_contiguous()
+            .then(|| self.slice_pointer_internal())
+            .flatten()
     }
 
-    fn slice_pointer_internal(&self, contiguous: bool) -> Option<NonNull<[T]>> {
-        if contiguous {
-            NonNull::new(ptr::slice_from_raw_parts_mut(
-                self.raw().buf.cast(),
-                self.item_count(),
-            ))
-        } else {
-            None
-        }
+    fn slice_pointer_internal(&self) -> Option<NonNull<[T]>> {
+        NonNull::new(ptr::slice_from_raw_parts_mut(
+            self.raw().buf.cast(),
+            self.item_count(),
+        ))
     }
 
     /// Copies the buffer elements to the specified slice.
@@ -1044,6 +1044,9 @@ pub struct PyUntypedBufferView<
 
 impl<Flag: PyBufferRequestType> PyUntypedBufferView<Flag> {
     /// Gets the pointer to the start of the buffer memory.
+    ///
+    /// See [`PyUntypedBuffer::buf_ptr()`] for considerations about how
+    /// to safely read and write data through this pointer.
     #[inline]
     pub fn buf_ptr(&self) -> *mut c_void {
         self.raw.buf
@@ -1230,7 +1233,7 @@ impl PyUntypedBufferView {
 
         // SAFETY: PyUntypedBufferView is repr(transparent) around ffi::Py_buffer,
         // so the pointer has the layout and alignment expected by PyObject_GetBuffer.
-        err::error_on_minusone(obj.py(), unsafe {
+        err::error_on_negative(obj.py(), unsafe {
             ffi::PyObject_GetBuffer(obj.as_ptr(), view.as_mut_ptr().cast(), flags.0)
         })?;
 
@@ -1304,62 +1307,52 @@ impl<T: Element, Flag: PyBufferRequestType> PyBufferView<T, Flag> {
     ///
     /// Returns `None` if the buffer is not C-contiguous.
     ///
-    /// The returned slice uses type [`ReadOnlyCell<T>`] because it's theoretically possible
-    /// for any call into the Python runtime to modify the values in the slice.
-    pub fn as_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [ReadOnlyCell<T>]> {
-        if !self.is_c_contiguous() {
-            return None;
-        }
-
-        Some(unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) })
+    /// Accessing the memory requires upholding the [buffer memory access
+    /// requirements](PyUntypedBufferView::buf_ptr).
+    pub fn as_slice_ptr(&self) -> Option<NonNull<[T]>> {
+        self.is_c_contiguous()
+            .then(|| self.slice_pointer_internal())
     }
 
-    /// Gets the buffer memory as a mutable slice.
+    /// Gets the buffer memory as a slice.
     ///
-    /// Returns `None` if the buffer is read-only or not C-contiguous.
+    /// Returns `None` if the buffer is not Fortran-contiguous.
     ///
-    /// The returned slice uses type [`Cell<T>`](cell::Cell) because it's theoretically possible
-    /// for any call into the Python runtime to modify the values in the slice.
-    pub fn as_mut_slice<'a>(&'a self, _py: Python<'a>) -> Option<&'a [cell::Cell<T>]> {
-        if self.readonly() || !self.is_c_contiguous() {
-            return None;
-        }
-
-        Some(unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) })
+    /// Accessing the memory requires upholding the [buffer memory access
+    /// requirements](PyUntypedBufferView::buf_ptr).
+    pub fn as_fortran_slice_ptr(&self) -> Option<NonNull<[T]>> {
+        self.is_fortran_contiguous()
+            .then(|| self.slice_pointer_internal())
     }
 
     /// Gets the buffer memory as a slice. The buffer is guaranteed C-contiguous.
-    pub fn as_contiguous_slice<'a>(&'a self, _py: Python<'a>) -> &'a [ReadOnlyCell<T>]
+    ///
+    /// Accessing the memory requires upholding the [buffer memory access
+    /// requirements](PyUntypedBufferView::buf_ptr).
+    pub fn as_contiguous_slice_ptr(&self) -> NonNull<[T]>
     where
         Flag: flags::GuaranteesCContiguous,
     {
-        unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) }
+        self.slice_pointer_internal()
     }
 
-    /// Gets the buffer memory as a mutable slice.
-    /// The buffer is guaranteed C-contiguous and writable.
-    pub fn as_contiguous_mut_slice<'a>(&'a self, _py: Python<'a>) -> &'a [cell::Cell<T>]
-    where
-        Flag: flags::GuaranteesCContiguous + flags::GuaranteesWritable,
-    {
-        unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) }
-    }
-
-    /// Gets the buffer memory as a slice. The buffer is guaranteed Fortran-contiguous.
-    pub fn as_fortran_contiguous_slice<'a>(&'a self, _py: Python<'a>) -> &'a [ReadOnlyCell<T>]
+    /// Gets the buffer memory as a slice pointer. The buffer is guaranteed Fortran-contiguous.
+    ///
+    /// Accessing the memory requires upholding the [buffer memory access
+    /// requirements](PyUntypedBufferView::buf_ptr).
+    pub fn as_fortran_contiguous_slice_ptr(&self) -> NonNull<[T]>
     where
         Flag: flags::GuaranteesFContiguous,
     {
-        unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) }
+        self.slice_pointer_internal()
     }
 
-    /// Gets the buffer memory as a mutable slice.
-    /// The buffer is guaranteed Fortran-contiguous and writable.
-    pub fn as_fortran_contiguous_mut_slice<'a>(&'a self, _py: Python<'a>) -> &'a [cell::Cell<T>]
-    where
-        Flag: flags::GuaranteesFContiguous + flags::GuaranteesWritable,
-    {
-        unsafe { slice::from_raw_parts(self.0.raw.buf.cast(), self.item_count()) }
+    fn slice_pointer_internal(&self) -> NonNull<[T]> {
+        NonNull::new(ptr::slice_from_raw_parts_mut(
+            self.0.raw.buf.cast(),
+            self.item_count(),
+        ))
+        .expect("buffer data pointer is non-null")
     }
 }
 
@@ -1832,13 +1825,14 @@ mod tests {
                 assert_eq!(view.shape(), [5]);
                 assert!(view.suboffsets().is_none());
 
-                let slice = view.as_slice(py).unwrap();
-                assert_eq!(slice.len(), 5);
-                assert_eq!(slice[0].get(), b'a');
-                assert_eq!(slice[4].get(), b'e');
+                let slice_ptr = view.as_slice_ptr().unwrap();
+                assert_eq!(slice_ptr.len(), 5);
+                // SAFETY: bytes are immutable and the export is still alive.
+                assert_eq!(unsafe { slice_ptr.as_ref() }, b"abcde");
+                assert!(view.readonly());
 
-                // bytes are read-only
-                assert!(view.as_mut_slice(py).is_none());
+                let fortran_slice_ptr = view.as_fortran_slice_ptr().unwrap();
+                assert_eq!(fortran_slice_ptr, slice_ptr);
             })
             .unwrap();
         });
@@ -1858,16 +1852,14 @@ mod tests {
                 assert_eq!(view.format().to_str().unwrap(), "f");
                 assert_eq!(view.shape(), [4]);
 
-                let slice = view.as_slice(py).unwrap();
-                assert_eq!(slice.len(), 4);
-                assert_eq!(slice[0].get(), 1.0);
-                assert_eq!(slice[3].get(), 2.5);
-
-                // array.array is writable
-                let mut_slice = view.as_mut_slice(py).unwrap();
-                assert_eq!(mut_slice[0].get(), 1.0);
-                mut_slice[3].set(2.75);
-                assert_eq!(slice[3].get(), 2.75);
+                let mut slice_ptr = view.as_slice_ptr().unwrap();
+                assert_eq!(slice_ptr.len(), 4);
+                assert!(!view.readonly());
+                // SAFETY: the array is writable, not shared, and the export is still alive.
+                let slice = unsafe { slice_ptr.as_mut() };
+                assert_eq!(slice, &[1.0, 1.5, 2.0, 2.5]);
+                slice[3] = 2.75;
+                assert_eq!(slice[3], 2.75);
             })
             .unwrap();
         });
@@ -1927,7 +1919,7 @@ mod tests {
                 assert_eq!(view.item_size(), 1);
                 assert_eq!(view.item_count(), byte_count);
                 assert_eq!(
-                    view.as_typed::<u8>().unwrap().as_slice(py).unwrap().len(),
+                    view.as_typed::<u8>().unwrap().as_slice_ptr().unwrap().len(),
                     byte_count
                 );
             })
@@ -1937,11 +1929,7 @@ mod tests {
                 assert_eq!(view.item_size(), 1);
                 assert_eq!(view.item_count(), byte_count);
                 assert_eq!(
-                    view.as_typed::<u8>()
-                        .unwrap()
-                        .as_mut_slice(py)
-                        .unwrap()
-                        .len(),
+                    view.as_typed::<u8>().unwrap().as_slice_ptr().unwrap().len(),
                     byte_count
                 );
             })
@@ -1955,7 +1943,7 @@ mod tests {
             PyBufferView::<u8>::with_flags(&memoryview, PyBufferRequest::simple(), |view| {
                 assert!(view.0.raw.format.is_null());
                 assert!(view.0.raw.shape.is_null());
-                assert_eq!(view.as_slice(py).unwrap().len(), byte_count);
+                assert_eq!(view.as_slice_ptr().unwrap().len(), byte_count);
             })
             .unwrap();
         });
@@ -1997,7 +1985,7 @@ mod tests {
 
             let empty_bytes = PyBytes::new(py, b"");
             PyBufferView::<u8>::with(&empty_bytes, |view| {
-                assert!(view.as_slice(py).unwrap().is_empty());
+                assert_eq!(view.as_slice_ptr().unwrap().len(), 0);
             })
             .unwrap();
         });
@@ -2035,13 +2023,14 @@ mod tests {
                     assert_eq!(view.format().to_str().unwrap(), "f");
                     assert_eq!(view.shape(), [4]);
 
-                    let slice = view.as_slice(py).unwrap();
-                    assert_eq!(slice[0].get(), 1.0);
-                    assert_eq!(slice[3].get(), 2.5);
-
-                    let mut_slice = view.as_mut_slice(py).unwrap();
-                    mut_slice[0].set(9.0);
-                    assert_eq!(slice[0].get(), 9.0);
+                    let mut slice_ptr = view.as_slice_ptr().unwrap();
+                    assert!(!view.readonly());
+                    // SAFETY: the array is writable, not shared, and the export is still alive.
+                    let slice = unsafe { slice_ptr.as_mut() };
+                    assert_eq!(slice[0], 1.0);
+                    assert_eq!(slice[3], 2.5);
+                    slice[0] = 9.0;
+                    assert_eq!(slice[0], 9.0);
                 },
             )
             .unwrap();
@@ -2062,7 +2051,7 @@ mod tests {
     }
 
     #[test]
-    fn test_c_contiguous_slice() {
+    fn test_c_contiguous_slice_ptr() {
         Python::attach(|py| {
             let array = py
                 .import("array")
@@ -2070,26 +2059,26 @@ mod tests {
                 .call_method("array", ("f", (1.0, 1.5, 2.0)), None)
                 .unwrap();
 
-            // C_CONTIGUOUS: guaranteed contiguous readonly access (no Option)
             PyBufferView::<f32>::with_flags(
                 &array,
                 PyBufferRequest::simple().c_contiguous().format(),
                 |view| {
-                    let slice = view.as_contiguous_slice(py);
-                    assert_eq!(slice.len(), 3);
-                    assert_eq!(slice[0].get(), 1.0);
-                    assert_eq!(slice[2].get(), 2.0);
+                    let slice_ptr = view.as_contiguous_slice_ptr();
+                    assert_eq!(slice_ptr.len(), 3);
+                    assert_eq!(Some(slice_ptr), view.as_slice_ptr());
+                    // SAFETY: the array is not shared and the export is still alive.
+                    assert_eq!(unsafe { slice_ptr.as_ref() }, &[1.0, 1.5, 2.0]);
                 },
             )
             .unwrap();
 
-            // C_CONTIGUOUS | WRITABLE (via CONTIG combined with STRIDES-level):
-            // no predefined constant, but we can use PyBufferView::with on a writable array
-            // and the Option-based as_mut_slice still works
             PyBufferView::<f32>::with(&array, |view| {
-                let mut_slice = view.as_mut_slice(py).unwrap();
-                mut_slice[2].set(9.0);
-                assert_eq!(view.as_slice(py).unwrap()[2].get(), 9.0);
+                let mut slice_ptr = view.as_slice_ptr().unwrap();
+                assert!(!view.readonly());
+                // SAFETY: the array is writable, not shared, and the export is still alive.
+                let slice = unsafe { slice_ptr.as_mut() };
+                slice[2] = 9.0;
+                assert_eq!(slice[2], 9.0);
             })
             .unwrap();
         });
@@ -2376,18 +2365,13 @@ mod tests {
             .unwrap();
 
             PyBufferView::<f32>::with_flags(&array, PyBufferRequest::contig().format(), |view| {
-                let slice = view.as_contiguous_slice(py);
-                assert_eq!(slice[0].get(), 1.0);
-            })
-            .unwrap();
-
-            // Writable + contiguity on typed view
-            PyBufferView::<f32>::with_flags(&array, PyBufferRequest::contig().format(), |view| {
-                let slice = view.as_contiguous_slice(py);
-                assert_eq!(slice[0].get(), 1.0);
-                let mut_slice = view.as_contiguous_mut_slice(py);
-                mut_slice[0].set(9.0);
-                assert_eq!(slice[0].get(), 9.0);
+                let mut slice_ptr = view.as_contiguous_slice_ptr();
+                assert!(!view.readonly());
+                // SAFETY: the array is writable, not shared, and the export is still alive.
+                let slice = unsafe { slice_ptr.as_mut() };
+                assert_eq!(slice[0], 1.0);
+                slice[0] = 9.0;
+                assert_eq!(slice[0], 9.0);
             })
             .unwrap();
 
