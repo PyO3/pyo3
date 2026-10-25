@@ -210,6 +210,7 @@ about this topic.
 - [geo-index](https://github.com/kylebarron/geo-index) _A Rust crate and [Python library](https://github.com/kylebarron/geo-index/tree/main/python) for packed, immutable, zero-copy spatial indexes._
 - [granian](https://github.com/emmett-framework/granian) _A Rust HTTP server for Python applications._
 - [haem](https://github.com/BooleanCat/haem) _A Python library for working on Bioinformatics problems._
+- [harper-py](https://github.com/Maksim-Burtsev/harper-py) _Python bindings for [Harper](https://github.com/Automattic/harper), an offline English grammar checker._
 - [hifitime](https://github.com/nyx-space/hifitime) _A high fidelity time management library for engineering and scientific applications where general relativity and time dilation matter._
 - [html2text-rs](https://github.com/deedy5/html2text_rs) _Python library for converting HTML to markup or plain text._
 - [html-py-ever](https://github.com/PyO3/setuptools-rust/tree/main/examples/html-py-ever) _Using [html5ever](https://github.com/servo/html5ever) through [kuchiki](https://github.com/kuchiki-rs/kuchiki) to speed up html parsing and css-selecting._
