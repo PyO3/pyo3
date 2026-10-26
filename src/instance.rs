@@ -184,6 +184,35 @@ impl<'py, T> Bound<'py, T> {
         inner(self.as_any())
     }
 
+    /// Like [`cast`](Self::cast), but returns `None` instead of a [`CastError`] on failure.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, PyList};
+    ///
+    /// Python::attach(|py| {
+    ///     let dict = PyDict::new(py);
+    ///     let any = dict.as_any();
+    ///
+    ///     assert!(any.cast_or_opt::<PyDict>().is_some());
+    ///     assert!(any.cast_or_opt::<PyList>().is_none());
+    /// });
+    /// ```
+    #[inline]
+    pub fn cast_or_opt<U>(&self) -> Option<&Bound<'py, U>>
+    where
+        U: PyTypeCheck,
+    {
+        if U::type_check(self.as_any()) {
+            // SAFETY: type_check is responsible for ensuring that the type is correct.
+            Some(unsafe { self.cast_unchecked() })
+        } else {
+            None
+        }
+    }
+
     /// Like [`cast`](Self::cast) but takes ownership of `self`.
     ///
     /// In case of an error, it is possible to retrieve `self` again via
@@ -227,6 +256,40 @@ impl<'py, T> Bound<'py, T> {
         }
 
         inner(self.into_any())
+    }
+
+    /// Like [`cast_into`](Self::cast_into), but returns `Err(self)` instead of a
+    /// [`CastIntoError`] on failure.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyDict, PyList};
+    ///
+    /// Python::attach(|py| {
+    ///     let obj: Bound<'_, PyAny> = PyDict::new(py).into_any();
+    ///
+    ///     let obj: Bound<'_, PyAny> = match obj.cast_into_or_err::<PyList>() {
+    ///         Ok(_) => panic!("obj should not be a list"),
+    ///         Err(obj) => obj,
+    ///     };
+    ///
+    ///     // obj is a dictionary
+    ///     assert!(obj.cast_into_or_err::<PyDict>().is_ok());
+    /// });
+    /// ```
+    #[inline]
+    pub fn cast_into_or_err<U>(self) -> Result<Bound<'py, U>, Self>
+    where
+        U: PyTypeCheck,
+    {
+        if U::type_check(self.as_any()) {
+            // SAFETY: type_check is responsible for ensuring that the type is correct.
+            Ok(unsafe { self.cast_into_unchecked() })
+        } else {
+            Err(self)
+        }
     }
 
     /// Cast this to a concrete Python type or pyclass (but not a subclass of it).
@@ -285,6 +348,36 @@ impl<'py, T> Bound<'py, T> {
         inner(self.as_any())
     }
 
+    /// Like [`cast_exact`](Self::cast_exact), but returns `None` instead of a [`CastError`] on
+    /// failure.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyBool, PyInt};
+    ///
+    /// Python::attach(|py| {
+    ///     let b = PyBool::new(py, true);
+    ///     let any = b.as_any();
+    ///
+    ///     assert!(any.cast_exact_or_opt::<PyInt>().is_none());
+    ///     assert!(any.cast_exact_or_opt::<PyBool>().is_some());
+    /// });
+    /// ```
+    #[inline]
+    pub fn cast_exact_or_opt<U>(&self) -> Option<&Bound<'py, U>>
+    where
+        U: PyTypeInfo,
+    {
+        if self.as_any().is_exact_instance_of::<U>() {
+            // SAFETY: is_exact_instance_of is responsible for ensuring that the type is correct.
+            Some(unsafe { self.cast_unchecked() })
+        } else {
+            None
+        }
+    }
+
     /// Like [`cast_exact`](Self::cast_exact) but takes ownership of `self`.
     #[inline]
     pub fn cast_into_exact<U>(self) -> Result<Bound<'py, U>, CastIntoError<'py>>
@@ -306,6 +399,40 @@ impl<'py, T> Bound<'py, T> {
         }
 
         inner(self.into_any())
+    }
+
+    /// Like [`cast_into_exact`](Self::cast_into_exact), but returns `Err(self)` instead of a
+    /// [`CastIntoError`] on failure.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use pyo3::prelude::*;
+    /// use pyo3::types::{PyBool, PyInt};
+    ///
+    /// Python::attach(|py| {
+    ///     let obj: Bound<'_, PyAny> = PyBool::new(py, true).to_owned().into_any();
+    ///
+    ///     let obj: Bound<'_, PyAny> = match obj.cast_into_exact_or_err::<PyInt>() {
+    ///         Ok(_) => panic!("obj should not be an exact int"),
+    ///         Err(obj) => obj,
+    ///     };
+    ///
+    ///     // obj is a bool
+    ///     assert!(obj.cast_into_exact_or_err::<PyBool>().is_ok());
+    /// });
+    /// ```
+    #[inline]
+    pub fn cast_into_exact_or_err<U>(self) -> Result<Bound<'py, U>, Self>
+    where
+        U: PyTypeInfo,
+    {
+        if self.as_any().is_exact_instance_of::<U>() {
+            // SAFETY: is_exact_instance_of is responsible for ensuring that the type is correct.
+            Ok(unsafe { self.cast_into_unchecked() })
+        } else {
+            Err(self)
+        }
     }
 
     /// Converts this to a concrete Python type without checking validity.
@@ -1038,6 +1165,20 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
         inner(self.to_any())
     }
 
+    /// Like [`cast`](Self::cast), but returns `None` instead of a [`CastError`] on failure.
+    #[inline]
+    pub fn cast_or_opt<U>(self) -> Option<Borrowed<'a, 'py, U>>
+    where
+        U: PyTypeCheck,
+    {
+        if U::type_check(&self.to_any()) {
+            // SAFETY: type_check is responsible for ensuring that the type is correct.
+            Some(unsafe { self.cast_unchecked() })
+        } else {
+            None
+        }
+    }
+
     /// Cast this to a concrete Python type or pyclass (but not a subclass of it).
     ///
     /// It is almost always better to use [`cast`](Self::cast) because it accounts for Python
@@ -1065,6 +1206,21 @@ impl<'a, 'py, T> Borrowed<'a, 'py, T> {
             }
         }
         inner(self.to_any())
+    }
+
+    /// Like [`cast_exact`](Self::cast_exact), but returns `None` instead of a [`CastError`] on
+    /// failure.
+    #[inline]
+    pub fn cast_exact_or_opt<U>(self) -> Option<Borrowed<'a, 'py, U>>
+    where
+        U: PyTypeInfo,
+    {
+        if self.to_any().is_exact_instance_of::<U>() {
+            // SAFETY: is_exact_instance_of is responsible for ensuring that the type is correct.
+            Some(unsafe { self.cast_unchecked() })
+        } else {
+            None
+        }
     }
 
     /// Converts this to a concrete Python type without checking validity.

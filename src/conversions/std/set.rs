@@ -72,7 +72,7 @@ where
                 Ok(result)
             }
             Err(err) => {
-                if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
+                if let Some(frozen_set) = ob.cast_or_opt::<PyFrozenSet>() {
                     let mut result = Self::with_capacity_and_hasher(frozen_set.len(), S::default());
                     for item in frozen_set.iter() {
                         result.insert(item.extract().map_err(Into::into)?);
@@ -138,7 +138,7 @@ where
                 Ok(values.into_iter().collect())
             }
             Err(err) => {
-                if let Ok(frozen_set) = ob.cast::<PyFrozenSet>() {
+                if let Some(frozen_set) = ob.cast_or_opt::<PyFrozenSet>() {
                     let mut values = Vec::with_capacity(frozen_set.len());
                     for item in frozen_set.iter() {
                         values.push(item.extract().map_err(Into::into)?);

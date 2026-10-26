@@ -256,7 +256,7 @@ impl<'py> FromPyObject<'_, 'py> for BigInt {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<BigInt, Self::Error> {
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Bound<'_, PyInt>;
-        let num = if let Ok(long) = ob.cast::<PyInt>() {
+        let num = if let Some(long) = ob.cast_or_opt::<PyInt>() {
             long
         } else {
             num_owned = nb_index(&ob)?;
@@ -318,7 +318,7 @@ impl<'py> FromPyObject<'_, 'py> for BigUint {
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<BigUint, Self::Error> {
         // fast path - checking for subclass of `int` just checks a bit in the type object
         let num_owned: Bound<'_, PyInt>;
-        let num = if let Ok(long) = ob.cast::<PyInt>() {
+        let num = if let Some(long) = ob.cast_or_opt::<PyInt>() {
             long
         } else {
             num_owned = nb_index(&ob)?;

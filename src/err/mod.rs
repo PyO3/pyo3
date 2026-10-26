@@ -188,12 +188,11 @@ impl PyErr {
     /// });
     /// ```
     pub fn from_value(obj: Bound<'_, PyAny>) -> PyErr {
-        let state = match obj.cast_into::<PyBaseException>() {
+        let state = match obj.cast_into_or_err::<PyBaseException>() {
             Ok(obj) => PyErrState::normalized(PyErrStateNormalized::new(obj)),
-            Err(err) => {
+            Err(obj) => {
                 // Assume obj is Type[Exception]; let later normalization handle if this
                 // is not the case
-                let obj = err.into_inner();
                 let py = obj.py();
                 PyErrState::lazy_arguments(obj.unbind(), py.None())
             }

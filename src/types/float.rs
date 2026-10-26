@@ -138,7 +138,7 @@ impl<'py> FromPyObject<'_, 'py> for f64 {
         // we have exactly a `float` object (it's not worth going through
         // `isinstance` machinery for subclasses).
         #[cfg(not(Py_LIMITED_API))]
-        if let Ok(float) = obj.cast_exact::<PyFloat>() {
+        if let Some(float) = obj.cast_exact_or_opt::<PyFloat>() {
             return Ok(float.value());
         }
 
