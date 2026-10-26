@@ -30,6 +30,11 @@ pub(crate) const MINIMUM_SUPPORTED_VERSION_ABI3T: PythonVersion = PythonVersion 
     minor: 15,
 };
 
+const MINIMUM_SUPPORTED_VERSION_PLATFORM_STABLE_SUFFIX: PythonVersion = PythonVersion {
+    major: 3,
+    minor: 15,
+};
+
 /// GraalPy may implement the same CPython version over multiple releases.
 const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
     major: 25,
@@ -172,6 +177,11 @@ pub struct InterpreterConfig {
     pub shared: bool,
 
     target_abi: PythonAbi,
+    // Original interpreter ABI, independent of extension module filenames.
+    interpreter_abi: Option<PythonAbi>,
+
+    soabi_filename: Option<String>,
+    extension_module_metadata: ExtensionModuleMetadata,
 
     /// Serialized to `abi3`.
     #[deprecated(since = "0.29.0", note = "please match against target_abi instead")]
@@ -302,6 +312,43 @@ impl InterpreterConfig {
     /// Serialized to `target_abi`.
     pub fn target_abi(&self) -> PythonAbi {
         self.target_abi
+    }
+
+    /// The filename suffix for an extension module targeting this configuration.
+    ///
+    /// This does not include the module name. For example, append `.abi3.so` to
+    /// `my_module` to obtain `my_module.abi3.so`. The suffix includes the shared
+    /// library extension, and may start with `_d` on debug builds of Windows.
+    ///
+    /// CPython stable ABI extensions include the target's `SOABI_PLATFORM` when
+    /// the minimum Python version is 3.15 or newer and the platform is known.
+    /// Older minimum versions and missing platform tags use the legacy suffix.
+    /// Windows and Cygwin use their respective `.pyd` and `.dll` suffixes.
+    /// PyPy, GraalPy, and RustPython retain their implementation-specific
+    /// `EXT_SUFFIX`, even when the target ABI is marked as stable.
+    ///
+    /// Returns `None` when the suffix cannot be determined from the target
+    /// metadata, for example a version-specific cross build without sysconfigdata.
+    ///
+    /// Serialized to `soabi_filename`. The independent inputs `interpreter_abi`,
+    /// `ext_suffix`, `extension_module_loader`, and `soabi_platform` are preserved
+    /// even when the filename is unknown. A version-specific suffix is only
+    /// reused when its interpreter ABI matches the new target ABI.
+    /// Without a complete original suffix and ABI, an explicitly saved filename
+    /// is preserved while the target ABI is unchanged. Older configurations may
+    /// supply a loader hint through that filename when first read.
+    /// A version-specific target matching the configured interpreter can also
+    /// supply the original ABI when applying build features to an older config.
+    pub fn soabi_filename(&self) -> Option<&str> {
+        self.soabi_filename.as_deref()
+    }
+
+    fn update_soabi_filename(&mut self) {
+        self.soabi_filename = calculate_soabi_filename(
+            self.target_abi,
+            self.interpreter_abi,
+            &self.extension_module_metadata,
+        );
     }
 
     /// Whether linking against the stable/limited Python 3 API.
@@ -477,6 +524,8 @@ print("executable", sys.executable)
 print("calcsize_pointer", struct.calcsize("P"))
 print("mingw", get_platform().startswith("mingw"))
 print("cygwin", get_platform().startswith("cygwin"))
+print("ext_suffix", get_config_var("EXT_SUFFIX"))
+print_if_set("soabi_platform", get_config_var("SOABI_PLATFORM"))
 print("gil_disabled", get_config_var("Py_GIL_DISABLED"))
 debug = get_config_var("Py_DEBUG")
 if debug is None:
@@ -543,6 +592,15 @@ print("debug", bool(debug))
             PythonAbi::builder_from_stable_abi(implementation, version, stable_abi, gil_disabled)?
                 .maybe_debug(map["debug"] == "True")
                 .finalize()?;
+        let interpreter_abi = PythonAbi::from_interpreter(
+            implementation,
+            version,
+            gil_disabled,
+            target_abi.is_debug(),
+        )?;
+
+        let cygwin = map["cygwin"].as_str() == "True";
+        let ext_suffix = map.get("ext_suffix").cloned();
 
         let lib_name = if cfg!(windows) {
             default_lib_name_windows(target_abi, map["mingw"].as_str() == "True")
@@ -572,6 +630,12 @@ print("debug", bool(debug))
 
         InterpreterConfigBuilder::new(implementation, version)
             .target_abi(target_abi)
+            .interpreter_abi(Some(interpreter_abi))
+            .extension_module_loader(
+                (implementation == PythonImplementation::CPython && cygwin)
+                    .then_some(ExtensionModuleLoader::Cygwin),
+            )
+            .extension_module_metadata(ext_suffix, map.get("soabi_platform").cloned())
             .shared(shared)
             .lib_name(lib_name)
             .lib_dir(lib_dir)
@@ -622,6 +686,7 @@ print("debug", bool(debug))
             .map(str::to_string);
         let lib_dir = get_key!(sysconfigdata, "LIBDIR").ok().map(str::to_string);
         let cygwin = soabi.ends_with("cygwin");
+        let ext_suffix = sysconfigdata.get_value("EXT_SUFFIX").map(str::to_owned);
         // purely descriptive of the interpreter in the sysconfigdata: PyO3's own
         // build pipeline applies any abi3/abi3t cargo features to this config
         // afterwards, in apply_build_env
@@ -638,6 +703,15 @@ print("debug", bool(debug))
 
         InterpreterConfigBuilder::new(implementation, version)
             .target_abi(target_abi)
+            .interpreter_abi(Some(target_abi))
+            .extension_module_loader(
+                (implementation == PythonImplementation::CPython && cygwin)
+                    .then_some(ExtensionModuleLoader::Cygwin),
+            )
+            .extension_module_metadata(
+                ext_suffix,
+                sysconfigdata.get_value("SOABI_PLATFORM").map(str::to_owned),
+            )
             .shared(shared || framework)
             .pointer_width(pointer_width)
             .lib_name(lib_name)
@@ -714,7 +788,14 @@ print("debug", bool(debug))
         let mut implementation = None;
         let mut version = None;
         let mut shared = None;
-        let mut target_abi = None;
+        let mut target_abi: Option<PythonAbi> = None;
+        let mut interpreter_abi: Option<PythonAbi> = None;
+        let mut legacy_interpreter_abi = None;
+        let mut soabi_filename = None;
+        let mut ext_suffix = None;
+        let mut extension_module_loader = None;
+        let mut legacy_windows_debug = false;
+        let mut soabi_platform = None;
         // deprecated in the struct but we still allow it to support old config files
         let mut abi3 = None;
         let mut lib_name = None;
@@ -742,6 +823,18 @@ print("debug", bool(debug))
                 "version" => parse_value!(version, value),
                 "shared" => parse_value!(shared, value),
                 "target_abi" => parse_value!(target_abi, value),
+                "interpreter_abi" => parse_value!(interpreter_abi, value),
+                "ext_suffix_abi" => parse_value!(legacy_interpreter_abi, value),
+                "soabi_filename" => parse_value!(soabi_filename, value),
+                "ext_suffix" => parse_value!(ext_suffix, value),
+                "extension_module_loader" => {
+                    // Older suffix metadata kept debug on the Windows loader.
+                    // Normalize it into the ABI; only the loader kind is stored.
+                    legacy_windows_debug = value.trim() == "pyd_debug";
+                    let value = if legacy_windows_debug { "pyd" } else { value };
+                    parse_value!(extension_module_loader, value);
+                }
+                "soabi_platform" => parse_value!(soabi_platform, value),
                 "abi3" => parse_value!(abi3, value),
                 "lib_name" => parse_value!(lib_name, value),
                 "lib_dir" => parse_value!(lib_dir, value),
@@ -759,11 +852,26 @@ print("debug", bool(debug))
             }
         }
 
+        ensure!(
+            interpreter_abi.is_none()
+                || legacy_interpreter_abi.is_none()
+                || interpreter_abi == legacy_interpreter_abi,
+            "conflicting interpreter_abi and ext_suffix_abi values"
+        );
+        let mut interpreter_abi = interpreter_abi.or(legacy_interpreter_abi);
         let version = version.ok_or("missing value for version")?;
         let implementation = implementation.unwrap_or(PythonImplementation::CPython);
-        let build_flags = build_flags.unwrap_or_default();
+        let mut build_flags = build_flags.unwrap_or_default();
+        if legacy_windows_debug {
+            build_flags.0.insert(BuildFlag::Py_DEBUG);
+        }
         let flags_contains_free_threaded = build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED);
         let flags_contains_debug = build_flags.0.contains(&BuildFlag::Py_DEBUG);
+        // Before PythonAbi included debug, serialized configs only had the
+        // build flag. An explicit debug target already uses the new format;
+        // keep its independent original interpreter ABI as supplied.
+        let legacy_debug_abi = legacy_windows_debug
+            || (flags_contains_debug && target_abi.is_none_or(|abi| !abi.is_debug()));
         let target_abi = if let Some(target_abi) = target_abi {
             ensure!(
                 abi3.is_none(),
@@ -783,9 +891,21 @@ print("debug", bool(debug))
             };
             builder.maybe_debug(flags_contains_debug).finalize()?
         };
+        if legacy_debug_abi {
+            if let Some(abi) = interpreter_abi
+                .as_mut()
+                .filter(|abi| abi.implementation() == target_abi.implementation())
+            {
+                abi.debug = true;
+            }
+        }
 
         let builder = InterpreterConfigBuilder::new(implementation, version)
             .target_abi(target_abi)
+            .interpreter_abi(interpreter_abi)
+            .soabi_filename(soabi_filename)
+            .extension_module_metadata(ext_suffix, soabi_platform)
+            .extension_module_loader(extension_module_loader)
             .shared(shared.unwrap_or(true))
             .lib_name(lib_name)
             .lib_dir(lib_dir)
@@ -848,6 +968,22 @@ print("debug", bool(debug))
         write_line!(version)?;
         write_line!(shared)?;
         write_line!(target_abi)?;
+        write_option_line!(interpreter_abi)?;
+        write_option_line!(soabi_filename)?;
+        let metadata = &self.extension_module_metadata;
+        for (key, value) in [
+            ("ext_suffix", metadata.suffix.as_deref()),
+            (
+                "extension_module_loader",
+                metadata.loader.map(ExtensionModuleLoader::as_str),
+            ),
+            ("soabi_platform", metadata.platform.as_deref()),
+        ] {
+            if let Some(value) = value {
+                writeln!(writer, "{key}={value}")
+                    .context(format!("failed to write {key} to config"))?;
+            }
+        }
         write_option_line!(lib_name)?;
         write_option_line!(lib_dir)?;
         write_option_line!(executable)?;
@@ -899,14 +1035,67 @@ print("debug", bool(debug))
     }
 
     fn apply_build_env(mut self) -> Result<InterpreterConfig> {
+        // Old configs have no original ABI. A version-specific ABI matching the
+        // interpreter is enough to preserve it before selecting a stable ABI.
+        // An already-stable ABI cannot recover the original interpreter state.
+        if self.interpreter_abi.is_none()
+            && self.target_abi.implementation() == self.implementation
+            && self.target_abi.version() == self.version
+            && matches!(self.target_abi.kind(), PythonAbiKind::VersionSpecific(_))
+        {
+            self.interpreter_abi = Some(self.target_abi);
+            if self.extension_module_metadata.suffix.is_some() {
+                // Match finalization once the original metadata is complete,
+                // so serialization does not change the computed filename.
+                self.update_soabi_filename();
+            }
+        }
         // the host `implementation` may differ from the `target_abi`
         // implementation; the recomputed ABI must stay on the target
-        self.target_abi = PythonAbi::from_cargo_features(
+        // abi3t works on both GIL-enabled and free-threaded interpreters. Its
+        // target kind cannot describe the original interpreter's GIL state.
+        let (version, gil_disabled, debug) = self
+            .interpreter_abi
+            .filter(|abi| abi.implementation() == self.target_abi.implementation())
+            .map_or(
+                (
+                    self.version,
+                    self.target_abi.kind().is_free_threaded(),
+                    self.target_abi.is_debug(),
+                ),
+                |abi| (abi.version(), abi.kind().is_free_threaded(), abi.is_debug()),
+            );
+        let target_abi = PythonAbi::from_cargo_features(
             self.target_abi.implementation,
-            self.version,
-            self.target_abi.kind().is_free_threaded(),
-            self.target_abi.debug,
+            version,
+            gil_disabled,
+            debug,
         )?;
+        if self.target_abi != target_abi {
+            self.target_abi = target_abi;
+            for (flag, enabled) in [
+                (
+                    BuildFlag::Py_GIL_DISABLED,
+                    target_abi.kind().is_free_threaded(),
+                ),
+                (BuildFlag::Py_DEBUG, target_abi.is_debug()),
+            ] {
+                if enabled {
+                    self.build_flags.0.insert(flag);
+                } else {
+                    self.build_flags.0.remove(&flag);
+                }
+            }
+            self.build_flags = self.build_flags.fixup();
+            #[expect(
+                deprecated,
+                reason = "keep the legacy field consistent with target_abi"
+            )]
+            {
+                self.abi3 = matches!(target_abi.kind(), PythonAbiKind::Stable(StableAbi::Abi3));
+            }
+            self.update_soabi_filename();
+        }
         Ok(self)
     }
 }
@@ -1054,6 +1243,18 @@ impl FromStr for PythonAbi {
 }
 
 impl PythonAbi {
+    // Describe the interpreter itself, independently of the requested target ABI.
+    fn from_interpreter(
+        implementation: PythonImplementation,
+        version: PythonVersion,
+        gil_disabled: bool,
+        debug: bool,
+    ) -> Result<Self> {
+        Self::builder_from_stable_abi(implementation, version, None, gil_disabled)?
+            .maybe_debug(debug)
+            .finalize()
+    }
+
     /// Constructs the ABI to target for an interpreter of `version`, given the
     /// stable ABI kind and minimum Python version to target, if any.
     ///
@@ -1089,7 +1290,11 @@ impl PythonAbi {
                 );
                 PythonAbiBuilder::new(implementation, min_version).stable_abi(kind)
             }
-            None if gil_disabled => PythonAbiBuilder::new(implementation, version).free_threaded(),
+            None if gil_disabled && implementation != PythonImplementation::RustPython => {
+                PythonAbiBuilder::new(implementation, version).free_threaded()
+            }
+            // RustPython has no version-specific ABI. Its default builder
+            // selects abi3t, retaining the original interpreter version.
             None => PythonAbiBuilder::new(implementation, version),
         };
         Ok(builder)
@@ -1268,6 +1473,9 @@ pub struct InterpreterConfigBuilder {
     version: PythonVersion,
     shared: bool,
     target_abi: Option<PythonAbi>,
+    interpreter_abi: Option<PythonAbi>,
+    soabi_filename: Option<String>,
+    extension_module_metadata: ExtensionModuleMetadata,
     lib_name: Option<String>,
     lib_dir: Option<String>,
     executable: Option<String>,
@@ -1288,6 +1496,9 @@ impl InterpreterConfigBuilder {
             version,
             shared: true,
             target_abi: None,
+            interpreter_abi: None,
+            soabi_filename: None,
+            extension_module_metadata: ExtensionModuleMetadata::default(),
             lib_name: None,
             lib_dir: None,
             executable: None,
@@ -1306,6 +1517,47 @@ impl InterpreterConfigBuilder {
             target_abi: Some(target_abi),
             ..self
         }
+    }
+
+    fn interpreter_abi(mut self, abi: Option<PythonAbi>) -> Self {
+        self.interpreter_abi = abi.filter(|abi| {
+            if abi.implementation() == PythonImplementation::RustPython {
+                matches!(abi.kind(), PythonAbiKind::Stable(StableAbi::Abi3t))
+            } else {
+                matches!(abi.kind(), PythonAbiKind::VersionSpecific(_))
+            }
+        });
+        self
+    }
+
+    /// Sets the extension module filename suffix, without the module name.
+    ///
+    /// See [`InterpreterConfig::soabi_filename`]. If the target ABI subsequently
+    /// changes, the suffix is recomputed from any stored target metadata. Without
+    /// that metadata, a version-specific suffix may no longer be known.
+    pub fn soabi_filename(
+        mut self,
+        soabi_filename: impl Into<Option<String>>,
+    ) -> InterpreterConfigBuilder {
+        self.soabi_filename = soabi_filename.into();
+        self
+    }
+
+    fn extension_module_metadata(
+        mut self,
+        ext_suffix: Option<String>,
+        soabi_platform: Option<String>,
+    ) -> InterpreterConfigBuilder {
+        self.extension_module_metadata.suffix =
+            ext_suffix.filter(|s| !matches!(s.as_str(), "" | "None"));
+        self.extension_module_metadata.platform =
+            normalize_soabi_platform(soabi_platform.as_deref());
+        self
+    }
+
+    fn extension_module_loader(mut self, loader: Option<ExtensionModuleLoader>) -> Self {
+        self.extension_module_metadata.loader = loader;
+        self
     }
 
     pub fn stable_abi(self, kind: StableAbi) -> InterpreterConfigBuilder {
@@ -1450,16 +1702,31 @@ impl InterpreterConfigBuilder {
 
             abi
         };
-
+        let mut metadata = self.extension_module_metadata;
+        // Normalize inputs once. Old configs and explicit builder values can
+        // provide a loader hint, which must outlive any computed filename.
+        metadata.loader = metadata
+            .suffix
+            .as_deref()
+            .and_then(ExtensionModuleLoader::from_suffix)
+            .or(metadata.loader)
+            .or_else(|| {
+                self.soabi_filename
+                    .as_deref()
+                    .and_then(ExtensionModuleLoader::from_suffix)
+            });
         #[expect(
             deprecated,
             reason = "constructing an InterpreterConfig directly, need to write to fields"
         )]
-        Ok(InterpreterConfig {
+        let mut config = InterpreterConfig {
             implementation: self.implementation,
             version: self.version,
             shared: self.shared,
             target_abi,
+            interpreter_abi: self.interpreter_abi,
+            soabi_filename: self.soabi_filename,
+            extension_module_metadata: metadata,
             abi3: matches!(target_abi.kind(), PythonAbiKind::Stable(StableAbi::Abi3)),
             lib_name: self.lib_name,
             lib_dir: self.lib_dir,
@@ -1469,8 +1736,132 @@ impl InterpreterConfigBuilder {
             suppress_build_script_link_lines: self.suppress_build_script_link_lines,
             extra_build_script_lines: self.extra_build_script_lines,
             python_framework_prefix: self.python_framework_prefix,
+        };
+        if (config.interpreter_abi.is_some() && config.extension_module_metadata.suffix.is_some())
+            || config.soabi_filename.is_none()
+            || self.target_abi.is_some_and(|abi| abi != target_abi)
+        {
+            config.update_soabi_filename();
+        }
+        Ok(config)
+    }
+}
+
+fn normalize_soabi_platform(platform: Option<&str>) -> Option<String> {
+    platform
+        .map(str::trim)
+        .filter(|platform| !matches!(*platform, "" | "None" | "0"))
+        .map(str::to_owned)
+}
+
+#[derive(Default)]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
+struct ExtensionModuleMetadata {
+    suffix: Option<String>,
+    loader: Option<ExtensionModuleLoader>,
+    platform: Option<String>,
+}
+
+#[derive(Clone, Copy)]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
+enum ExtensionModuleLoader {
+    SharedObject,
+    Windows,
+    Cygwin,
+}
+
+impl ExtensionModuleLoader {
+    fn from_target(target: &Triple) -> Self {
+        match target.operating_system {
+            OperatingSystem::Windows => Self::Windows,
+            OperatingSystem::Cygwin => Self::Cygwin,
+            _ => Self::SharedObject,
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::SharedObject => "so",
+            Self::Windows => "pyd",
+            Self::Cygwin => "dll",
+        }
+    }
+
+    fn from_suffix(suffix: &str) -> Option<Self> {
+        if suffix.ends_with(".dll") {
+            Some(Self::Cygwin)
+        } else if suffix.ends_with(".pyd") {
+            Some(Self::Windows)
+        } else if suffix.ends_with(".so") {
+            Some(Self::SharedObject)
+        } else {
+            None
+        }
+    }
+
+    fn filename(self, abi: PythonAbi, platform: Option<&str>) -> Option<String> {
+        if abi.implementation() != PythonImplementation::CPython {
+            return None;
+        }
+        // Both upstream and patched Cygwin loaders accept the bare .dll name.
+        // Some also accept version-tagged names, but stable .abi3*.dll is unknown.
+        if matches!(self, Self::Cygwin) {
+            return Some(".dll".to_owned());
+        }
+        let PythonAbiKind::Stable(kind) = abi.kind() else {
+            return None;
+        };
+        Some(match self {
+            Self::Windows if abi.is_debug() => "_d.pyd".to_owned(),
+            Self::Windows => ".pyd".to_owned(),
+            Self::SharedObject => {
+                let platform = platform
+                    .filter(|_| abi.version() >= MINIMUM_SUPPORTED_VERSION_PLATFORM_STABLE_SUFFIX);
+                match platform {
+                    Some(platform) => format!(".{kind}-{platform}.so"),
+                    None => format!(".{kind}.so"),
+                }
+            }
+            Self::Cygwin => unreachable!(),
         })
     }
+}
+
+impl FromStr for ExtensionModuleLoader {
+    type Err = crate::errors::Error;
+
+    fn from_str(value: &str) -> Result<Self> {
+        match value {
+            "so" => Ok(Self::SharedObject),
+            "pyd" => Ok(Self::Windows),
+            "dll" => Ok(Self::Cygwin),
+            _ => bail!("unknown extension module loader '{value}'"),
+        }
+    }
+}
+
+fn calculate_soabi_filename(
+    target_abi: PythonAbi,
+    interpreter_abi: Option<PythonAbi>,
+    metadata: &ExtensionModuleMetadata,
+) -> Option<String> {
+    if interpreter_abi.is_some_and(|abi| abi.implementation() != target_abi.implementation()) {
+        return None;
+    }
+    if let Some(filename) = metadata
+        .loader
+        .and_then(|loader| loader.filename(target_abi, metadata.platform.as_deref()))
+    {
+        return Some(filename);
+    }
+    let interpreter_abi = interpreter_abi?;
+    if interpreter_abi.is_debug() != target_abi.is_debug()
+        || (matches!(target_abi.kind(), PythonAbiKind::VersionSpecific(_))
+            && interpreter_abi != target_abi)
+    {
+        return None;
+    }
+    metadata.suffix.clone()
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -2383,6 +2774,15 @@ fn default_cross_compile(cross_compile_config: &CrossCompileConfig) -> Result<In
 
     InterpreterConfigBuilder::new(implementation, version)
         .target_abi(target_abi)
+        .interpreter_abi(Some(PythonAbi::from_interpreter(
+            implementation,
+            version,
+            gil_disabled,
+            target_abi.is_debug(),
+        )?))
+        .extension_module_loader(Some(ExtensionModuleLoader::from_target(
+            &cross_compile_config.target,
+        )))
         .lib_name(lib_name)
         .lib_dir(lib_dir)
         .finalize()
@@ -2423,7 +2823,8 @@ fn default_stable_abi_config(
         .stable_abi(stable_abi)
         .finalize()?;
     let builder = InterpreterConfigBuilder::new(PythonImplementation::CPython, version)
-        .target_abi(target_abi);
+        .target_abi(target_abi)
+        .extension_module_loader(Some(ExtensionModuleLoader::from_target(host)));
     if host.operating_system == OperatingSystem::Windows {
         builder.lib_name(default_lib_name_windows(target_abi, false))
     } else {
@@ -2850,16 +3251,1132 @@ mod tests {
 
     #[test]
     fn test_config_file_unknown_keys() {
-        // ext_suffix is unknown to pyo3-build-config, but it shouldn't error
+        // Future config keys should not prevent older versions from reading a config.
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY39;
         assert_eq!(
-            InterpreterConfig::from_reader("version=3.9\next_suffix=.python39.so".as_bytes())
-                .unwrap(),
+            InterpreterConfig::from_reader("version=3.9\nunknown_key=value".as_bytes()).unwrap(),
             InterpreterConfigBuilder::new(implementation, version,)
                 .finalize()
                 .unwrap()
         )
+    }
+
+    fn abi_features_command(test_name: &str, features: &[&str]) -> Command {
+        let mut command = Command::new(env::current_exe().unwrap());
+        command.args(["--exact", test_name, "--nocapture"]);
+        command.env_remove("CARGO_FEATURE_ABI3");
+        command.env_remove("CARGO_FEATURE_ABI3T");
+        for minor in MINIMUM_SUPPORTED_VERSION.minor..=STABLE_ABI_MAX_MINOR {
+            command.env_remove(format!("CARGO_FEATURE_ABI3_PY3{minor}"));
+            command.env_remove(format!("CARGO_FEATURE_ABI3T_PY3{minor}"));
+        }
+        for feature in features {
+            command.env(feature, "1");
+        }
+        command
+    }
+
+    fn config_text(config: &InterpreterConfig) -> String {
+        let mut bytes = Vec::new();
+        config.to_writer(&mut bytes).unwrap();
+        String::from_utf8(bytes).unwrap()
+    }
+
+    fn apply_config_in_child(input: &str, features: &[&str]) -> InterpreterConfig {
+        let output = abi_features_command("impl_::tests::config_with_build_env", features)
+            .env("PYO3_BUILD_CONFIG_TEST_INPUT", input)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        let config = stdout
+            .split_once("CONFIG_BEGIN\n")
+            .unwrap()
+            .1
+            .split_once("CONFIG_END")
+            .unwrap()
+            .0;
+        InterpreterConfig::from_reader(config.as_bytes()).unwrap()
+    }
+
+    #[test]
+    fn config_with_build_env() {
+        if let Ok(input) = env::var("PYO3_BUILD_CONFIG_TEST_INPUT") {
+            let config = InterpreterConfig::from_reader(input.as_bytes())
+                .unwrap()
+                .apply_build_env()
+                .unwrap();
+            println!("CONFIG_BEGIN\n{}CONFIG_END", config_text(&config));
+        }
+    }
+
+    #[test]
+    fn interpreter_abi_survives_roundtrip() {
+        for key in ["interpreter_abi", "ext_suffix_abi"] {
+            let config = InterpreterConfig::from_reader(
+                format!(
+                    "version=3.15\ntarget_abi=CPython-abi3t-3.15\n{key}=CPython-gil_enabled-3.15\n"
+                )
+                .as_bytes(),
+            )
+            .unwrap();
+            assert_eq!(
+                config.interpreter_abi,
+                Some("CPython-gil_enabled-3.15".parse().unwrap())
+            );
+            let saved = config_text(&config);
+            assert!(saved.contains("interpreter_abi=CPython-gil_enabled-3.15\n"));
+            assert_eq!(
+                InterpreterConfig::from_reader(saved.as_bytes()).unwrap(),
+                config
+            );
+        }
+        assert!(
+            InterpreterConfig::from_reader(
+                b"version=3.15\ninterpreter_abi=CPython-gil_enabled-3.15\n\
+              ext_suffix_abi=CPython-free_threaded-3.15\n"
+                    .as_slice()
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn apply_build_env_uses_interpreter_abi() {
+        for (source_kind, expected) in [
+            ("gil_enabled", "CPython-abi3-3.15"),
+            ("free_threaded", "CPython-free_threaded-3.16"),
+        ] {
+            for debug in ["", "-debug"] {
+                for saved_debug in ["", "-debug"] {
+                    let source = format!("CPython-{source_kind}-3.16{debug}");
+                    let input = format!(
+                        "version=3.16\ntarget_abi=CPython-abi3t-3.15{saved_debug}\ninterpreter_abi={source}\n"
+                    );
+                    let mut config = apply_config_in_child(&input, &["CARGO_FEATURE_ABI3_PY315"]);
+                    assert_eq!(
+                        config.target_abi(),
+                        format!("{expected}{debug}").parse().unwrap()
+                    );
+                    for (features, expected_abi) in [
+                        (
+                            &["CARGO_FEATURE_ABI3T_PY315"][..],
+                            format!("CPython-abi3t-3.15{debug}"),
+                        ),
+                        (&[][..], source.clone()),
+                    ] {
+                        assert_eq!(
+                            config.build_flags().0.contains(&BuildFlag::Py_DEBUG),
+                            !debug.is_empty()
+                        );
+                        assert_eq!(
+                            config.build_flags().0.contains(&BuildFlag::Py_GIL_DISABLED),
+                            config.target_abi().kind().is_free_threaded()
+                        );
+                        config = apply_config_in_child(&config_text(&config), features);
+                        assert_eq!(config.target_abi(), expected_abi.parse().unwrap());
+                        assert_eq!(config.interpreter_abi, Some(source.parse().unwrap()));
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn legacy_config_preserves_interpreter_across_abi_changes() {
+        for flags in [
+            "",
+            "Py_DEBUG",
+            "Py_GIL_DISABLED",
+            "Py_GIL_DISABLED,Py_DEBUG",
+        ] {
+            let input = format!("version=3.15\nbuild_flags={flags}\n");
+            let source = InterpreterConfig::from_reader(input.as_bytes())
+                .unwrap()
+                .target_abi();
+            let mut config = apply_config_in_child(&input, &["CARGO_FEATURE_ABI3T_PY315"]);
+            for features in [&[][..], &["CARGO_FEATURE_ABI3_PY315"][..], &[][..]] {
+                assert_eq!(config.interpreter_abi, Some(source));
+                assert_eq!(config.target_abi().is_debug(), source.is_debug());
+                assert_eq!(
+                    config.build_flags().0.contains(&BuildFlag::Py_DEBUG),
+                    source.is_debug()
+                );
+                config = apply_config_in_child(&config_text(&config), features);
+            }
+            assert_eq!(config.target_abi(), source);
+        }
+    }
+
+    #[test]
+    fn interpreter_abi_includes_debug() {
+        for implementation in [
+            PythonImplementation::CPython,
+            PythonImplementation::PyPy,
+            PythonImplementation::GraalPy,
+            PythonImplementation::RustPython,
+        ] {
+            for debug in [false, true] {
+                let abi =
+                    PythonAbi::from_interpreter(implementation, PythonVersion::PY315, false, debug)
+                        .unwrap();
+                assert_eq!(abi.is_debug(), debug);
+                assert_eq!(abi.implementation(), implementation);
+                assert_eq!(abi.version(), PythonVersion::PY315);
+                assert_eq!(abi, abi.to_string().parse().unwrap());
+            }
+        }
+    }
+
+    #[test]
+    fn soabi_filename_does_not_control_abi_selection() {
+        for suffix in [
+            "",
+            "ext_suffix=\n",
+            "ext_suffix=None\n",
+            "ext_suffix=.cpython-315-x86_64-linux-gnu.so\n",
+        ] {
+            let config = apply_config_in_child(
+                &format!(
+                    "version=3.15\ntarget_abi=CPython-abi3t-3.15\n\
+                 ext_suffix_abi=CPython-gil_enabled-3.15\nsoabi_filename=.abi3t.so\n{suffix}"
+                ),
+                &["CARGO_FEATURE_ABI3_PY315"],
+            );
+            assert_eq!(config.target_abi(), "CPython-abi3-3.15".parse().unwrap());
+            assert_eq!(config.soabi_filename(), Some(".abi3.so"));
+        }
+    }
+
+    #[test]
+    fn soabi_filename_loader_survives_unknown_filename() {
+        for (suffix, platform) in [
+            (".abi3.so", ""),
+            (
+                ".abi3-x86_64-linux-gnu.so",
+                "soabi_platform=x86_64-linux-gnu\n",
+            ),
+            (".pyd", ""),
+            ("_d.pyd", ""),
+            (".dll", ""),
+        ] {
+            let debug = if suffix == "_d.pyd" { "-debug" } else { "" };
+            let mut config = InterpreterConfig::from_reader(format!(
+                "version=3.15\ntarget_abi=CPython-abi3-3.15{debug}\nsoabi_filename={suffix}\n{platform}"
+            ).as_bytes()).unwrap();
+            let loader = config.extension_module_metadata.loader;
+            assert!(loader.is_some());
+            for _ in 0..2 {
+                config = apply_config_in_child(&config_text(&config), &[]);
+                assert_eq!(
+                    config.soabi_filename(),
+                    if suffix == ".dll" { Some(".dll") } else { None }
+                );
+                assert_eq!(config.extension_module_metadata.loader, loader);
+                assert!(config_text(&config).contains("extension_module_loader="));
+                config =
+                    apply_config_in_child(&config_text(&config), &["CARGO_FEATURE_ABI3_PY315"]);
+                assert_eq!(config.soabi_filename(), Some(suffix));
+                assert_eq!(config.extension_module_metadata.loader, loader);
+            }
+        }
+    }
+
+    #[test]
+    fn soabi_filename_preserves_cached_value_with_partial_metadata() {
+        for metadata in [
+            "",
+            "ext_suffix=.cpython-315-x86_64-linux-gnu.so\n",
+            "ext_suffix_abi=CPython-gil_enabled-3.15\n",
+            "soabi_platform=x86_64-linux-gnu\n",
+        ] {
+            let config = InterpreterConfig::from_reader(
+                format!(
+                    "version=3.15\ntarget_abi=CPython-gil_enabled-3.15\n\
+                     soabi_filename=.cpython-315-x86_64-linux-gnu.so\n{metadata}"
+                )
+                .as_bytes(),
+            )
+            .unwrap();
+            assert_eq!(
+                config.soabi_filename(),
+                Some(".cpython-315-x86_64-linux-gnu.so"),
+                "{metadata:?}",
+            );
+            let mut saved = Vec::new();
+            config.to_writer(&mut saved).unwrap();
+            assert_eq!(config, InterpreterConfig::from_reader(&*saved).unwrap());
+            assert_eq!(
+                config.apply_build_env().unwrap().soabi_filename(),
+                Some(".cpython-315-x86_64-linux-gnu.so")
+            );
+        }
+    }
+
+    fn soabi_config(
+        target_abi: &str,
+        source_abi: &str,
+        ext_suffix: &str,
+        platform: Option<&str>,
+    ) -> InterpreterConfig {
+        let source_abi: PythonAbi = source_abi.parse().unwrap();
+        let platform = platform
+            .map(|platform| format!("soabi_platform={platform}\n"))
+            .unwrap_or_default();
+        InterpreterConfig::from_reader(
+            format!(
+                "version={}\ntarget_abi={target_abi}\next_suffix={ext_suffix}\n\
+                 ext_suffix_abi={source_abi}\n{platform}",
+                source_abi.version(),
+            )
+            .as_bytes(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn soabi_filename_target_abi_and_loader() {
+        let gil = "CPython-gil_enabled-3.15";
+        let ft = "CPython-free_threaded-3.15";
+        let abi3 = "CPython-abi3-3.15";
+        let abi3t = "CPython-abi3t-3.15";
+        let linux = ".cpython-315-x86_64-linux-gnu.so";
+        let linux_ft = ".cpython-315t-x86_64-linux-gnu.so";
+        let linux_platform = Some("x86_64-linux-gnu");
+        let no_features: &[&str] = &[];
+        let abi3_39: &[&str] = &["CARGO_FEATURE_ABI3_PY39"];
+        let abi3_314: &[&str] = &["CARGO_FEATURE_ABI3_PY314"];
+        let abi3_315: &[&str] = &["CARGO_FEATURE_ABI3_PY315"];
+        let abi3t_315: &[&str] = &["CARGO_FEATURE_ABI3T_PY315"];
+        let both: &[&str] = &["CARGO_FEATURE_ABI3_PY315", "CARGO_FEATURE_ABI3T_PY315"];
+        let feature_groups = [no_features, abi3_39, abi3_314, abi3_315, abi3t_315, both];
+        struct Case {
+            source_abi: &'static str,
+            saved_abi: &'static str,
+            suffix: &'static str,
+            platform: Option<&'static str>,
+            features: &'static [&'static str],
+            expected_abi: &'static str,
+            expected_suffix: &'static str,
+        }
+        let cases = [
+            Case {
+                source_abi: gil,
+                saved_abi: gil,
+                suffix: linux,
+                platform: linux_platform,
+                features: no_features,
+                expected_abi: gil,
+                expected_suffix: linux,
+            },
+            Case {
+                source_abi: ft,
+                saved_abi: ft,
+                suffix: linux_ft,
+                platform: linux_platform,
+                features: no_features,
+                expected_abi: ft,
+                expected_suffix: linux_ft,
+            },
+            Case {
+                source_abi: "CPython-gil_enabled-3.15-debug",
+                saved_abi: "CPython-gil_enabled-3.15-debug",
+                suffix: ".cpython-315d-x86_64-linux-gnu.so",
+                platform: linux_platform,
+                features: no_features,
+                expected_abi: "CPython-gil_enabled-3.15-debug",
+                expected_suffix: ".cpython-315d-x86_64-linux-gnu.so",
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: gil,
+                suffix: linux,
+                platform: linux_platform,
+                features: abi3_39,
+                expected_abi: "CPython-abi3-3.9",
+                expected_suffix: ".abi3.so",
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: gil,
+                suffix: linux,
+                platform: linux_platform,
+                features: abi3_314,
+                expected_abi: "CPython-abi3-3.14",
+                expected_suffix: ".abi3.so",
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: gil,
+                suffix: linux,
+                platform: linux_platform,
+                features: abi3_315,
+                expected_abi: abi3,
+                expected_suffix: ".abi3-x86_64-linux-gnu.so",
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: gil,
+                suffix: ".cpython-315-darwin.so",
+                platform: Some("darwin"),
+                features: abi3_315,
+                expected_abi: abi3,
+                expected_suffix: ".abi3-darwin.so",
+            },
+            Case {
+                source_abi: ft,
+                saved_abi: ft,
+                suffix: linux_ft,
+                platform: linux_platform,
+                features: abi3t_315,
+                expected_abi: abi3t,
+                expected_suffix: ".abi3t-x86_64-linux-gnu.so",
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: gil,
+                suffix: linux,
+                platform: linux_platform,
+                features: abi3t_315,
+                expected_abi: abi3t,
+                expected_suffix: ".abi3t-x86_64-linux-gnu.so",
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: gil,
+                suffix: ".dll",
+                platform: Some("cygwin"),
+                features: no_features,
+                expected_abi: gil,
+                expected_suffix: ".dll",
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: gil,
+                suffix: ".cpython-315-x86_64-cygwin.dll",
+                platform: Some("cygwin"),
+                features: no_features,
+                expected_abi: gil,
+                expected_suffix: ".dll",
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: gil,
+                suffix: ".cpython-315-x86_64-cygwin.dll",
+                platform: Some("cygwin"),
+                features: abi3_315,
+                expected_abi: abi3,
+                expected_suffix: ".dll",
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: gil,
+                suffix: ".dll",
+                platform: Some("cygwin"),
+                features: abi3t_315,
+                expected_abi: abi3t,
+                expected_suffix: ".dll",
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: gil,
+                suffix: ".cp315-win_amd64.pyd",
+                platform: Some("0"),
+                features: no_features,
+                expected_abi: gil,
+                expected_suffix: ".cp315-win_amd64.pyd",
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: gil,
+                suffix: ".cp315-win_amd64.pyd",
+                platform: Some("win_amd64"),
+                features: abi3_315,
+                expected_abi: abi3,
+                expected_suffix: ".pyd",
+            },
+            Case {
+                source_abi: "CPython-free_threaded-3.15-debug",
+                saved_abi: "CPython-free_threaded-3.15-debug",
+                suffix: "_d.cp315t-win_amd64.pyd",
+                platform: Some("win_amd64"),
+                features: abi3t_315,
+                expected_abi: "CPython-abi3t-3.15-debug",
+                expected_suffix: "_d.pyd",
+            },
+            Case {
+                source_abi: "PyPy-gil_enabled-3.11",
+                saved_abi: "PyPy-gil_enabled-3.11",
+                suffix: ".pypy311-pp73-aarch64-linux-gnu.so",
+                platform: Some("aarch64-linux-gnu"),
+                features: abi3_39,
+                expected_abi: "PyPy-abi3-3.11",
+                expected_suffix: ".pypy311-pp73-aarch64-linux-gnu.so",
+            },
+            Case {
+                source_abi: "GraalVM-gil_enabled-3.12",
+                saved_abi: "GraalVM-gil_enabled-3.12",
+                suffix: ".graalpy-312-native-x86_64-linux-gnu.so",
+                platform: linux_platform,
+                features: abi3_39,
+                expected_abi: "GraalVM-abi3-3.12",
+                expected_suffix: ".graalpy-312-native-x86_64-linux-gnu.so",
+            },
+            Case {
+                source_abi: "RustPython-abi3t-3.16",
+                saved_abi: "RustPython-abi3t-3.16",
+                suffix: ".rustpython313-x86_64-linux-gnu.so",
+                platform: linux_platform,
+                features: abi3t_315,
+                expected_abi: "RustPython-abi3t-3.15",
+                expected_suffix: ".rustpython313-x86_64-linux-gnu.so",
+            },
+            Case {
+                source_abi: "RustPython-abi3t-3.15",
+                saved_abi: "RustPython-abi3t-3.15",
+                suffix: ".pyd",
+                platform: None,
+                features: abi3t_315,
+                expected_abi: "RustPython-abi3t-3.15",
+                expected_suffix: ".pyd",
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: gil,
+                suffix: ".cpython-315-aarch64-custom-linux-gnu.so",
+                platform: Some("aarch64-custom-linux-gnu"),
+                features: abi3_315,
+                expected_abi: abi3,
+                expected_suffix: ".abi3-aarch64-custom-linux-gnu.so",
+            },
+            Case {
+                source_abi: "CPython-gil_enabled-3.14",
+                saved_abi: "CPython-gil_enabled-3.14",
+                suffix: ".cpython-314-x86_64-linux-gnu.so",
+                platform: linux_platform,
+                features: abi3_39,
+                expected_abi: "CPython-abi3-3.9",
+                expected_suffix: ".abi3.so",
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: abi3t,
+                suffix: linux,
+                platform: linux_platform,
+                features: no_features,
+                expected_abi: gil,
+                expected_suffix: linux,
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: abi3t,
+                suffix: linux,
+                platform: linux_platform,
+                features: abi3_315,
+                expected_abi: abi3,
+                expected_suffix: ".abi3-x86_64-linux-gnu.so",
+            },
+            Case {
+                source_abi: ft,
+                saved_abi: abi3t,
+                suffix: linux_ft,
+                platform: linux_platform,
+                features: no_features,
+                expected_abi: ft,
+                expected_suffix: linux_ft,
+            },
+            Case {
+                source_abi: ft,
+                saved_abi: abi3t,
+                suffix: linux_ft,
+                platform: linux_platform,
+                features: abi3_315,
+                expected_abi: ft,
+                expected_suffix: linux_ft,
+            },
+            Case {
+                source_abi: gil,
+                saved_abi: abi3,
+                suffix: linux,
+                platform: linux_platform,
+                features: both,
+                expected_abi: abi3t,
+                expected_suffix: ".abi3t-x86_64-linux-gnu.so",
+            },
+            Case {
+                source_abi: ft,
+                saved_abi: abi3t,
+                suffix: linux_ft,
+                platform: linux_platform,
+                features: both,
+                expected_abi: abi3t,
+                expected_suffix: ".abi3t-x86_64-linux-gnu.so",
+            },
+            Case {
+                source_abi: "CPython-gil_enabled-3.15-debug",
+                saved_abi: "CPython-gil_enabled-3.15-debug",
+                suffix: "_d.cp315-win_amd64.pyd",
+                platform: Some("win_amd64"),
+                features: no_features,
+                expected_abi: "CPython-gil_enabled-3.15-debug",
+                expected_suffix: "_d.cp315-win_amd64.pyd",
+            },
+            Case {
+                source_abi: "CPython-gil_enabled-3.15-debug",
+                saved_abi: "CPython-gil_enabled-3.15",
+                suffix: "_d.cp315-win_amd64.pyd",
+                platform: Some("win_amd64"),
+                features: abi3_315,
+                expected_abi: "CPython-abi3-3.15-debug",
+                expected_suffix: "_d.pyd",
+            },
+            Case {
+                source_abi: "CPython-gil_enabled-3.15",
+                saved_abi: "CPython-abi3-3.15-debug",
+                suffix: ".cp315-win_amd64.pyd",
+                platform: Some("win_amd64"),
+                features: abi3_315,
+                expected_abi: "CPython-abi3-3.15",
+                expected_suffix: ".pyd",
+            },
+            Case {
+                source_abi: "CPython-gil_enabled-3.15-debug",
+                saved_abi: "CPython-gil_enabled-3.15-debug",
+                suffix: ".cpython-315d-x86_64-linux-gnu.so",
+                platform: Some("x86_64-linux-gnu"),
+                features: abi3_315,
+                expected_abi: "CPython-abi3-3.15-debug",
+                expected_suffix: ".abi3-x86_64-linux-gnu.so",
+            },
+            Case {
+                source_abi: "CPython-free_threaded-3.15-debug",
+                saved_abi: "CPython-free_threaded-3.15-debug",
+                suffix: ".cpython-315td-x86_64-linux-gnu.so",
+                platform: Some("x86_64-linux-gnu"),
+                features: abi3t_315,
+                expected_abi: "CPython-abi3t-3.15-debug",
+                expected_suffix: ".abi3t-x86_64-linux-gnu.so",
+            },
+            Case {
+                source_abi: "PyPy-gil_enabled-3.11-debug",
+                saved_abi: "PyPy-gil_enabled-3.11-debug",
+                suffix: ".pypy311-pp73-x86_64-linux-gnu.so",
+                platform: Some("x86_64-linux-gnu"),
+                features: abi3_39,
+                expected_abi: "PyPy-abi3-3.11-debug",
+                expected_suffix: ".pypy311-pp73-x86_64-linux-gnu.so",
+            },
+            Case {
+                source_abi: "RustPython-abi3t-3.16-debug",
+                saved_abi: "RustPython-abi3t-3.16-debug",
+                suffix: ".rustpython313-x86_64-linux-gnu.so",
+                platform: Some("x86_64-linux-gnu"),
+                features: abi3t_315,
+                expected_abi: "RustPython-abi3t-3.15-debug",
+                expected_suffix: ".rustpython313-x86_64-linux-gnu.so",
+            },
+        ];
+        if let Ok(group_index) = env::var("PYO3_SOABI_TEST_GROUP") {
+            let features = feature_groups[group_index.parse::<usize>().unwrap()];
+            for case in cases.iter().filter(|case| case.features == features) {
+                let config =
+                    soabi_config(case.saved_abi, case.source_abi, case.suffix, case.platform)
+                        .apply_build_env()
+                        .unwrap();
+                assert_eq!(config.target_abi(), case.expected_abi.parse().unwrap());
+                assert_eq!(config.soabi_filename(), Some(case.expected_suffix));
+                assert_eq!(
+                    config.build_flags().0.contains(&BuildFlag::Py_GIL_DISABLED),
+                    config.target_abi().kind().is_free_threaded(),
+                );
+                assert_eq!(
+                    config.build_flags().0.contains(&BuildFlag::Py_DEBUG),
+                    config.target_abi().is_debug(),
+                );
+                let mut serialized = Vec::new();
+                config.to_writer(&mut serialized).unwrap();
+                let restored = InterpreterConfig::from_reader(&*serialized).unwrap();
+                assert_eq!(restored, config);
+                assert_eq!(restored.apply_build_env().unwrap(), config);
+            }
+            return;
+        }
+        // Cargo features are process environment variables. Isolate each case
+        // in a child so it cannot change the environment of parallel unit tests.
+        for (index, features) in feature_groups.iter().enumerate() {
+            let mut command = abi_features_command(
+                "impl_::tests::soabi_filename_target_abi_and_loader",
+                features,
+            );
+            command.env("PYO3_SOABI_TEST_GROUP", index.to_string());
+            let output = command.output().unwrap();
+            assert!(
+                output.status.success(),
+                "features {features:?}\n{}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr),
+            );
+        }
+    }
+
+    #[test]
+    fn soabi_filename_missing_platform() {
+        for platform in [None, Some("None"), Some(""), Some("0"), Some(" 0 ")] {
+            for (abi, expected) in [
+                ("CPython-abi3-3.15", ".abi3.so"),
+                ("CPython-abi3t-3.15", ".abi3t.so"),
+            ] {
+                let config = soabi_config(
+                    abi,
+                    "CPython-gil_enabled-3.15",
+                    ".cpython-315-freebsd.so",
+                    platform,
+                );
+                assert_eq!(config.soabi_filename(), Some(expected), "{platform:?}");
+                assert_eq!(config.extension_module_metadata.platform, None);
+                let mut buf = Vec::new();
+                config.to_writer(&mut buf).unwrap();
+                assert!(!str::from_utf8(&buf).unwrap().contains("soabi_platform="));
+                assert_eq!(config, InterpreterConfig::from_reader(&*buf).unwrap());
+            }
+        }
+    }
+
+    #[test]
+    fn windows_suffix_uses_target_debug() {
+        for kind in ["abi3", "abi3t"] {
+            for (debug, suffix) in [("", ".pyd"), ("-debug", "_d.pyd")] {
+                let input = format!(
+                    "version=3.15\ntarget_abi=CPython-{kind}-3.15{debug}\nextension_module_loader=pyd\n"
+                );
+                let config = InterpreterConfig::from_reader(input.as_bytes()).unwrap();
+                assert_eq!(config.soabi_filename(), Some(suffix));
+                assert_eq!(
+                    config,
+                    InterpreterConfig::from_reader(config_text(&config).as_bytes()).unwrap()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn legacy_windows_debug_loader_roundtrip() {
+        for metadata in [
+            "",
+            "interpreter_abi=CPython-gil_enabled-3.15\n",
+            "ext_suffix_abi=CPython-gil_enabled-3.15\n",
+        ] {
+            let input = format!(
+                "version=3.15\ntarget_abi=CPython-gil_enabled-3.15\n\
+                 extension_module_loader=pyd_debug\next_suffix=_d.cp315-win_amd64.pyd\n{metadata}"
+            );
+            let mut config = apply_config_in_child(&input, &["CARGO_FEATURE_ABI3T_PY315"]);
+            for features in [&["CARGO_FEATURE_ABI3_PY315"][..], &[][..]] {
+                assert!(config.target_abi().is_debug());
+                assert!(config.interpreter_abi.unwrap().is_debug());
+                assert_eq!(config.soabi_filename(), Some("_d.pyd"));
+                let saved = config_text(&config);
+                assert!(saved.contains("extension_module_loader=pyd\n"));
+                assert!(!saved.contains("pyd_debug"));
+                config = apply_config_in_child(&saved, features);
+            }
+            assert_eq!(config.soabi_filename(), Some("_d.cp315-win_amd64.pyd"));
+            assert_eq!(config.target_abi(), config.interpreter_abi.unwrap());
+        }
+    }
+
+    #[test]
+    fn legacy_debug_flags_preserve_original_abi() {
+        for (kind, flags, suffix) in [
+            (
+                "gil_enabled",
+                "Py_DEBUG",
+                ".cpython-315d-x86_64-linux-gnu.so",
+            ),
+            (
+                "free_threaded",
+                "Py_DEBUG,Py_GIL_DISABLED",
+                ".cpython-315td-x86_64-linux-gnu.so",
+            ),
+        ] {
+            for saved_kind in [kind, "abi3t"] {
+                let input = format!(
+                    "version=3.15\ntarget_abi=CPython-{saved_kind}-3.15\n\
+                     interpreter_abi=CPython-{kind}-3.15\nbuild_flags={flags}\n\
+                     ext_suffix={suffix}\nextension_module_loader=so\nsoabi_platform=x86_64-linux-gnu\n"
+                );
+                let mut config = apply_config_in_child(&input, &["CARGO_FEATURE_ABI3T_PY315"]);
+                assert!(config.interpreter_abi.unwrap().is_debug());
+                assert!(config.target_abi().is_debug());
+                assert_eq!(config.soabi_filename(), Some(".abi3t-x86_64-linux-gnu.so"));
+                config = apply_config_in_child(&config_text(&config), &[]);
+                assert_eq!(
+                    config.target_abi(),
+                    format!("CPython-{kind}-3.15-debug").parse().unwrap()
+                );
+                assert_eq!(config.soabi_filename(), Some(suffix));
+            }
+        }
+    }
+
+    #[test]
+    fn soabi_filename_rejects_debug_mismatch() {
+        for (source, target, suffix) in [
+            (
+                "CPython-gil_enabled-3.15",
+                "CPython-gil_enabled-3.15-debug",
+                ".cpython-315-x86_64-linux-gnu.so",
+            ),
+            (
+                "PyPy-gil_enabled-3.11",
+                "PyPy-abi3-3.11-debug",
+                ".pypy311-pp73-x86_64-linux-gnu.so",
+            ),
+            (
+                "RustPython-abi3t-3.15",
+                "RustPython-abi3t-3.15-debug",
+                ".rustpython313-x86_64-linux-gnu.so",
+            ),
+        ] {
+            let config = soabi_config(target, source, suffix, None);
+            assert_eq!(config.soabi_filename(), None);
+            let config = apply_config_in_child(&config_text(&config), &[]);
+            assert_eq!(config.soabi_filename(), Some(suffix));
+            assert!(!config.target_abi().is_debug());
+            assert!(!config.build_flags().0.contains(&BuildFlag::Py_DEBUG));
+        }
+    }
+
+    #[test]
+    fn invalid_original_abi_is_rejected() {
+        for key in ["interpreter_abi", "ext_suffix_abi"] {
+            let input = format!("version=3.15\n{key}=RustPython-free_threaded-3.15\n");
+            assert!(InterpreterConfig::from_reader(input.as_bytes()).is_err());
+        }
+    }
+
+    #[test]
+    fn inferred_interpreter_abi_completes_suffix_metadata() {
+        let suffix = ".cpython-315-x86_64-linux-gnu.so";
+        for cached in ["", "soabi_filename=.so\n"] {
+            let input = format!(
+                "version=3.15\ntarget_abi=CPython-gil_enabled-3.15\next_suffix={suffix}\n{cached}"
+            );
+            let config = InterpreterConfig::from_reader(input.as_bytes())
+                .unwrap()
+                .apply_build_env()
+                .unwrap();
+            assert_eq!(config.soabi_filename(), Some(suffix));
+            assert_eq!(
+                config,
+                InterpreterConfig::from_reader(config_text(&config).as_bytes()).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn debug_sysconfig_suffix_survives_abi_changes() {
+        for (free_threaded, suffix, stable_suffix) in [
+            (
+                false,
+                ".cpython-315d-x86_64-linux-gnu.so",
+                ".abi3t-x86_64-linux-gnu.so",
+            ),
+            (
+                true,
+                ".cpython-315td-x86_64-linux-gnu.so",
+                ".abi3t-x86_64-linux-gnu.so",
+            ),
+            (false, "_d.cp315-win_amd64.pyd", "_d.pyd"),
+            (true, "_d.cp315t-win_amd64.pyd", "_d.pyd"),
+        ] {
+            let mut data = Sysconfigdata::new();
+            data.insert("SOABI", "cpython-315-x86_64-linux-gnu");
+            data.insert("VERSION", "3.15");
+            data.insert("Py_ENABLE_SHARED", "1");
+            data.insert("Py_DEBUG", "1");
+            data.insert("SIZEOF_VOID_P", "8");
+            data.insert("Py_GIL_DISABLED", if free_threaded { "1" } else { "0" });
+            data.insert("EXT_SUFFIX", suffix);
+            data.insert("SOABI_PLATFORM", "x86_64-linux-gnu");
+            let mut config = InterpreterConfig::from_sysconfigdata(&data).unwrap();
+            let source = config.interpreter_abi.unwrap();
+            assert!(source.is_debug());
+            assert_eq!(source.kind().is_free_threaded(), free_threaded);
+            assert_eq!(config.soabi_filename(), Some(suffix));
+            for _ in 0..2 {
+                config =
+                    apply_config_in_child(&config_text(&config), &["CARGO_FEATURE_ABI3T_PY315"]);
+                assert_eq!(config.soabi_filename(), Some(stable_suffix));
+                assert_eq!(config.interpreter_abi, Some(source));
+                assert!(config.target_abi().is_debug());
+                config = apply_config_in_child(&config_text(&config), &[]);
+                assert_eq!(config.target_abi(), source);
+                assert_eq!(config.soabi_filename(), Some(suffix));
+            }
+        }
+    }
+
+    #[test]
+    fn soabi_filename_rustpython_interpreter_metadata() {
+        let implementation = PythonImplementation::RustPython;
+        let version = PythonVersion {
+            major: 3,
+            minor: 16,
+        };
+        let target_abi = PythonAbi::from_stable_abi(
+            implementation,
+            version,
+            Some((StableAbi::Abi3t, PythonVersion::PY315)),
+            true,
+        )
+        .unwrap();
+        let source_abi = PythonAbi::from_interpreter(implementation, version, true, false).unwrap();
+        let suffix = ".rustpython313-x86_64-linux-gnu.so";
+        let config = InterpreterConfigBuilder::new(implementation, version)
+            .target_abi(target_abi)
+            .interpreter_abi(Some(source_abi))
+            .extension_module_metadata(Some(suffix.to_owned()), None)
+            .finalize()
+            .unwrap();
+        assert_eq!(config.target_abi().version(), PythonVersion::PY315);
+        assert_eq!(source_abi.version(), version);
+        assert_eq!(source_abi.kind(), PythonAbiKind::Stable(StableAbi::Abi3t));
+        assert_eq!(config.soabi_filename(), Some(suffix));
+    }
+
+    #[test]
+    fn soabi_filename_rustpython_metadata_roundtrip() {
+        for suffix in [".rustpython313-x86_64-linux-gnu.so", ".pyd"] {
+            let config = InterpreterConfig::from_reader(
+                format!(
+                    "implementation=RustPython\nversion=3.15\n\
+                     target_abi=RustPython-abi3t-3.15\n\
+                     ext_suffix={suffix}\next_suffix_abi=RustPython-abi3t-3.15\n"
+                )
+                .as_bytes(),
+            )
+            .unwrap();
+            assert_eq!(config.soabi_filename(), Some(suffix));
+            let mut serialized = Vec::new();
+            config.to_writer(&mut serialized).unwrap();
+            let text = str::from_utf8(&serialized).unwrap();
+            assert!(text.contains(&format!("ext_suffix={suffix}\n")));
+            assert!(text.contains("interpreter_abi=RustPython-abi3t-3.15\n"));
+            assert_eq!(
+                InterpreterConfig::from_reader(&*serialized).unwrap(),
+                config
+            );
+        }
+    }
+
+    #[test]
+    fn soabi_filename_from_target_sysconfigdata() {
+        for platform in [
+            None,
+            Some("None"),
+            Some(""),
+            Some("0"),
+            Some("aarch64-linux-gnu"),
+        ] {
+            let mut data = Sysconfigdata::new();
+            data.insert("SOABI", "cpython-315-aarch64-linux-gnu");
+            data.insert("VERSION", "3.15");
+            data.insert("Py_ENABLE_SHARED", "1");
+            data.insert("SIZEOF_VOID_P", "8");
+            data.insert("EXT_SUFFIX", ".cpython-315-aarch64-linux-gnu.so");
+            if let Some(platform) = platform {
+                data.insert("SOABI_PLATFORM", platform);
+            }
+            let config = InterpreterConfig::from_sysconfigdata(&data).unwrap();
+            assert_eq!(
+                config.soabi_filename(),
+                Some(".cpython-315-aarch64-linux-gnu.so")
+            );
+            let metadata = &config.extension_module_metadata;
+            let expected = if platform == Some("aarch64-linux-gnu") {
+                ".abi3-aarch64-linux-gnu.so"
+            } else {
+                ".abi3.so"
+            };
+            assert_eq!(
+                calculate_soabi_filename(
+                    "CPython-abi3-3.15".parse().unwrap(),
+                    config.interpreter_abi,
+                    metadata,
+                )
+                .as_deref(),
+                Some(expected),
+            );
+        }
+        let mut data = Sysconfigdata::new();
+        data.insert("SOABI", "cpython-315-x86_64-cygwin");
+        data.insert("VERSION", "3.15");
+        data.insert("Py_ENABLE_SHARED", "1");
+        data.insert("SIZEOF_VOID_P", "8");
+        data.insert("EXT_SUFFIX", ".cpython-315-x86_64-cygwin.dll");
+        let config = InterpreterConfig::from_sysconfigdata(&data).unwrap();
+        assert_eq!(config.soabi_filename(), Some(".dll"));
+        assert_eq!(
+            config.extension_module_metadata.suffix.as_deref(),
+            Some(".cpython-315-x86_64-cygwin.dll"),
+        );
+    }
+
+    #[test]
+    fn soabi_filename_roundtrip_and_abi_changes() {
+        let config = soabi_config(
+            "CPython-abi3-3.15",
+            "CPython-gil_enabled-3.15",
+            ".cpython-315-aarch64-linux-gnu.so",
+            Some("aarch64-linux-gnu"),
+        );
+        let mut buf = Vec::new();
+        config.to_writer(&mut buf).unwrap();
+        let text = str::from_utf8(&buf).unwrap();
+        assert!(text.contains("soabi_filename=.abi3-aarch64-linux-gnu.so\n"));
+        assert!(text.contains("ext_suffix=.cpython-315-aarch64-linux-gnu.so\n"));
+        assert!(text.contains("interpreter_abi=CPython-gil_enabled-3.15\n"));
+        assert!(text.contains("soabi_platform=aarch64-linux-gnu\n"));
+        let restored = InterpreterConfig::from_reader(&*buf).unwrap();
+        assert_eq!(restored, config);
+        let config = restored.apply_build_env().unwrap();
+        assert_eq!(
+            config.soabi_filename(),
+            Some(".cpython-315-aarch64-linux-gnu.so")
+        );
+    }
+
+    #[test]
+    fn soabi_filename_does_not_reuse_an_incompatible_interpreter_suffix() {
+        for (target, source) in [
+            ("CPython-free_threaded-3.15", "CPython-gil_enabled-3.15"),
+            ("CPython-gil_enabled-3.14", "CPython-gil_enabled-3.15"),
+            ("PyPy-abi3-3.15", "CPython-gil_enabled-3.15"),
+        ] {
+            let config = soabi_config(target, source, ".cpython-315-x86_64-linux-gnu.so", None);
+            assert_eq!(config.soabi_filename(), None, "{target}: {source}");
+        }
+    }
+
+    #[test]
+    fn soabi_filename_complete_metadata_replaces_cached_value() {
+        let config = InterpreterConfig::from_reader(
+            b"version=3.15\ntarget_abi=CPython-abi3-3.15\n\
+              soabi_filename=.abi3-wrong-platform.so\n\
+              ext_suffix=.cpython-315-aarch64-linux-gnu.so\n\
+              ext_suffix_abi=CPython-gil_enabled-3.15\n\
+              soabi_platform=aarch64-linux-gnu\n"
+                .as_slice(),
+        )
+        .unwrap();
+        assert_eq!(config.soabi_filename(), Some(".abi3-aarch64-linux-gnu.so"));
+    }
+
+    #[test]
+    fn soabi_filename_unusable_metadata_is_invalidated_after_abi_change() {
+        for metadata in [
+            "ext_suffix=.cpython-315-x86_64-linux-gnu.so\n",
+            "ext_suffix_abi=CPython-gil_enabled-3.15\n",
+            "ext_suffix=.abi3.so\next_suffix_abi=CPython-abi3-3.15\n",
+            "ext_suffix=.abi3t.so\next_suffix_abi=CPython-abi3t-3.15\n",
+            "ext_suffix=.pypy315-pp73-x86_64-linux-gnu.so\n\
+             ext_suffix_abi=PyPy-abi3-3.15\n",
+        ] {
+            let config = InterpreterConfig::from_reader(
+                format!("version=3.15\ntarget_abi=CPython-abi3-3.15\nsoabi_filename=.abi3.so\n{metadata}").as_bytes(),
+            ).unwrap();
+            assert_eq!(config.soabi_filename(), Some(".abi3.so"));
+            assert_eq!(
+                config.interpreter_abi.is_some(),
+                metadata == "ext_suffix_abi=CPython-gil_enabled-3.15\n"
+            );
+            let config = config.apply_build_env().unwrap();
+            assert_eq!(
+                config.target_abi(),
+                "CPython-gil_enabled-3.15".parse().unwrap()
+            );
+            assert_eq!(config.soabi_filename(), None);
+        }
+    }
+
+    #[test]
+    fn soabi_filename_undefined_platform_from_config_h() {
+        if !have_python_interpreter() {
+            return;
+        }
+        let data = super::parse_sysconfigdata(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/data/sysconfigdata_undefined_soabi_platform.py",
+        ))
+        .unwrap();
+        assert_eq!(data.get_value("SOABI_PLATFORM"), Some("0"));
+        let config = InterpreterConfig::from_sysconfigdata(&data).unwrap();
+        assert_eq!(
+            calculate_soabi_filename(
+                "CPython-abi3-3.15".parse().unwrap(),
+                config.interpreter_abi,
+                &config.extension_module_metadata,
+            )
+            .as_deref(),
+            Some(".abi3.so"),
+        );
+        assert_eq!(config.extension_module_metadata.platform, None);
+    }
+
+    #[test]
+    fn soabi_filename_without_target_metadata() {
+        let config = InterpreterConfig::from_reader("version=3.15".as_bytes()).unwrap();
+        assert_eq!(config.soabi_filename(), None);
+        let config =
+            InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY315)
+                .stable_abi(StableAbi::Abi3)
+                .soabi_filename(".abi3.so".to_owned())
+                .finalize()
+                .unwrap();
+        let mut buf = Vec::new();
+        config.to_writer(&mut buf).unwrap();
+        let restored = InterpreterConfig::from_reader(&*buf).unwrap();
+        assert_eq!(restored, config);
+        // A cached stable filename cannot identify the version-specific filename.
+        assert_eq!(restored.apply_build_env().unwrap().soabi_filename(), None);
+    }
+
+    #[test]
+    fn soabi_filename_default_stable_configs() {
+        for (triple, abi3, abi3t) in [
+            ("x86_64-unknown-linux-gnu", ".abi3.so", ".abi3t.so"),
+            ("aarch64-apple-darwin", ".abi3.so", ".abi3t.so"),
+            ("x86_64-pc-windows-msvc", ".pyd", ".pyd"),
+            ("x86_64-pc-cygwin", ".dll", ".dll"),
+        ] {
+            let target: Triple = triple.parse().unwrap();
+            let config =
+                default_stable_abi_config(&target, Some(PythonVersion::PY39), None).unwrap();
+            assert_eq!(config.soabi_filename(), Some(abi3));
+            let config =
+                default_stable_abi_config(&target, Some(PythonVersion::PY315), None).unwrap();
+            assert_eq!(config.soabi_filename(), Some(abi3));
+            let config =
+                default_stable_abi_config(&target, None, Some(PythonVersion::PY315)).unwrap();
+            assert_eq!(config.soabi_filename(), Some(abi3t));
+        }
+
+        let config = default_cross_compile(&CrossCompileConfig {
+            lib_dir: None,
+            version: Some(PythonVersion::PY315),
+            implementation: Some(PythonImplementation::CPython),
+            target: "x86_64-pc-cygwin".parse().unwrap(),
+            abiflags: None,
+        })
+        .unwrap();
+        assert_eq!(config.soabi_filename(), Some(".dll"));
     }
 
     #[test]
@@ -3121,6 +4638,32 @@ mod tests {
     }
 
     #[test]
+    fn soabi_filename_from_interpreter() {
+        if !have_python_interpreter() {
+            return;
+        }
+        let config =
+            InterpreterConfig::from_interpreter(find_interpreter().unwrap(), None, None).unwrap();
+        assert_eq!(config.interpreter_abi, Some(config.target_abi()));
+        let suffixes = config
+            .run_python_script(
+                "import importlib.machinery, sysconfig\n\
+                 print(sysconfig.get_config_var('EXT_SUFFIX'))\n\
+                 for suffix in importlib.machinery.EXTENSION_SUFFIXES: print(suffix)",
+            )
+            .unwrap();
+        let mut suffixes = suffixes.lines();
+        let ext_suffix = suffixes.next().unwrap();
+        let filename = config.soabi_filename().unwrap();
+        assert!(suffixes.any(|suffix| suffix == filename));
+        // Cygwin may accept tagged DLLs too. We deliberately use the portable
+        // bare name, so test loader acceptance rather than EXT_SUFFIX equality.
+        if filename != ".dll" {
+            assert_eq!(filename, ext_suffix);
+        }
+    }
+
+    #[test]
     fn config_from_empty_sysconfigdata() {
         let sysconfigdata = Sysconfigdata::new();
         assert!(InterpreterConfig::from_sysconfigdata(&sysconfigdata).is_err());
@@ -3142,6 +4685,7 @@ mod tests {
         assert_eq!(
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
             InterpreterConfigBuilder::new(implementation, version,)
+                .interpreter_abi(Some("CPython-gil_enabled-3.9".parse().unwrap()))
                 .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
                 .lib_dir("/usr/lib".to_string())
                 .lib_name("python3.9".to_string())
@@ -3187,6 +4731,7 @@ mod tests {
         assert_eq!(
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
             InterpreterConfigBuilder::new(implementation, version,)
+                .interpreter_abi(Some("CPython-gil_enabled-3.9".parse().unwrap()))
                 .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
                 .lib_dir("/usr/lib".to_string())
                 .lib_name("python3.9".to_string())
@@ -3209,6 +4754,7 @@ mod tests {
         assert_eq!(
             InterpreterConfig::from_sysconfigdata(&sysconfigdata).unwrap(),
             InterpreterConfigBuilder::new(implementation, version,)
+                .interpreter_abi(Some("CPython-gil_enabled-3.9".parse().unwrap()))
                 .build_flags(BuildFlags::from_sysconfigdata(&sysconfigdata))
                 .lib_dir("/usr/lib".to_string())
                 .lib_name("python3.9".to_string())
@@ -3226,6 +4772,7 @@ mod tests {
         let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .stable_abi(StableAbi::Abi3)
+            .soabi_filename(".pyd".to_owned())
             .lib_name("python3".to_string())
             .finalize()
             .unwrap();
@@ -3242,6 +4789,7 @@ mod tests {
         let version = PythonVersion::PY315;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .stable_abi(StableAbi::Abi3t)
+            .soabi_filename(".pyd".to_owned())
             .lib_name("python3t".to_string())
             .finalize()
             .unwrap();
@@ -3258,6 +4806,7 @@ mod tests {
         let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .stable_abi(StableAbi::Abi3)
+            .soabi_filename(".abi3.so".to_owned())
             .finalize()
             .unwrap();
         assert_eq!(
@@ -3273,6 +4822,7 @@ mod tests {
         let version = PythonVersion::PY315;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .stable_abi(StableAbi::Abi3t)
+            .soabi_filename(".abi3t.so".to_owned())
             .finalize()
             .unwrap();
         assert_eq!(
@@ -3290,6 +4840,7 @@ mod tests {
         let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
             .stable_abi(StableAbi::Abi3)
+            .soabi_filename(".abi3.so".to_owned())
             .finalize()
             .unwrap();
         assert_eq!(
@@ -3318,6 +4869,8 @@ mod tests {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
+            .interpreter_abi(Some("CPython-gil_enabled-3.9".parse().unwrap()))
+            .extension_module_loader(Some(ExtensionModuleLoader::Windows))
             .lib_name("python39".to_string())
             .lib_dir("C:\\some\\path".to_string())
             .finalize()
@@ -3344,6 +4897,8 @@ mod tests {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
+            .interpreter_abi(Some("CPython-gil_enabled-3.9".parse().unwrap()))
+            .extension_module_loader(Some(ExtensionModuleLoader::Windows))
             .lib_name("python39".to_string())
             .lib_dir("/usr/lib/mingw".to_string())
             .finalize()
@@ -3370,6 +4925,8 @@ mod tests {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY39;
         let config = InterpreterConfigBuilder::new(implementation, version)
+            .interpreter_abi(Some("CPython-gil_enabled-3.9".parse().unwrap()))
+            .extension_module_loader(Some(ExtensionModuleLoader::SharedObject))
             .lib_name("python3.9".to_string())
             .lib_dir("/usr/arm64/lib".to_string())
             .finalize()
@@ -3395,6 +4952,8 @@ mod tests {
         let implementation = PythonImplementation::PyPy;
         let version = PythonVersion::PY311;
         let config = InterpreterConfigBuilder::new(implementation, version)
+            .interpreter_abi(Some("PyPy-gil_enabled-3.11".parse().unwrap()))
+            .extension_module_loader(Some(ExtensionModuleLoader::SharedObject))
             .lib_name("pypy3.11-c".to_string())
             .finalize()
             .unwrap();
@@ -3423,6 +4982,8 @@ mod tests {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY314;
         let config = InterpreterConfigBuilder::new(implementation, version)
+            .interpreter_abi(Some("CPython-free_threaded-3.14".parse().unwrap()))
+            .extension_module_loader(Some(ExtensionModuleLoader::SharedObject))
             .free_threaded()
             .unwrap()
             .lib_name("python3.14t".to_string())
@@ -3455,6 +5016,8 @@ mod tests {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY314;
         let config = InterpreterConfigBuilder::new(implementation, version)
+            .interpreter_abi(Some("CPython-free_threaded-3.14".parse().unwrap()))
+            .extension_module_loader(Some(ExtensionModuleLoader::Windows))
             .free_threaded()
             .unwrap()
             .lib_name("python314t".to_string())
@@ -3489,6 +5052,8 @@ mod tests {
         let implementation = PythonImplementation::CPython;
         let version = PythonVersion::PY315;
         let config = InterpreterConfigBuilder::new(implementation, version)
+            .interpreter_abi(Some("CPython-free_threaded-3.15".parse().unwrap()))
+            .extension_module_loader(Some(ExtensionModuleLoader::SharedObject))
             .free_threaded()
             .unwrap()
             .lib_name("python3.15t".to_string())
@@ -3924,24 +5489,21 @@ mod tests {
 
     #[test]
     fn apply_build_env_preserves_target_implementation() {
-        // the host `implementation` may differ from the `target_abi`
-        // implementation; recomputing the target ABI from the build
-        // environment must not switch it to the host's
-        let config = InterpreterConfig::from_reader(
-            "implementation=CPython\nversion=3.11\ntarget_abi=PyPy-gil_enabled-3.11".as_bytes(),
-        )
-        .unwrap()
-        .apply_build_env()
-        .unwrap();
-        assert_eq!(
-            config.target_abi.implementation(),
-            PythonImplementation::PyPy
-        );
-        assert_eq!(
-            config.target_abi.kind(),
-            PythonAbiKind::VersionSpecific(GilUsed::GilEnabled)
-        );
-        assert_eq!(config.target_abi.version(), PythonVersion::PY311);
+        // Original host metadata must not change the target implementation or
+        // supply its version, GIL state or debug flag.
+        for debug in ["", "-debug"] {
+            let config = apply_config_in_child(
+                &format!(
+                    "implementation=CPython\nversion=3.11\ntarget_abi=PyPy-gil_enabled-3.11{debug}\n\
+                 interpreter_abi=CPython-free_threaded-3.15-debug\n"
+                ),
+                &[],
+            );
+            assert_eq!(
+                config.target_abi(),
+                format!("PyPy-gil_enabled-3.11{debug}").parse().unwrap()
+            );
+        }
     }
 
     #[test]
@@ -4255,6 +5817,11 @@ mod tests {
                 interpreter_config.version,
             )
             .build_flags(interpreter_config.build_flags().clone())
+            .interpreter_abi(Some(parsed_config.target_abi()))
+            .extension_module_metadata(
+                sysconfigdata.get_value("EXT_SUFFIX").map(str::to_owned),
+                sysconfigdata.get_value("SOABI_PLATFORM").map(str::to_owned),
+            )
             .pointer_width(64)
             .lib_dir(interpreter_config.lib_dir().map(str::to_owned))
             .lib_name(interpreter_config.lib_name().map(str::to_owned))
