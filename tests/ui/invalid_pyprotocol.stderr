@@ -1,0 +1,19 @@
+error: protocol methods cannot have a body
+ --> tests/ui/invalid_pyprotocol.rs:5:26
+  |
+5 |         fn method(&self) {}
+  |                          ^^
+
+error: protocol methods must take `self`
+  --> tests/ui/invalid_pyprotocol.rs:12:18
+   |
+12 |         fn method(x: i32);
+   |                  ^^^^^^^^
+
+error: only `name` and `signature` are supported on protocol methods
+  --> tests/ui/invalid_pyprotocol.rs:19:16
+   |
+19 |         #[pyo3(pass_module)]
+   |                ^^^^^^^^^^^
+
+error: aborting due to 3 previous errors

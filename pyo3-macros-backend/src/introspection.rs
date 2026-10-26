@@ -112,6 +112,31 @@ pub fn class_introspection_code(
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
 
+/// A `typing.Protocol` class declared with `pyprotocol!`
+///
+/// It is a structural class: it only exists in the stubs, and the stub generator picks the module
+/// it goes in, since the protocol may be declared in a library crate that can't know the modules.
+pub fn protocol_introspection_code(
+    pyo3_crate_path: &PyO3CratePath,
+    ident: &Ident,
+    name: &str,
+    doc: Option<&PythonDoc>,
+) -> TokenStream {
+    let mut desc = BTreeMap::from([
+        ("type", IntrospectionNode::String("structural_class".into())),
+        ("kind", IntrospectionNode::String("protocol".into())),
+        (
+            "id",
+            IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
+        ),
+        ("name", IntrospectionNode::String(name.into())),
+    ]);
+    if let Some(doc) = doc {
+        desc.insert("doc", IntrospectionNode::Doc(doc));
+    }
+    IntrospectionNode::Map(desc).emit(pyo3_crate_path)
+}
+
 #[expect(clippy::too_many_arguments)]
 pub fn function_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
