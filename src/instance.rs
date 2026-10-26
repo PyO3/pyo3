@@ -79,6 +79,20 @@ where
 {
     /// Creates a new instance `Bound<T>` of a `#[pyclass]` on the Python heap.
     ///
+    /// Construction goes through [`PyClassInitializer`] and the `create_class_object`
+    /// path used for `#[pyclass]` types.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when Python object construction fails. Typical cases include:
+    ///
+    /// - a base type without `tp_new`, which raises [`PyTypeError`](crate::exceptions::PyTypeError)
+    ///   (`"base type without tp_new"`);
+    /// - `tp_new` or allocation returning a null pointer, in which case the active Python
+    ///   exception is fetched via [`PyErr::fetch`](crate::PyErr::fetch) (commonly
+    ///   [`MemoryError`](crate::exceptions::PyMemoryError), or another exception raised during
+    ///   initialization).
+    ///
     /// # Examples
     ///
     /// ```rust
