@@ -895,7 +895,10 @@ pub fn impl_py_getter_def(
     let mut holders = Holders::new();
     match property_type {
         PropertyType::Descriptor {
-            field_index, field, ..
+            field_index,
+            field,
+            unaligned,
+            ..
         } => {
             let ty = &field.ty;
             let field = if let Some(ident) = &field.ident {
@@ -922,6 +925,7 @@ pub fn impl_py_getter_def(
                         { ::core::mem::offset_of!(#cls, #field) },
                         { #pyo3_path::impl_::pyclass::IsPyT::<#ty>::VALUE },
                         { #pyo3_path::impl_::pyclass::IsIntoPyObjectRef::<#ty>::VALUE },
+                        #unaligned,
                     > = unsafe { #pyo3_path::impl_::pyclass::PyClassGetterGenerator::new() };
                     #generator
                 }
@@ -1071,6 +1075,8 @@ pub enum PropertyType<'a> {
         field: &'a Field,
         python_name: Option<&'a NameAttribute>,
         renaming_rule: Option<RenamingRule>,
+        /// the class is `#[repr(packed)]`, so the field cannot be read through a reference
+        unaligned: bool,
     },
     Function {
         self_type: &'a SelfType,
