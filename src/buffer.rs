@@ -399,11 +399,15 @@ impl<T: Element> PyBuffer<T> {
 
     fn _copy_to_slice(&self, py: Python<'_>, target: &mut [T], fort: u8) -> PyResult<()> {
         if mem::size_of_val(target) != self.len_bytes() {
-            return Err(PyBufferError::new_err(format!(
-                "slice to copy to (of length {}) does not match buffer length of {}",
-                target.len(),
-                self.item_count()
-            )));
+            return Err(PyBufferError::new_err(
+                py_format!(
+                    py,
+                    "slice to copy to (of length {}) does not match buffer length of {}",
+                    target.len(),
+                    self.item_count()
+                )?
+                .unbind(),
+            ));
         }
 
         err::error_on_negative(py, unsafe {
@@ -489,11 +493,15 @@ impl<T: Element> PyBuffer<T> {
         if self.readonly() {
             return Err(PyBufferError::new_err("cannot write to read-only buffer"));
         } else if mem::size_of_val(source) != self.len_bytes() {
-            return Err(PyBufferError::new_err(format!(
-                "slice to copy from (of length {}) does not match buffer length of {}",
-                source.len(),
-                self.item_count()
-            )));
+            return Err(PyBufferError::new_err(
+                py_format!(
+                    py,
+                    "slice to copy from (of length {}) does not match buffer length of {}",
+                    source.len(),
+                    self.item_count()
+                )?
+                .unbind(),
+            ));
         }
 
         err::error_on_negative(py, unsafe {
