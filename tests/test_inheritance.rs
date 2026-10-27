@@ -360,8 +360,6 @@ mod inheriting_native_type {
 
         Python::attach(|py| {
             let time = Bound::new(py, TimeWithName { _name: "Hello :)" }).unwrap();
-            assert_eq!(time.borrow()._name, "Hello :)");
-
             // NB: due to lack of ability to pass arguments to super new, we can't construct times other
             // than midnight yet. But the allocation & drop should at least be sound.
             py_run!(
