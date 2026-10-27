@@ -724,6 +724,19 @@ impl<'py> Python<'py> {
         PythonVersionInfo::from_str(version_number_str).unwrap()
     }
 
+    /// Whether the interpreter was built with free-threading, even if its GIL is enabled.
+    #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED, not(RustPython)))]
+    pub(crate) fn is_free_threaded_runtime(self) -> bool {
+        static FREE_THREADED: crate::sync::PyOnceLock<bool> = crate::sync::PyOnceLock::new();
+        *FREE_THREADED.get_or_init(self, || {
+            self.import("sys")
+                .and_then(|sys| sys.getattr("abi_info"))
+                .and_then(|info| info.getattr("free_threaded"))
+                .and_then(|value| value.extract::<bool>())
+                .unwrap_or(false)
+        })
+    }
+
     /// Lets the Python interpreter check and handle any pending signals. This will invoke the
     /// corresponding signal handlers registered in Python (if any).
     ///
