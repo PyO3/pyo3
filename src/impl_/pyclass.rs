@@ -228,6 +228,12 @@ pub trait PyClassImpl: Sized + 'static {
     /// #[pyclass(immutable_type)]
     const IS_IMMUTABLE_TYPE: bool = false;
 
+    /// Implementation of `tp_alloc`. Must pair with `TP_FREE`.
+    const TP_ALLOC: ffi::allocfunc = ffi::PyType_GenericAlloc;
+
+    /// Implementation of `tp_free`. Must pair with `TP_ALLOC`.
+    const TP_FREE: ffi::freefunc = ffi::PyObject_GC_Del;
+
     /// Description of how this class is laid out in memory
     type Layout: PyClassObjectLayout<Self>;
 
