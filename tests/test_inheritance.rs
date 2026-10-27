@@ -233,6 +233,21 @@ except Exception as e:
     });
 }
 
+/// Children of freelist types will not be able to use the freelist, but they should drop cleanly.
+#[test]
+fn inherit_freelist() {
+    #[pyclass(freelist = 2, subclass)]
+    struct Base;
+
+    #[pyclass(extends=Base)]
+    struct Child;
+
+    Python::attach(|py| {
+        drop(Bound::new(py, (Child, Base)).unwrap());
+        drop(Bound::new(py, Base).unwrap());
+    });
+}
+
 // Subclassing builtin types is not possible in the LIMITED API before 3.12
 #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 mod inheriting_native_type {
@@ -332,6 +347,30 @@ mod inheriting_native_type {
             drop(dict_sub);
             assert!(dropped.load(Ordering::Relaxed));
         })
+    }
+
+    #[cfg(not(any(PyPy, GraalPy)))]
+    #[test]
+    fn inherit_time() {
+        #[pyclass(extends=pyo3::types::PyTime)]
+        struct TimeWithName {
+            #[pyo3(get, name = "name")]
+            _name: &'static str,
+        }
+
+        Python::attach(|py| {
+            let time = Bound::new(py, TimeWithName { _name: "Hello :)" }).unwrap();
+            assert_eq!(time.borrow()._name, "Hello :)");
+
+            // NB: due to lack of ability to pass arguments to super new, we can't construct times other
+            // than midnight yet. But the allocation & drop should at least be sound.
+            py_run!(
+                py,
+                time,
+                "assert str(time) == '00:00:00', str(time); assert time.name == 'Hello :)', time.name"
+            );
+            drop(time);
+        });
     }
 
     #[pyclass(extends=PyException)]
