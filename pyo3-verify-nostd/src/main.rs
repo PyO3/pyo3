@@ -1,6 +1,6 @@
 use std::{env, fs};
 
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{Context, Result, bail, ensure};
 use object::{Object, ObjectSymbol};
 
 fn main() -> Result<()> {
@@ -17,7 +17,7 @@ fn main() -> Result<()> {
     let mut count = 0;
     for symbol in file.symbols() {
         let name = symbol.name().context("failed to get name of a symbol")?;
-        if name.contains("std") {
+        if is_std_symbol(name) {
             count += 1;
             println!("found symbol from `std`: {name}");
         }
@@ -28,4 +28,15 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn is_std_symbol(name: &str) -> bool {
+    let Some(idx_std) = name.find("std") else {
+        return false;
+    };
+    // ignore false positives from the conversions::std module
+    match name.find("conversions") {
+        Some(idx_conversions) => idx_conversions > idx_std,
+        None => true,
+    }
 }
