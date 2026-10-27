@@ -327,12 +327,16 @@ pub fn expr_to_python(expr: &syn::Expr) -> String {
 }
 
 /// Helper struct for hard-coded identifiers used in the macro code.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct StaticIdent(&'static str);
 
 impl StaticIdent {
     pub const fn new(name: &'static str) -> Self {
         Self(name)
+    }
+
+    pub const fn as_str(&self) -> &'static str {
+        self.0
     }
 }
 

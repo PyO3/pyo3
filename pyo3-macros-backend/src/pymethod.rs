@@ -61,6 +61,45 @@ impl MethodAndSlotDef {
     }
 }
 
+pub(crate) struct MethodAndDefaultSlotDef {
+    pub slot: StaticIdent,
+    pub associated_method: TokenStream,
+    pub slot_func: TokenStream,
+}
+
+#[cfg(feature = "experimental-inspect")]
+impl MethodAndDefaultSlotDef {
+    pub fn add_introspection(&mut self, data: TokenStream) {
+        let const_name = format_ident!("_{}", unique_element_id()); // We need an explicit name here
+        self.associated_method.extend(quote! {
+            const #const_name: () = {
+                #data
+            };
+        });
+    }
+}
+
+pub(crate) struct SlotProbe {
+    pub slot: StaticIdent,
+    pub constant: StaticIdent,
+    pub builder: StaticIdent,
+}
+
+/// Slots which `#[pyclass]` can provide default implementations for, these will be automatically
+/// overridden if user provides an implementation in `#[pymethods]`
+pub(crate) const DEFAULT_SLOT_PROBES: &[SlotProbe] = &[
+    SlotProbe {
+        slot: StaticIdent::new("Py_tp_repr"),
+        constant: StaticIdent::new("__PYO3_HAS_TP_REPR"),
+        builder: StaticIdent::new("with_tp_repr_if"),
+    },
+    SlotProbe {
+        slot: StaticIdent::new("Py_nb_int"),
+        constant: StaticIdent::new("__PYO3_HAS_NB_INT"),
+        builder: StaticIdent::new("with_nb_int_if"),
+    },
+];
+
 pub enum GeneratedPyMethod {
     Method(MethodAndMethodDef),
     Proto(MethodAndSlotDef),
@@ -307,7 +346,19 @@ pub fn gen_py_method(
             ensure_no_forbidden_protocol_attributes(&proto_kind, spec, &method.method_name)?;
             match proto_kind {
                 PyMethodProtoKind::Slot(slot_def) => {
-                    let slot = slot_def.generate_type_slot(cls, spec, &method.method_name, ctx)?;
+                    let mut slot =
+                        slot_def.generate_type_slot(cls, spec, &method.method_name, ctx)?;
+                    if let Some(probe) = DEFAULT_SLOT_PROBES
+                        .iter()
+                        .find(|probe| probe.slot == slot_def.slot)
+                    {
+                        let constant = probe.constant;
+                        let attrs = crate::pyimpl::get_cfg_attributes(meth_attrs);
+                        slot.associated_method.extend(quote! {
+                            #(#attrs)*
+                            pub const #constant: bool = true;
+                        });
+                    }
                     GeneratedPyMethod::Proto(slot)
                 }
                 PyMethodProtoKind::Call => {
@@ -1502,8 +1553,48 @@ impl SlotDef {
         ctx: &Ctx,
     ) -> Result<MethodAndSlotDef> {
         let Ctx { pyo3_path, .. } = ctx;
+        let (associated_method, slot_func) =
+            self.generate_slot_function(cls, spec, method_name, false, ctx)?;
+        let slot = self.slot;
+        let slot_def = quote! {
+            #pyo3_path::ffi::PyType_Slot {
+                slot: #pyo3_path::ffi::#slot,
+                pfunc: #slot_func as _
+            }
+        };
+        Ok(MethodAndSlotDef {
+            associated_method,
+            slot_def,
+        })
+    }
+
+    pub(crate) fn generate_default_slot(
+        &self,
+        cls: &syn::Type,
+        spec: &FnSpec<'_>,
+        method_name: &str,
+        ctx: &Ctx,
+    ) -> Result<MethodAndDefaultSlotDef> {
+        let (associated_method, slot_func) =
+            self.generate_slot_function(cls, spec, method_name, true, ctx)?;
+        Ok(MethodAndDefaultSlotDef {
+            slot: self.slot,
+            associated_method,
+            slot_func,
+        })
+    }
+
+    fn generate_slot_function(
+        &self,
+        cls: &syn::Type,
+        spec: &FnSpec<'_>,
+        method_name: &str,
+        overridable: bool,
+        ctx: &Ctx,
+    ) -> Result<(TokenStream, TokenStream)> {
+        let Ctx { pyo3_path, .. } = ctx;
         let SlotDef {
-            slot,
+            slot: _,
             func_ty,
             calling_convention,
             extract_error_mode,
@@ -1551,16 +1642,28 @@ impl SlotDef {
                 #body
             }
         };
-        let slot_def = quote! {
-            #pyo3_path::ffi::PyType_Slot {
-                slot: #pyo3_path::ffi::#slot,
-                pfunc: #pyo3_path::impl_::trampoline::get_trampoline_function!(#func_ty, #cls::#wrapper_ident) as #pyo3_path::ffi::#func_ty as _
+        // Justification for going direct to `inner` function rather than through `get_trampoline_function!` is
+        // that it avoids the trait implementation for the const-generic function pointer type, which prevents
+        // the compiler from eliminating the trampoline function if it's overridden by a user default.
+        let slot_func = if overridable {
+            quote! {
+                {
+                    unsafe extern "C" fn slot(#(#arg_idents: #arg_types),*) -> #ret_ty {
+                        unsafe {
+                            #pyo3_path::impl_::trampoline::#func_ty::inner(
+                                #(#arg_idents,)* #cls::#wrapper_ident
+                            )
+                        }
+                    }
+                    slot as #pyo3_path::ffi::#func_ty
+                }
+            }
+        } else {
+            quote! {
+                #pyo3_path::impl_::trampoline::get_trampoline_function!(#func_ty, #cls::#wrapper_ident) as #pyo3_path::ffi::#func_ty
             }
         };
-        Ok(MethodAndSlotDef {
-            associated_method,
-            slot_def,
-        })
+        Ok((associated_method, slot_func))
     }
 }
 
