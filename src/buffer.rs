@@ -1968,7 +1968,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(PyPy))]
+    #[cfg(not(any(PyPy, target_os = "wasi")))]
     fn test_buffer_view_rejects_null_data() {
         Python::attach(|py| {
             let empty = py
