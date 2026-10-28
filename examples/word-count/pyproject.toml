@@ -16,7 +16,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-benchmark"]
+dev = ["pytest<9.2", "pytest-benchmark>=3.4"]
 
 [tool.pytest.ini_options]
 addopts = "--benchmark-disable"
