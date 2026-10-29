@@ -45,7 +45,7 @@ FREE_THREADED_BUILD = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 def uv_sync(
     session: nox.Session,
     groups: Iterable[str] = (),
-    packages: Iterator[str] = (),
+    packages: Iterable[str] = (),
     no_install_project=False,
 ):
     cmd = ["uv", "sync", "--locked", "--no-default-groups"]
