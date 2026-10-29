@@ -525,6 +525,8 @@ fn int_n_bits(long: &Bound<'_, PyInt>) -> PyResult<usize> {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::*;
     use crate::exceptions::PyTypeError;
     use crate::test_utils::generate_unique_module_name;
