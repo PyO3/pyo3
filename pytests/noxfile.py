@@ -12,7 +12,7 @@ nox.options.sessions = ["test"]
 nox.options.default_venv_backend = "uv"
 
 
-@nox_uv.session(uv_groups=["dev"])
+@nox.session
 def test(session: nox.Session):
     parser = argparse.ArgumentParser()
     parser.add_argument("--features")
@@ -21,6 +21,15 @@ def test(session: nox.Session):
     session.env["MATURIN_PEP517_ARGS"] = "--profile=dev"
     if args.features:
         session.env["MATURIN_PEP517_ARGS"] += f" --features={args.features}"
+
+    session.run_install(
+        "uv",
+        "sync",
+        "--group=dev",
+        "--no-default-groups",
+        f"--python={session.virtualenv.location}",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
 
     def try_install_binary(package: str, constraint: str):
         try:
