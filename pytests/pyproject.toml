@@ -33,6 +33,7 @@ requires-python = ">=3.9"
 ]
 
 [project.optional-dependencies]
+codspeed = ["pytest-codspeed"]
 dev = [
     # mypy doesn't build on GraalPy when installed via uv
     "mypy~=1.0; platform_python_implementation != 'GraalVM'",
@@ -41,5 +42,5 @@ dev = [
     "pytest-benchmark>=3.4",
     "pytest>=7",
     # 4.2 for `assert_type`
-    "typing_extensions>=4.2.0"
+    "typing_extensions>=4.2.0",
 ]
