@@ -352,7 +352,12 @@ def bench(session: nox.Session) -> bool:
     _run_cargo(session, "bench", _BENCHES, *session.posargs)
 
 
-@nox.session()
+@nox_uv.session(
+    venv_backend="uv",
+    uv_packages=["pyo3_pytests"],
+    uv_extras=["dev", "codspeed"],
+    uv_no_install_project=True,
+)
 def codspeed(session: nox.Session) -> bool:
     # rust benchmarks
     os.chdir(PYO3_DIR / "pyo3-benches")
@@ -360,7 +365,7 @@ def codspeed(session: nox.Session) -> bool:
     _run_cargo(session, "codspeed", "run")
     # python benchmarks
     os.chdir(PYO3_DIR / "pytests")
-    session.install(".[dev]", "pytest-codspeed")
+    session.install(".")
     _run(session, "pytest", "--codspeed", external=True)
 
 
