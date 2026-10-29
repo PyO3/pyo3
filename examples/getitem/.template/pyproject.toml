@@ -6,5 +6,5 @@ build-backend = "maturin"
 name = "{{project-name}}"
 version = "0.1.0"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = ["pytest"]

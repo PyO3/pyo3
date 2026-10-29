@@ -32,7 +32,7 @@ requires-python = ">=3.9"
     "UP037",  # quoted annotations
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     # mypy doesn't build on GraalPy when installed via uv
     "mypy~=1.0; platform_python_implementation != 'GraalVM'",

@@ -32,6 +32,7 @@ except ImportError:
         toml = None
 
 nox.options.sessions = ["test", "clippy", "rustfmt", "ruff", "rumdl", "docs", "typos"]
+nox.options.default_venv_backend = "uv"
 
 PYO3_DIR = Path(__file__).parent
 PYO3_TARGET = Path(os.environ.get("CARGO_TARGET_DIR", PYO3_DIR / "target")).absolute()
@@ -39,6 +40,26 @@ PYO3_GUIDE_SRC = PYO3_DIR / "guide" / "src"
 PYO3_GUIDE_TARGET = PYO3_TARGET / "guide"
 PYO3_DOCS_TARGET = PYO3_TARGET / "doc"
 FREE_THREADED_BUILD = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+
+
+def uv_sync(
+    session: nox.Session,
+    groups: Iterable[str] = (),
+    packages: Iterable[str] = (),
+    no_install_project=False,
+):
+    cmd = ["uv", "sync", "--locked", "--no-default-groups"]
+    cmd.extend([f"--group={g}" for g in groups])
+    cmd.extend([f"--package={p}" for p in packages])
+    if no_install_project:
+        cmd.append("--no-install-project")
+    session.run_install(
+        *cmd,
+        env={
+            "UV_PROJECT_ENVIRONMENT": session.virtualenv.location,
+            "UV_PYTHON": session.virtualenv.location,
+        },
+    )
 
 
 def _get_output(*args: str, env: dict[str, str] | None = None) -> str:
@@ -351,7 +372,7 @@ def bench(session: nox.Session) -> bool:
     _run_cargo(session, "bench", _BENCHES, *session.posargs)
 
 
-@nox.session()
+@nox.session
 def codspeed(session: nox.Session) -> bool:
     # rust benchmarks
     os.chdir(PYO3_DIR / "pyo3-benches")
@@ -359,7 +380,8 @@ def codspeed(session: nox.Session) -> bool:
     _run_cargo(session, "codspeed", "run")
     # python benchmarks
     os.chdir(PYO3_DIR / "pytests")
-    session.install(".[dev]", "pytest-codspeed")
+    uv_sync(session, ["dev"])
+    session.install("pytest-codspeed")
     _run(session, "pytest", "--codspeed", external=True)
 
 
@@ -1774,10 +1796,11 @@ def update_ui_tests(session: nox.Session):
 @nox.session(name="test-introspection")
 def test_introspection(session: nox.Session):
     with tempfile.TemporaryDirectory() as stub_dir:
+        uv_sync(
+            session, groups=["dev"], packages=["pyo3_pytests"], no_install_project=True
+        )
         session.install("maturin")
         session.install("ruff")
-        # `pytest-benchmark` backs the `--benchmark-disable` in `pytests/pyproject.toml`
-        session.install("pytest", "pytest-benchmark")
         options = []
         target = os.environ.get("CARGO_BUILD_TARGET")
         if target is not None:

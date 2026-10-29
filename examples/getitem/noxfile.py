@@ -12,5 +12,16 @@ def python(session: nox.Session):
     session.env["MATURIN_PEP517_ARGS"] = "--profile=dev"
     if args.features:
         session.env["MATURIN_PEP517_ARGS"] += f" --features={args.features}"
-    session.install(".[dev]")
+
+    session.run_install(
+        "uv",
+        "sync",
+        "--group=dev",
+        "--no-default-groups",
+        env={
+            "UV_PROJECT_ENVIRONMENT": session.virtualenv.location,
+            "UV_PYTHON": session.virtualenv.location,
+        },
+    )
+
     session.run("pytest")
