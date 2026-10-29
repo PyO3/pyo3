@@ -1,11 +1,12 @@
 import argparse
 
 import nox
+import nox_uv
 
 nox.options.sessions = ["test"]
 
 
-@nox.session
+@nox_uv.session(uv_groups=["dev"])
 def test(session: nox.Session):
     parser = argparse.ArgumentParser()
     parser.add_argument("--features")
@@ -14,11 +15,10 @@ def test(session: nox.Session):
     session.env["MATURIN_PEP517_ARGS"] = "--profile=dev"
     if args.features:
         session.env["MATURIN_PEP517_ARGS"] += f" --features={args.features}"
-    session.install(".[dev]")
     session.run("pytest")
 
 
-@nox.session
+@nox_uv.session(uv_groups=["dev"])
 def bench(session: nox.Session):
     parser = argparse.ArgumentParser()
     parser.add_argument("--features")
@@ -26,5 +26,4 @@ def bench(session: nox.Session):
 
     if args.features:
         session.env["MATURIN_PEP517_ARGS"] = f" --features={args.features}"
-    session.install(".[dev]")
     session.run("pytest", "--benchmark-enable")

@@ -11,5 +11,5 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = ["pytest"]

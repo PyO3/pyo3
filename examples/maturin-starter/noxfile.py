@@ -1,9 +1,9 @@
 import argparse
 
-import nox
+import nox_uv
 
 
-@nox.session
+@nox_uv.session(uv_groups=["dev"])
 def python(session):
     parser = argparse.ArgumentParser()
     parser.add_argument("--features")
@@ -13,5 +13,4 @@ def python(session):
     if args.features:
         session.env["MATURIN_PEP517_ARGS"] += f" --features={args.features}"
 
-    session.install(".[dev]")
     session.run("pytest")
