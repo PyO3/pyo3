@@ -22,6 +22,7 @@ from urllib.error import HTTPError
 from urllib.request import urlopen
 
 import nox.command
+import nox_uv
 
 try:
     import tomllib as toml
@@ -1771,13 +1772,18 @@ def update_ui_tests(session: nox.Session):
     )
 
 
-@nox.session(name="test-introspection")
+# `pytest-benchmark` backs the `--benchmark-disable` in `pytests/pyproject.toml`
+@nox_uv.session(
+    name="test-introspection",
+    venv_backend="uv",
+    uv_packages=["pyo3_pytests"],
+    uv_extras=["dev"],
+    uv_no_install_project=True,
+)
 def test_introspection(session: nox.Session):
     with tempfile.TemporaryDirectory() as stub_dir:
         session.install("maturin")
         session.install("ruff")
-        # `pytest-benchmark` backs the `--benchmark-disable` in `pytests/pyproject.toml`
-        session.install("pytest<9.2", "pytest-benchmark>=3.4")
         options = []
         target = os.environ.get("CARGO_BUILD_TARGET")
         if target is not None:

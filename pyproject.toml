@@ -66,6 +66,14 @@ style = "fenced"
 
 [tool.uv]
 package = false
+constraint-dependencies = [
+    # pytest-benchmark does not support pytest 9.2.0 yet
+    # https://github.com/ionelmc/pytest-benchmark/issues/321
+    "pytest<9.2",
+]
+
+[tool.uv.workspace]
+members = ["pytests", "examples/word-count"]
 
 [tool.uv.dependency-groups]
 codecov = { requires-python = ">=3.14" }
@@ -73,7 +81,7 @@ dev = { requires-python = ">=3.14" }
 
 [dependency-groups]
 codecov = ["codecov-cli==11.3.1"]
-nox = ["nox"]
+nox = ["nox", "nox-uv"]
 dev = [
   "ruff",
   "rumdl",
