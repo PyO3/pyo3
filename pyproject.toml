@@ -77,7 +77,7 @@ dev = { requires-python = ">=3.14" }
 
 [dependency-groups]
 codecov = ["codecov-cli==11.3.1"]
-nox = ["nox", "nox-uv"]
+nox = ["nox"]
 dev = [
   "ruff",
   "rumdl",

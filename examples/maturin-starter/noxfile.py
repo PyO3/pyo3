@@ -1,9 +1,9 @@
 import argparse
 
-import nox_uv
+import nox
 
 
-@nox_uv.session(uv_groups=["dev"])
+@nox.session
 def python(session):
     parser = argparse.ArgumentParser()
     parser.add_argument("--features")
@@ -12,5 +12,16 @@ def python(session):
     session.env["MATURIN_PEP517_ARGS"] = "--profile=dev"
     if args.features:
         session.env["MATURIN_PEP517_ARGS"] += f" --features={args.features}"
+
+    session.run_install(
+        "uv",
+        "sync",
+        "--group=dev",
+        "--no-default-groups",
+        env={
+            "UV_PROJECT_ENVIRONMENT": session.virtualenv.location,
+            "UV_PYTHON": session.virtualenv.location,
+        },
+    )
 
     session.run("pytest")

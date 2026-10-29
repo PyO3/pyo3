@@ -5,11 +5,22 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import nox
-import nox_uv
 from nox.command import CommandFailed
 
 nox.options.sessions = ["test"]
 nox.options.default_venv_backend = "uv"
+
+
+def uv_sync(session: nox.Session, groups: Iterable[str] = []):
+    cmd = ["uv", "sync", "--locked", "--no-default-groups"]
+    cmd.extend([f"--group={g}" for g in groups])
+    session.run_install(
+        *cmd,
+        env={
+            "UV_PROJECT_ENVIRONMENT": session.virtualenv.location,
+            "UV_PYTHON": session.virtualenv.location,
+        },
+    )
 
 
 @nox.session
@@ -22,14 +33,7 @@ def test(session: nox.Session):
     if args.features:
         session.env["MATURIN_PEP517_ARGS"] += f" --features={args.features}"
 
-    session.run_install(
-        "uv",
-        "sync",
-        "--group=dev",
-        "--no-default-groups",
-        f"--python={session.virtualenv.location}",
-        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
-    )
+    uv_sync(session, ["dev"])
 
     def try_install_binary(package: str, constraint: str):
         try:
@@ -60,12 +64,13 @@ def test(session: nox.Session):
     session.run("pytest", *extra_args, *ignore_args, *unhandled_posargs)
 
 
-@nox_uv.session(uv_groups=["dev"])
+@nox.session
 def bench(session: nox.Session):
+    uv_sync(session, ["dev"])
     session.run("pytest", "--benchmark-enable", "--benchmark-only", *session.posargs)
 
 
-@nox_uv.session(uv_groups=["dev"])
+@nox.session
 def mypy(session: nox.Session):
     type_checker(
         session,
@@ -74,7 +79,7 @@ def mypy(session: nox.Session):
     # TODO: enable stubtest session.run_always("python", "-m", "mypy.stubtest", "pyo3_pytests")
 
 
-@nox_uv.session(uv_groups=["dev"])
+@nox.session
 def pyrefly(session: nox.Session):
     type_checker(
         session,
@@ -84,6 +89,7 @@ def pyrefly(session: nox.Session):
 
 def type_checker(session: nox.Session, command: Iterable[str]):
     session.env["MATURIN_PEP517_ARGS"] = "--profile=dev"
+    uv_sync(session, ["dev"])
     try:
         # We move the stubs where maturin is expecting them to be
         shutil.copytree("stubs", "pyo3_pytests")
