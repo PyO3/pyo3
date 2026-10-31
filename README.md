@@ -226,6 +226,7 @@ about this topic.
 - [polars](https://github.com/pola-rs/polars) _Fast multi-threaded DataFrame library in Rust | Python | Node.js._
 - [pycrdt](https://github.com/jupyter-server/pycrdt) _Python bindings for the Rust CRDT implementation [Yrs](https://github.com/y-crdt/y-crdt)._
 - [pydantic-core](https://github.com/pydantic/pydantic-core) _Core validation logic for pydantic written in Rust._
+- [pygrpc-native](https://github.com/pygrpc/pygrpc-native) _A drop-in Python gRPC server that handles HTTP/2 in Rust, outside the GIL._
 - [primp](https://github.com/deedy5/primp) _The fastest python HTTP client that can impersonate web browsers by mimicking their headers and TLS/JA3/JA4/HTTP2 fingerprints._
 - [pyro-mysql](https://github.com/elbaro/pyro-mysql) _A high-performance MySQL driver for Python._
 - [pyro-postgres](https://github.com/elbaro/pyro-postgres) _A high-performance PostgreSQL driver for Python._
