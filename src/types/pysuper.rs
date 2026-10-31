@@ -1,7 +1,7 @@
-use crate::instance::Bound;
-use crate::types::any::PyAnyMethods;
-use crate::types::PyType;
 use crate::PyTypeInfo;
+use crate::instance::Bound;
+use crate::types::PyType;
+use crate::types::any::PyAnyMethods;
 use crate::{PyAny, PyResult};
 
 /// Represents a Python `super` object.
@@ -23,9 +23,9 @@ pyobject_native_type_core!(
 pyobject_native_type_core!(
     PySuper,
     |py| {
+        use crate::Py;
         use crate::sync::PyOnceLock;
         use crate::types::{PyType, PyTypeMethods};
-        use crate::Py;
         static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
         TYPE.import(py, "builtins", "super").unwrap().as_type_ptr()
     },

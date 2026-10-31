@@ -1,5 +1,5 @@
-use crate::object::*;
 use crate::PyFrameObject;
+use crate::object::*;
 #[cfg(all(Py_3_11, not(any(PyPy, GraalPy, Py_3_14))))]
 use core::ffi::c_char;
 use core::ffi::c_int;

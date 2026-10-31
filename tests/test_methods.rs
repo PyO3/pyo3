@@ -1,5 +1,6 @@
 #![cfg(feature = "macros")]
 
+use pyo3::BoundObject;
 #[cfg(any(not(Py_LIMITED_API), Py_3_12))]
 use pyo3::exceptions::PyWarning;
 use pyo3::exceptions::{PyFutureWarning, PyUserWarning};
@@ -7,7 +8,6 @@ use pyo3::prelude::*;
 use pyo3::py_run;
 use pyo3::types::PySequence;
 use pyo3::types::{IntoPyDict, PyDict, PyList, PySet, PyString, PyTuple, PyType};
-use pyo3::BoundObject;
 use pyo3_macros::pyclass;
 
 use crate::test_utils::CatchWarnings;
@@ -120,6 +120,63 @@ fn class_method() {
         );
         py_assert!(py, *d, "C.method.__doc__ == 'Test class method.'");
         py_assert!(py, *d, "C().method.__doc__ == 'Test class method.'");
+    });
+}
+
+#[test]
+fn class_method_magic_methods() {
+    #[pyclass(subclass)]
+    struct ClassMethodMagic;
+
+    #[pymethods]
+    impl ClassMethodMagic {
+        #[new]
+        fn new() -> Self {
+            Self
+        }
+
+        #[classmethod]
+        fn __len__(cls: &Bound<'_, PyType>) -> usize {
+            if cls.is_exact_instance_of::<PyType>() {
+                42
+            } else {
+                0
+            }
+        }
+
+        #[classmethod]
+        fn __call__<'py>(cls: &Bound<'py, PyType>) -> Bound<'py, PyType> {
+            cls.clone()
+        }
+
+        #[classmethod]
+        fn __add__<'py>(cls: &Bound<'py, PyType>, _other: &Bound<'_, PyAny>) -> Bound<'py, PyType> {
+            cls.clone()
+        }
+    }
+
+    Python::attach(|py| {
+        let cls = py.get_type::<ClassMethodMagic>();
+        py_run!(
+            py,
+            cls,
+            r#"
+class Subclass(cls):
+    pass
+
+obj = Subclass()
+assert len(obj) == 42
+assert obj() is Subclass
+assert obj + None is Subclass
+
+try:
+    1 + obj
+except TypeError:
+    pass
+else:
+    raise AssertionError("the forward operator accepted the wrong receiver")
+"#
+        );
     });
 }
 
@@ -580,10 +637,10 @@ fn meth_signature() {
             "assert inst.get_pos_only_with_kwargs(10, b = 10) == [10, {'b': 10}]"
         );
         py_run!(
-        py,
-        inst,
-        "assert inst.get_pos_only_with_kwargs(10, b = 10, c = 10, d = 10, e = 10) == [10, {'b': 10, 'c': 10, 'd': 10, 'e': 10}]"
-    );
+            py,
+            inst,
+            "assert inst.get_pos_only_with_kwargs(10, b = 10, c = 10, d = 10, e = 10) == [10, {'b': 10, 'c': 10, 'd': 10, 'e': 10}]"
+        );
         py_expect_exception!(
             py,
             inst,
@@ -1212,11 +1269,12 @@ fn test_option_pyclass_arg() {
         let f = wrap_pyfunction!(option_class_arg, py).unwrap();
         assert!(f.call0().unwrap().is_none());
         let obj = Py::new(py, SomePyClass {}).unwrap();
-        assert!(f
-            .call1((obj,))
-            .unwrap()
-            .extract::<Py<SomePyClass>>()
-            .is_ok());
+        assert!(
+            f.call1((obj,))
+                .unwrap()
+                .extract::<Py<SomePyClass>>()
+                .is_ok()
+        );
     })
 }
 

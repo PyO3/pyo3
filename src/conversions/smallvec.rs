@@ -1,5 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "smallvec")]
 
 //!  Conversions to and from [smallvec](https://docs.rs/smallvec/).
@@ -20,13 +18,11 @@
 use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 use crate::exceptions::PyTypeError;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::PyStaticExpr;
-#[cfg(feature = "experimental-inspect")]
-use crate::type_hint_subscript;
+use crate::inspect::{PyStaticExpr, type_hint_identifier, type_hint_subscript};
 use crate::types::any::PyAnyMethods;
 use crate::types::{PySequence, PyString};
 use crate::{
-    err::CastError, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, PyTypeInfo, Python,
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, PyTypeInfo, Python, err::CastError, ffi,
 };
 use smallvec::{Array, SmallVec};
 
@@ -78,8 +74,11 @@ where
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr =
-        type_hint_subscript!(PySequence::TYPE_HINT, A::Item::INPUT_TYPE);
+    const INPUT_TYPE: PyStaticExpr = type_hint_subscript!(
+        type_hint_identifier!("_typeshed", "SupportsGetItem"),
+        type_hint_identifier!("builtins", "int"),
+        A::Item::INPUT_TYPE
+    );
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         if obj.is_instance_of::<PyString>() {
@@ -96,6 +95,7 @@ where
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
+    // SAFETY: passing valid pointer to python API
     if unsafe { ffi::PySequence_Check(obj.as_ptr()) } == 0 {
         return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
     }

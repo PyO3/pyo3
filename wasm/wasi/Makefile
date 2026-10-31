@@ -1,9 +1,13 @@
 include ../common.mk
 
-WASI_SDK_VERSION=24
+ifneq ($(PYMAJORMINOR),3.15)
+$(error PYMAJORMINOR must be 3.15, got '$(PYMAJORMINOR)')
+endif
+
+WASI_SDK_VERSION=$(shell $(PYTHON) -c 'import tomllib; print(tomllib.load(open("$(PYTHONBUILD)/Platforms/WASI/config.toml", "rb"))["targets"]["wasi-sdk"])')
 WASMTIME_VERSION=46.0.1
 
-CONFIG_SITE=$(PYTHONBUILD)/Tools/wasm/wasi/config.site-wasm32-wasi
+CONFIG_SITE=$(PYTHONBUILD)/Platforms/WASI/config.site-wasm32-wasi
 CROSSBUILD=$(PYTHONBUILD)/cross-build/wasm32-wasip1
 LIBDIR=$(CROSSBUILD)/build/lib.wasi-wasm32-$(PYMAJORMINOR)
 
@@ -36,7 +40,7 @@ endif
 
 all: $(LIBDIR)/libpython$(PYMAJORMINOR).a
 
-$(WASI_SDK_DIR)/.exists: $(BUILDROOT)/.exists
+$(WASI_SDK_DIR)/.exists: $(PYTHONBUILD)/.exists
 	[ -d $(WASI_SDK_DIR) ] || mkdir -p $(WASI_SDK_DIR)
 	curl -s -S --location $(WASI_SDK_URL) | \
 		tar --strip-components 1 --directory $(WASI_SDK_DIR) --extract --gunzip
@@ -58,10 +62,9 @@ $(LIBDIR)/libpython$(PYMAJORMINOR).a: $(PYTHONBUILD)/.patched $(WASI_SDK_DEP) $(
 	cd $(PYTHONBUILD) && \
 		WASI_SDK_PATH=$(WASI_SDK_DIR) \
 		PATH=$(WASMTIME_PATH)$(PATH) \
-		$(PYTHON) Tools/wasm/wasi build -- --config-cache
+		$(PYTHON) Platforms/WASI build -- --config-cache
 	# Collect the static libraries the test build links against
 	cp $(CROSSBUILD)/libpython$(PYMAJORMINOR).a \
-	   $(CROSSBUILD)/Modules/_hacl/libHacl_HMAC.a \
-	   $(CROSSBUILD)/Modules/_decimal/libmpdec/libmpdec.a \
+	   $(CROSSBUILD)/Modules/_hacl/*.a \
 	   $(CROSSBUILD)/Modules/expat/libexpat.a \
 	   $(LIBDIR)

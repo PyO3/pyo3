@@ -21,7 +21,7 @@ pub mod awaitable {
     #[pymethods]
     impl IterAwaitable {
         #[new]
-        fn new(result: Py<PyAny>) -> Self {
+        pub(crate) fn new(result: Py<PyAny>) -> Self {
             IterAwaitable {
                 result: Some(Ok(result)),
             }

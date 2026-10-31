@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use pyo3::{
     prelude::*,
     types::{PyDict, PyString},
@@ -31,32 +33,35 @@ fn hammer_attaching_in_thread() -> LockHolder {
     LockHolder { sender }
 }
 
-/// Wrapper to mark Receiver as Sync.
-struct SyncReceiver<T>(std::sync::mpsc::Receiver<T>);
+#[pyclass]
+struct MustDropWhileAttached;
 
-impl<T> std::ops::Deref for SyncReceiver<T> {
-    type Target = std::sync::mpsc::Receiver<T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl Drop for MustDropWhileAttached {
+    fn drop(&mut self) {
+        // SAFETY: always callable; fatal error (abort) if the thread is not attached.
+        unsafe { pyo3::ffi::PyThreadState_Get() };
     }
 }
 
-// SAFETY: only used to allow the receiver to be used after detaching
-unsafe impl<T> Sync for SyncReceiver<T> {}
+thread_local! {
+    // Dropped when the thread exits, which on older CPython happens inside
+    // PyEval_RestoreThread when reattaching during finalization.
+    static DROPPED_ON_THREAD_EXIT: Cell<Option<Py<MustDropWhileAttached>>> = const { Cell::new(None) };
+}
 
 #[pyfunction]
-fn detach_during_finalization() -> LockHolder {
+fn detach_during_finalization(py: Python<'_>) -> LockHolder {
     let (sender, receiver) = std::sync::mpsc::channel();
-    let receiver = SyncReceiver(receiver);
+    let (ready_sender, ready_receiver) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         Python::attach(|py| {
-            py.detach(|| {
-                receiver.recv().ok();
-                // Interpreter is finalizing while we try to reattach after returning
-            });
+            DROPPED_ON_THREAD_EXIT.set(Some(Py::new(py, MustDropWhileAttached).unwrap()));
+            ready_sender.send(()).unwrap();
+            py.detach(move || receiver.recv().ok());
+            // Interpreter is finalizing while we try to reattach after returning
         });
     });
+    py.detach(move || ready_receiver.recv()).unwrap();
     LockHolder { sender }
 }
 

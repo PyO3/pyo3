@@ -1,6 +1,6 @@
 //! Small CLI entry point to introspect a Python cdylib built using PyO3 and generate [type stubs](https://typing.readthedocs.io/en/latest/source/stubs.html).
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use pyo3_introspection::{introspect_cdylib, module_stub_files};
 use std::path::Path;
 use std::{env, fs};

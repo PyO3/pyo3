@@ -1,4 +1,4 @@
-use crate::{PyConfig, PyPreConfig, PyStatus, Py_ssize_t};
+use crate::{Py_ssize_t, PyConfig, PyPreConfig, PyStatus};
 use core::ffi::{c_char, c_int};
 use libc::wchar_t;
 

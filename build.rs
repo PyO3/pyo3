@@ -3,7 +3,7 @@ use std::env;
 use pyo3_build_config::pyo3_build_script_impl::{
     cargo_env_var, env_var, errors::Result, print_feature_cfgs,
 };
-use pyo3_build_config::{add_libpython_rpath_link_args, bail, InterpreterConfig};
+use pyo3_build_config::{InterpreterConfig, add_libpython_rpath_link_args, bail};
 
 fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<()> {
     if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() && !interpreter_config.shared() {
@@ -56,6 +56,9 @@ fn configure_pyo3() -> Result<()> {
 /// Enables a faux `std` feature by default.
 ///
 /// Set env var `PYO3_WIP_NO_STD` to `1` to disable it.
+// Has matching functions in
+// - pyo3-macros-backend
+// - pytests
 fn configure_wip_no_std() {
     println!("cargo:rustc-check-cfg=cfg(wip_feature_std)");
     match env_var("PYO3_WIP_NO_STD").map(|s| s.into_string().unwrap()) {

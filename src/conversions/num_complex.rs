@@ -1,5 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "num-complex")]
 
 //!  Conversions to and from [num-complex](https://docs.rs/num-complex)’
@@ -46,6 +44,7 @@
 //! }
 //!
 //! #[pymodule]
+//! # #[pyo3(name = "example_num_complex")]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(get_eigenvalues, m)?)?;
 //!     Ok(())
@@ -100,8 +99,8 @@ use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_identifier;
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, types::PyComplex, Borrowed, Bound, FromPyObject, PyAny, PyErr,
-    Python,
+    Borrowed, Bound, FromPyObject, PyAny, PyErr, Python, ffi, ffi_ptr_ext::FfiPtrExt,
+    types::PyComplex,
 };
 use core::ffi::c_double;
 use num_complex::Complex;
@@ -112,6 +111,7 @@ impl PyComplex {
         py: Python<'_>,
         complex: Complex<F>,
     ) -> Bound<'_, PyComplex> {
+        // SAFETY: `PyComplex_FromDoubles` returns a new owned reference to a complex object
         unsafe {
             ffi::PyComplex_FromDoubles(complex.re.into(), complex.im.into())
                 .assume_owned(py)
@@ -132,6 +132,8 @@ macro_rules! complex_conversion {
             const OUTPUT_TYPE: PyStaticExpr = type_hint_identifier!("builtins", "complex");
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                // SAFETY: `PyComplex_FromDoubles` returns a new owned reference to a
+                // complex object
                 unsafe {
                     Ok(
                         ffi::PyComplex_FromDoubles(self.re as c_double, self.im as c_double)
@@ -166,6 +168,7 @@ macro_rules! complex_conversion {
 
             fn extract(obj: Borrowed<'_, '_, PyAny>) -> Result<Complex<$float>, Self::Error> {
                 #[cfg(not(any(Py_LIMITED_API, PyPy)))]
+                // SAFETY: passing valid pointer to python API
                 unsafe {
                     let val = ffi::PyComplex_AsCComplex(obj.as_ptr());
                     if val.real == -1.0 {
@@ -177,6 +180,7 @@ macro_rules! complex_conversion {
                 }
 
                 #[cfg(any(Py_LIMITED_API, PyPy))]
+                // SAFETY: passing valid pointer to python API
                 unsafe {
                     use $crate::types::any::PyAnyMethods;
                     let complex;
@@ -213,10 +217,10 @@ complex_conversion!(f64);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::IntoPyObject;
     use crate::test_utils::generate_unique_module_name;
     use crate::types::PyAnyMethods as _;
-    use crate::types::{complex::PyComplexMethods, PyModule};
-    use crate::IntoPyObject;
+    use crate::types::{PyModule, complex::PyComplexMethods};
 
     #[test]
     fn from_complex() {

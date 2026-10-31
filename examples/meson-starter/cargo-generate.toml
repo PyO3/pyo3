@@ -1,0 +1,5 @@
+[template]
+ignore = [".nox"]
+
+[hooks]
+pre = [".template/pre-script.rhai"]

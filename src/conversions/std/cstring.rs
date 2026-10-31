@@ -8,8 +8,8 @@ use crate::type_object::PyTypeInfo;
 use crate::types::PyString;
 use crate::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, Python};
 use alloc::borrow::Cow;
+use alloc::ffi::CString;
 use core::ffi::CStr;
-use std::ffi::CString;
 #[cfg(any(Py_3_10, not(Py_LIMITED_API)))]
 use {
     crate::{exceptions::PyValueError, ffi},
@@ -152,9 +152,9 @@ impl FromPyObject<'_, '_> for CString {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::string::PyStringMethods;
-    use crate::types::PyAnyMethods;
     use crate::Python;
+    use crate::types::PyAnyMethods;
+    use crate::types::string::PyStringMethods;
 
     #[test]
     fn test_into_pyobject() {

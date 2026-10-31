@@ -6,7 +6,7 @@ use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
-    conversion::IntoPyObject, types::PyBytes, Bound, CastError, PyAny, PyErr, PyResult, Python,
+    Bound, CastError, PyAny, PyErr, PyResult, Python, conversion::IntoPyObject, types::PyBytes,
 };
 
 impl<'a, 'py, T> IntoPyObject<'py> for &'a [T]
@@ -88,9 +88,9 @@ mod tests {
     use alloc::borrow::Cow;
 
     use crate::{
-        conversion::IntoPyObject,
-        types::{any::PyAnyMethods, PyBytes, PyBytesMethods, PyList},
         Python,
+        conversion::IntoPyObject,
+        types::{PyBytes, PyBytesMethods, PyList, any::PyAnyMethods},
     };
 
     #[test]

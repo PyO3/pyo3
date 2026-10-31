@@ -3,13 +3,13 @@ use crate::pyport::Py_ssize_t;
 use core::ffi::{c_char, c_int};
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyErr_WarnEx")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_WarnEx")]
     pub fn PyErr_WarnEx(
         category: *mut PyObject,
         message: *const c_char,
         stack_level: Py_ssize_t,
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_WarnFormat")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_WarnFormat")]
     pub fn PyErr_WarnFormat(
         category: *mut PyObject,
         stack_level: Py_ssize_t,
@@ -22,7 +22,7 @@ extern_libpython! {
         format: *const c_char,
         ...
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyErr_WarnExplicit")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyErr_WarnExplicit")]
     pub fn PyErr_WarnExplicit(
         category: *mut PyObject,
         message: *const c_char,

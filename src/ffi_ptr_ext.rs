@@ -1,8 +1,7 @@
 use crate::sealed::Sealed;
 use crate::{
-    ffi,
+    PyAny, PyResult, Python, ffi,
     instance::{Borrowed, Bound},
-    PyAny, PyResult, Python,
 };
 
 pub(crate) trait FfiPtrExt: Sealed {
@@ -25,7 +24,7 @@ pub(crate) trait FfiPtrExt: Sealed {
     /// Warning: the lifetime `'a` is not bounded by the function arguments; the caller is
     /// responsible to ensure this is tied to some appropriate lifetime.
     unsafe fn assume_borrowed_or_err<'a>(self, py: Python<'_>)
-        -> PyResult<Borrowed<'a, '_, PyAny>>;
+    -> PyResult<Borrowed<'a, '_, PyAny>>;
 
     /// Same as `assume_borrowed_or_err`, but doesn't fetch an error on NULL.
     unsafe fn assume_borrowed_or_opt<'a>(self, py: Python<'_>) -> Option<Borrowed<'a, '_, PyAny>>;

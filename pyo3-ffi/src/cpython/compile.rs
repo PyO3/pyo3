@@ -1,12 +1,12 @@
+use crate::INT_MAX;
+#[cfg(not(any(PyPy, Py_3_10)))]
+use crate::PyCodeObject;
 #[cfg(not(any(PyPy, Py_3_10)))]
 use crate::object::PyObject;
 #[cfg(not(any(PyPy, Py_3_10)))]
 use crate::pyarena::*;
 #[cfg(not(any(PyPy, Py_3_10)))]
 use crate::pythonrun::*;
-#[cfg(not(any(PyPy, Py_3_10)))]
-use crate::PyCodeObject;
-use crate::INT_MAX;
 #[cfg(not(any(PyPy, Py_3_10)))]
 use core::ffi::c_char;
 use core::ffi::c_int;

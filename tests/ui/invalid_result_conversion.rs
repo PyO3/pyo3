@@ -1,3 +1,7 @@
+//@revisions: default nostd
+//@[default] with-std
+//@[nostd] no-std
+
 //! Testing https://github.com/PyO3/pyo3/issues/1106. A result type that
 //! *doesn't* implement `From<MyError> for PyErr` won't be automatically
 //! converted when using `#[pyfunction]`.

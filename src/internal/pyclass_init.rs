@@ -8,7 +8,7 @@ use crate::impl_::pyclass::PyClassBaseType;
 use crate::internal::get_slot::TP_NEW;
 use crate::types::{PyTuple, PyType, PyTypeMethods};
 use crate::{
-    ffi, IntoPyObject, IntoPyObjectExt, PyClass, PyClassInitializer, PyErr, PyResult, Python,
+    IntoPyObject, IntoPyObjectExt, PyClass, PyClassInitializer, PyErr, PyResult, Python, ffi,
 };
 use crate::{ffi::PyTypeObject, type_object::PyTypeInfo};
 use core::marker::PhantomData;

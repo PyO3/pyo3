@@ -1,4 +1,19 @@
-from typing import Any
+from typing import Any, SupportsFloat, SupportsIndex
+
+__all__ = [
+    "args_kwargs",
+    "many_keyword_arguments",
+    "nested_empty_tuples",
+    "none",
+    "positional_only",
+    "renamed",
+    "simple",
+    "simple_args",
+    "simple_args_kwargs",
+    "simple_kwargs",
+    "with_async",
+    "with_typed_args",
+]
 
 def args_kwargs(*args, **kwargs) -> tuple[tuple[Any, ...], dict[Any, Any] | None]: ...
 def many_keyword_arguments(
@@ -20,8 +35,10 @@ def many_keyword_arguments(
     owl: Any | None = None,
     penguin: Any | None = None,
 ) -> None: ...
+def nested_empty_tuples() -> tuple[tuple[()], tuple[tuple[()]]]: ...
 def none() -> None: ...
 def positional_only(a: Any, /, b: Any) -> tuple[Any, Any]: ...
+def renamed() -> int: ...
 def simple(
     a: Any, b: Any | None = None, *, c: Any | None = None
 ) -> tuple[Any, Any | None, Any | None]: ...
@@ -36,5 +53,8 @@ def simple_kwargs(
 ) -> tuple[Any, Any | None, Any | None, dict[Any, Any] | None]: ...
 async def with_async() -> None: ...
 def with_typed_args(
-    a: bool = False, b: int = 0, c: float = 0.0, d: str = ""
+    a: bool = False,
+    b: SupportsIndex = 0,
+    c: SupportsFloat | SupportsIndex = 0.0,
+    d: str = "",
 ) -> tuple[bool, int, float, str]: ...

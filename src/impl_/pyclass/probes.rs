@@ -1,6 +1,7 @@
 use core::marker::PhantomData;
 
 use crate::conversion::IntoPyObject;
+use crate::impl_::pyclass::{PyClassImplCollector, PyClassTraverse};
 use crate::{FromPyObject, Py};
 
 /// Trait used to combine with zero-sized types to calculate at compile time
@@ -40,15 +41,6 @@ probe!(IsIntoPyObjectRef);
 impl<'a, 'py, T: 'a> IsIntoPyObjectRef<T>
 where
     &'a T: IntoPyObject<'py>,
-{
-    pub const VALUE: bool = true;
-}
-
-probe!(IsIntoPyObject);
-
-impl<'py, T> IsIntoPyObject<T>
-where
-    T: IntoPyObject<'py>,
 {
     pub const VALUE: bool = true;
 }
@@ -93,6 +85,15 @@ impl IsReturningEmptyTuple<()> {
 }
 
 impl<E> IsReturningEmptyTuple<Result<(), E>> {
+    pub const VALUE: bool = true;
+}
+
+probe!(ImplementsTraverse);
+
+impl<T> ImplementsTraverse<T>
+where
+    PyClassImplCollector<T>: PyClassTraverse<T>,
+{
     pub const VALUE: bool = true;
 }
 

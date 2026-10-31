@@ -2,11 +2,12 @@ use crate::model::{
     Argument, Arguments, Attribute, Class, Constant, Expr, Function, Module, Operator,
     VariableLengthArgument,
 };
+use std::ascii;
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 use std::iter::once;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 /// Generates the [type stubs](https://typing.readthedocs.io/en/latest/source/stubs.html) of a given module.
@@ -15,38 +16,40 @@ use std::str::FromStr;
 /// in files with a relevant name.
 pub fn module_stub_files(module: &Module) -> HashMap<PathBuf, String> {
     let mut output_files = HashMap::new();
-    add_module_stub_files(module, &[], &mut output_files);
+    add_module_stub_files(module, Path::new(""), &[], &mut output_files);
     output_files
 }
 
 fn add_module_stub_files(
     module: &Module,
-    module_path: &[&str],
+    directory: &Path,
+    parents: &[&str],
     output_files: &mut HashMap<PathBuf, String>,
 ) {
-    let mut file_path = PathBuf::new();
-    for e in module_path {
-        file_path = file_path.join(e);
-    }
     output_files.insert(
-        file_path.join("__init__.pyi"),
-        module_stubs(module, module_path),
+        directory.join("__init__.pyi"),
+        module_stubs(module, parents),
     );
-    let mut module_path = module_path.to_vec();
-    module_path.push(&module.name);
+    let mut parents = parents.to_vec();
+    parents.push(&module.name);
     for submodule in &module.modules {
         if submodule.modules.is_empty() {
             output_files.insert(
-                file_path.join(format!("{}.pyi", submodule.name)),
-                module_stubs(submodule, &module_path),
+                directory.join(format!("{}.pyi", submodule.name)),
+                module_stubs(submodule, &parents),
             );
         } else {
-            add_module_stub_files(submodule, &module_path, output_files);
+            add_module_stub_files(
+                submodule,
+                &directory.join(&submodule.name),
+                &parents,
+                output_files,
+            );
         }
     }
 }
 
-/// Generates the module stubs to a String, not including submodules
+/// Generates the module stubs to a String, re-exporting the submodules but not their content
 fn module_stubs(module: &Module, parents: &[&str]) -> String {
     let imports = Imports::create(module, parents);
     let mut elements = Vec::new();
@@ -92,24 +95,30 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
         ));
     }
 
+    let dunder_all = dunder_all_stubs(module, &imports);
+
     let mut final_elements = Vec::new();
     if let Some(docstring) = &module.docstring {
-        final_elements.push(format!("\"\"\"\n{docstring}\n\"\"\""));
+        let mut buffer = String::new();
+        push_docstring(&mut buffer, "", docstring);
+        final_elements.push(buffer);
     }
     final_elements.extend(imports.imports);
+    final_elements.extend(dunder_all);
     final_elements.extend(elements);
 
     let mut output = String::new();
 
-    // We insert two line jumps (i.e. empty strings) only above and below multiple line elements (classes with methods, functions with decorators)
+    // We insert two line jumps (i.e. empty strings) only above and below multiple line elements
+    // (classes with methods, functions with decorators) and the `__all__` declaration
     for element in final_elements {
-        let is_multiline = element.contains('\n');
-        if is_multiline && !output.is_empty() && !output.ends_with("\n\n") {
+        let needs_empty_lines = element.contains('\n') || element.starts_with("__all__");
+        if needs_empty_lines && !output.is_empty() && !output.ends_with("\n\n") {
             output.push('\n');
         }
         output.push_str(&element);
         output.push('\n');
-        if is_multiline {
+        if needs_empty_lines {
             output.push('\n');
         }
     }
@@ -119,6 +128,49 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
         output.pop();
     }
     output
+}
+
+/// Generates the `__all__` declaration of a module, if we are able to write an accurate one.
+///
+/// `PyModuleMethods::add` appends every name it adds to the module `__all__`, so any `#[pymodule]`
+/// with at least one member has one at runtime. Incomplete modules are skipped: we do not know all
+/// of their members, and a partial `__all__` would hide names that do exist at runtime.
+fn dunder_all_stubs(module: &Module, imports: &Imports) -> Option<String> {
+    if module.incomplete {
+        return None;
+    }
+    if module.attributes.iter().any(|a| a.name == "__all__") {
+        // The introspection data carries an explicit `__all__`, it is more accurate than ours
+        return None;
+    }
+    let member_count = module.attributes.len()
+        + module.classes.len()
+        + module.functions.len()
+        + module.modules.len();
+    if member_count == 0 {
+        // Nothing was ever added to the module, so it has no `__all__` at runtime either
+        return None;
+    }
+
+    // Each of these lists is already sorted by name, so listing them in the order the stub declares
+    // them keeps the output stable.
+    let mut elts = Vec::with_capacity(member_count);
+    elts.extend(
+        module
+            .attributes
+            .iter()
+            .map(|a| &a.name)
+            .chain(module.classes.iter().map(|c| &c.name))
+            .chain(module.functions.iter().map(|f| &f.name))
+            .chain(module.modules.iter().map(|m| &m.name))
+            .map(|name| Expr::Constant {
+                value: Constant::Str(name.clone()),
+            }),
+    );
+
+    let mut buffer = "__all__ = ".to_string();
+    imports.serialize_expr(&Expr::List { elts }, &mut buffer);
+    Some(buffer)
 }
 
 fn class_stubs(class: &Class, imports: &Imports) -> String {
@@ -149,28 +201,26 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
         buffer.push_str(" ...");
     }
     if let Some(docstring) = &class.docstring {
-        buffer.push_str("\n    \"\"\"");
-        for line in docstring.lines() {
-            buffer.push_str("\n    ");
-            buffer.push_str(line);
-        }
-        buffer.push_str("\n    \"\"\"");
+        push_docstring(&mut buffer, "    ", docstring);
     }
     for attribute in &class.attributes {
         // We do the indentation
         buffer.push_str("\n    ");
-        buffer.push_str(&attribute_stubs(attribute, imports).replace('\n', "\n    "));
+        push_indented(&mut buffer, "    ", &attribute_stubs(attribute, imports));
     }
     for method in &class.methods {
         // We do the indentation
         buffer.push_str("\n    ");
-        buffer
-            .push_str(&function_stubs(method, imports, Some(&class.name)).replace('\n', "\n    "));
+        push_indented(
+            &mut buffer,
+            "    ",
+            &function_stubs(method, imports, Some(&class.name)),
+        );
     }
     for inner_class in &class.inner_classes {
         // We do the indentation
         buffer.push_str("\n    ");
-        buffer.push_str(&class_stubs(inner_class, imports).replace('\n', "\n    "));
+        push_indented(&mut buffer, "    ", &class_stubs(inner_class, imports));
     }
     buffer
 }
@@ -232,16 +282,77 @@ fn function_stubs(function: &Function, imports: &Imports, class_name: Option<&st
         imports.serialize_expr(returns, &mut buffer);
     }
     if let Some(docstring) = &function.docstring {
-        buffer.push_str(":\n    \"\"\"");
-        for line in docstring.lines() {
-            buffer.push_str("\n    ");
-            buffer.push_str(line);
-        }
-        buffer.push_str("\n    \"\"\"");
+        buffer.push(':');
+        push_docstring(&mut buffer, "    ", docstring);
     } else {
         buffer.push_str(": ...");
     }
     buffer
+}
+
+/// Appends `text` to `buffer`, prefixing every line after the first with `indent`.
+///
+/// The first line is left alone because callers have already written the indentation for it; this
+/// is the same contract `text.replace('\n', "\n{indent}")` had, minus one thing: a blank line stays
+/// blank instead of being padded out to the indentation. Trailing whitespace on an otherwise empty
+/// line is invisible in the source but still trailing whitespace, it trips `W293` in every Python
+/// linter, and a generated file is exactly the kind of file nobody gets to hand-fix.
+fn push_indented(buffer: &mut String, indent: &str, text: &str) {
+    for (index, line) in text.split('\n').enumerate() {
+        if index > 0 {
+            buffer.push('\n');
+            if !line.is_empty() {
+                buffer.push_str(indent);
+            }
+        }
+        buffer.push_str(line);
+    }
+}
+
+/// Appends a `"""`-quoted docstring indented by `indent`, starting on a fresh line.
+fn push_docstring(buffer: &mut String, indent: &str, docstring: &str) {
+    if !buffer.is_empty() {
+        buffer.push('\n');
+    }
+    buffer.push_str(indent);
+    buffer.push_str("\"\"\"");
+    for line in docstring.lines() {
+        buffer.push('\n');
+        if !line.is_empty() {
+            buffer.push_str(indent);
+            let mut quotes = 0;
+            for c in line.chars() {
+                quotes = if c == '"' { quotes + 1 } else { 0 };
+                if quotes == 3 {
+                    buffer.push('\\');
+                    quotes = 0;
+                }
+                if c.is_ascii_control() || c == '\\' {
+                    buffer.extend(ascii::escape_default(c as u8).map(char::from));
+                } else {
+                    buffer.push(c);
+                }
+            }
+        }
+    }
+    buffer.push('\n');
+    buffer.push_str(indent);
+    buffer.push_str("\"\"\"");
+}
+
+/// Collects the operands of a `|` chain in source order, skipping repeats.
+fn flatten_union<'a>(expr: &'a Expr, operands: &mut Vec<&'a Expr>, seen: &mut HashSet<&'a Expr>) {
+    if let Expr::BinOp {
+        left,
+        op: Operator::BitOr,
+        right,
+    } = expr
+    {
+        flatten_union(left, operands, seen);
+        flatten_union(right, operands, seen);
+    } else if seen.insert(expr) {
+        operands.push(expr);
+    }
 }
 
 fn attribute_stubs(attribute: &Attribute, imports: &Imports) -> String {
@@ -255,12 +366,7 @@ fn attribute_stubs(attribute: &Attribute, imports: &Imports) -> String {
         imports.serialize_expr(value, &mut buffer);
     }
     if let Some(docstring) = &attribute.docstring {
-        buffer.push_str("\n\"\"\"");
-        for line in docstring.lines() {
-            buffer.push('\n');
-            buffer.push_str(line);
-        }
-        buffer.push_str("\n\"\"\"");
+        push_docstring(&mut buffer, "", docstring);
     }
     buffer
 }
@@ -310,8 +416,8 @@ impl Imports {
     /// and create the aliases when needed.
     fn create(module: &Module, module_parents: &[&str]) -> Self {
         let module_is_package = !module.modules.is_empty();
-        let mut elements_used_in_annotations = ElementsUsedInAnnotations::new();
-        elements_used_in_annotations.walk_module(module);
+        let mut referenced_names = ReferencedNames::new();
+        referenced_names.walk_module(module);
 
         let mut imports = Vec::new();
         let mut renaming = BTreeMap::new();
@@ -332,15 +438,14 @@ impl Imports {
             .map(|c| c.name.clone())
             .chain(module.functions.iter().map(|f| f.name.clone()))
             .chain(module.attributes.iter().map(|a| a.name.clone()))
+            .chain(module.modules.iter().map(|m| m.name.clone()))
         {
             local_name_to_module_and_attribute
                 .insert(name.clone(), (current_module_name.clone(), name.clone()));
         }
-        // We don't process the current module elements, no need to care about them
-        local_name_to_module_and_attribute.remove(&current_module_name);
 
         // We process then imports, normalizing local imports
-        for (module, attrs) in &elements_used_in_annotations.module_to_name {
+        for (module, attrs) in &referenced_names.module_to_name {
             let mut import_for_module = Vec::new();
             for attr in attrs {
                 // We split nested classes A.B in "A" (the part that must be imported and can have naming conflicts) and ".B"
@@ -400,6 +505,18 @@ impl Imports {
                 ));
             }
         }
+        // Submodules are attributes of their parent at runtime, so we re-export them.
+        // The redundant alias is what marks a name as a public re-export for type checkers.
+        if module_is_package {
+            let mut submodules = module
+                .modules
+                .iter()
+                .map(|m| format!("{0} as {0}", m.name))
+                .collect::<Vec<_>>();
+            submodules.sort();
+            imports.push(format!("from . import {}", submodules.join(", ")));
+        }
+
         imports.sort(); // We make sure they are sorted
 
         Self { imports, renaming }
@@ -457,13 +574,20 @@ impl Imports {
                     buffer.push_str(attr);
                 }
             }
-            Expr::BinOp { left, op, right } => {
-                self.serialize_expr(left, buffer);
-                buffer.push(' ');
-                buffer.push(match op {
-                    Operator::BitOr => '|',
-                });
-                self.serialize_expr(right, buffer);
+            Expr::BinOp {
+                op: Operator::BitOr,
+                ..
+            } => {
+                // Union deduplication needs to happen here because the macro
+                // generation only sees unresolved associated constants.
+                let mut operands = Vec::new();
+                flatten_union(expr, &mut operands, &mut HashSet::new());
+                for (index, operand) in operands.into_iter().enumerate() {
+                    if index > 0 {
+                        buffer.push_str(" | ");
+                    }
+                    self.serialize_expr(operand, buffer);
+                }
             }
             Expr::Tuple { elts } => {
                 buffer.push('(');
@@ -482,8 +606,12 @@ impl Imports {
                 self.serialize_expr(value, buffer);
                 buffer.push('[');
                 if let Expr::Tuple { elts } = &**slice {
-                    // We don't display the tuple parentheses
-                    self.serialize_elts(elts, buffer);
+                    if elts.is_empty() {
+                        // Empty tuples need parentheses to avoid invalid syntax like `tuple[]`
+                        buffer.push_str("()");
+                    } else {
+                        self.serialize_elts(elts, buffer);
+                    }
                 } else {
                     self.serialize_expr(slice, buffer);
                 }
@@ -502,13 +630,13 @@ impl Imports {
     }
 }
 
-/// Lists all the elements used in annotations
-struct ElementsUsedInAnnotations {
+/// Collects the names referenced by the expressions emitted in a module's stub
+struct ReferencedNames {
     /// module -> name where module is global (from the root of the interpreter).
     module_to_name: BTreeMap<String, BTreeSet<String>>,
 }
 
-impl ElementsUsedInAnnotations {
+impl ReferencedNames {
     fn new() -> Self {
         Self {
             module_to_name: BTreeMap::new(),
@@ -559,6 +687,9 @@ impl ElementsUsedInAnnotations {
         if let Some(type_hint) = &attribute.annotation {
             self.walk_expr(type_hint);
         }
+        if let Some(value) = &attribute.value {
+            self.walk_expr(value);
+        }
     }
 
     fn walk_function(&mut self, function: &Function) {
@@ -574,6 +705,9 @@ impl ElementsUsedInAnnotations {
         {
             if let Some(type_hint) = &arg.annotation {
                 self.walk_expr(type_hint);
+            }
+            if let Some(default_value) = &arg.default_value {
+                self.walk_expr(default_value);
             }
         }
         for arg in function
@@ -905,6 +1039,109 @@ mod tests {
         assert_eq!(output, "dict[A, (A3.C, A3.D, B, A2, int, int2, float)]");
     }
 
+    fn empty_module(name: &str) -> Module {
+        Module {
+            name: name.into(),
+            modules: Vec::new(),
+            classes: Vec::new(),
+            functions: Vec::new(),
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        }
+    }
+
+    /// A submodule is an attribute of its parent at runtime, so the parent stub must re-export it.
+    #[test]
+    fn submodules_are_re_exported_by_their_parent() {
+        let module = Module {
+            name: "foo".into(),
+            modules: vec![empty_module("zulu"), empty_module("alpha")],
+            classes: Vec::new(),
+            functions: Vec::new(),
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        assert_eq!(
+            module_stubs(&module, &[]),
+            "from . import alpha as alpha, zulu as zulu\n\n__all__ = [\"zulu\", \"alpha\"]\n"
+        );
+        // A module without submodules gets no such line.
+        assert_eq!(module_stubs(&empty_module("alpha"), &["foo"]), "");
+    }
+
+    /// A module with one member of every kind that lands in `__all__` at runtime.
+    fn populated_module() -> Module {
+        Module {
+            modules: vec![empty_module("sub")],
+            classes: vec![Class {
+                name: "Zulu".into(),
+                bases: Vec::new(),
+                methods: Vec::new(),
+                attributes: Vec::new(),
+                decorators: Vec::new(),
+                inner_classes: Vec::new(),
+                docstring: None,
+            }],
+            functions: vec![Function {
+                name: "func".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: Vec::new(),
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: None,
+                is_async: false,
+                docstring: None,
+            }],
+            attributes: vec![Attribute {
+                name: "CONST".into(),
+                value: Some(Expr::Constant {
+                    value: Constant::Int("1".into()),
+                }),
+                annotation: None,
+                docstring: None,
+            }],
+            ..empty_module("bar")
+        }
+    }
+
+    /// The `pytests` stubs cover the common cases, we only test the ones they don't have:
+    /// a module with a submodule, and an empty module.
+    #[test]
+    fn test_dunder_all() {
+        // The names are the ones `PyModuleMethods::add` puts in `__all__` at runtime, including
+        // the submodule which is declared in its own stub file.
+        assert_eq!(
+            module_stubs(&populated_module(), &["foo"]),
+            "from . import sub as sub\n\n__all__ = [\"CONST\", \"Zulu\", \"func\", \"sub\"]\n\nCONST = 1\nclass Zulu: ...\ndef func(): ...\n"
+        );
+        // Nothing was added to an empty module, so it has no `__all__` at runtime either
+        assert_eq!(module_stubs(&empty_module("bar"), &["foo"]), "");
+    }
+
+    /// A `#[pymodule_init]` that is handed the module can add anything to it, so the module is
+    /// tagged incomplete and the members we know about are not the whole of `__all__`. An
+    /// initialiser declared without the module argument leaves the module complete and keeps its
+    /// `__all__`, which `test_dunder_all` and the `othermod` stubs of `pytests` cover.
+    #[test]
+    fn test_dunder_all_omitted_for_incomplete_module() {
+        let module = Module {
+            incomplete: true,
+            ..populated_module()
+        };
+        let stubs = module_stubs(&module, &["foo"]);
+        assert!(
+            !stubs.contains("__all__"),
+            "an incomplete module must not declare `__all__`:\n{stubs}"
+        );
+        assert!(stubs.contains("def __getattr__(name: str) -> Incomplete: ...\n"));
+    }
+
     #[test]
     fn test_make_module_path_relative() {
         assert_eq!(
@@ -941,5 +1178,265 @@ mod tests {
         );
         assert_eq!(make_module_path_relative("foo", "foo.la", false), ".");
         assert_eq!(make_module_path_relative("foo", "bar", true), "foo");
+    }
+
+    /// Docstrings are re-indented into the class or function body, and a paragraph break inside one
+    /// is an empty line. Padding it out to the body indentation is trailing whitespace, which
+    /// `W293` flags and which nobody can fix by hand in a generated file.
+    #[test]
+    fn docstrings_are_escaped_and_blank_lines_are_not_padded() {
+        let module = Module {
+            name: "bar".into(),
+            modules: Vec::new(),
+            classes: vec![Class {
+                name: "Zulu".into(),
+                bases: Vec::new(),
+                methods: vec![Function {
+                    name: "method".into(),
+                    decorators: Vec::new(),
+                    arguments: Arguments {
+                        positional_only_arguments: Vec::new(),
+                        arguments: Vec::new(),
+                        vararg: None,
+                        keyword_only_arguments: Vec::new(),
+                        kwarg: None,
+                    },
+                    returns: None,
+                    is_async: false,
+                    docstring: Some("Summary.\n\nC:\\Users\\someone\\".into()),
+                }],
+                attributes: Vec::new(),
+                decorators: Vec::new(),
+                inner_classes: Vec::new(),
+                docstring: Some(
+                    concat!(
+                        "Class summary.\n\n",
+                        r#"Quotes: "a" "" """ """" """"" """""" """""""."#,
+                        "\n",
+                        r#"Edges: \"""\ """"#,
+                    )
+                    .into(),
+                ),
+            }],
+            functions: Vec::new(),
+            attributes: vec![Attribute {
+                name: "CONST".into(),
+                value: None,
+                annotation: None,
+                docstring: Some("Const summary.\n\nControls: \x0007\t\r. Unicode: café 🦀.".into()),
+            }],
+            incomplete: false,
+            docstring: Some("\"\"\" C:\\Users\\someone".into()),
+        };
+
+        let stubs = module_stubs(&module, &["foo"]);
+        assert!(
+            !stubs
+                .lines()
+                .any(|line| !line.is_empty() && line.trim().is_empty()),
+            "generated stubs contain a blank line padded with whitespace:\n{stubs:?}"
+        );
+        // Escaping preserves the indentation and paragraph breaks in every scope.
+        assert!(stubs.starts_with("\"\"\"\n\"\"\\\" C:\\\\Users\\\\someone\n\"\"\"\n"));
+        assert!(stubs.contains(concat!(
+            "\n    Class summary.\n\n",
+            r#"    Quotes: "a" "" ""\" ""\"" ""\""" ""\"""\" ""\"""\""."#,
+            "\n",
+            r#"    Edges: \\""\"\\ ""\""#,
+            "\n",
+        )));
+        assert!(stubs.contains("\n        Summary.\n\n        C:\\\\Users\\\\someone\\\\\n"));
+        assert!(stubs.contains("\nConst summary.\n\nControls: \\x0007\\t\\r. Unicode: café 🦀.\n"));
+    }
+
+    #[test]
+    fn union_members_are_deduplicated_and_spaced() {
+        let str_ = || Expr::Name { id: "str".into() };
+        let path_like = || Expr::Subscript {
+            value: Box::new(Expr::Attribute {
+                value: Box::new(Expr::Name { id: "os".into() }),
+                attr: "PathLike".into(),
+            }),
+            slice: Box::new(str_()),
+        };
+        let union = |left: Expr, right: Expr| Expr::BinOp {
+            left: Box::new(left),
+            op: Operator::BitOr,
+            right: Box::new(right),
+        };
+        let imports = Imports {
+            imports: Vec::new(),
+            renaming: BTreeMap::from([
+                (("builtins".into(), "str".into()), "str".into()),
+                (("os".into(), "PathLike".into()), "PathLike".into()),
+            ]),
+        };
+        let serialize = |expr| {
+            let mut buffer = String::new();
+            imports.serialize_expr(&expr, &mut buffer);
+            buffer
+        };
+
+        // `str | os.PathLike[str] | str`, nested to the right
+        assert_eq!(
+            serialize(union(str_(), union(path_like(), str_()))),
+            "str | PathLike[str]"
+        );
+        // and the same chain nested to the left
+        assert_eq!(
+            serialize(union(union(str_(), path_like()), str_())),
+            "str | PathLike[str]"
+        );
+    }
+
+    #[test]
+    fn nested_packages_are_written_into_their_own_directory() {
+        let attribute = |name: &str| Attribute {
+            name: name.into(),
+            value: None,
+            annotation: Some(Expr::Attribute {
+                value: Box::new(Expr::Name { id: "top".into() }),
+                attr: "Top".into(),
+            }),
+            docstring: None,
+        };
+        let module = |name: &str, modules: Vec<Module>, attributes: Vec<Attribute>| Module {
+            name: name.into(),
+            modules,
+            classes: Vec::new(),
+            functions: Vec::new(),
+            attributes,
+            incomplete: false,
+            docstring: None,
+        };
+        let mut top = module(
+            "top",
+            vec![
+                module(
+                    "child",
+                    vec![module("grandchild", Vec::new(), vec![attribute("deep")])],
+                    vec![attribute("mid")],
+                ),
+                module("sibling", Vec::new(), Vec::new()),
+            ],
+            Vec::new(),
+        );
+        top.classes.push(Class {
+            name: "Top".into(),
+            bases: Vec::new(),
+            methods: Vec::new(),
+            attributes: Vec::new(),
+            decorators: Vec::new(),
+            inner_classes: Vec::new(),
+            docstring: None,
+        });
+
+        let files = module_stub_files(&top);
+        let mut paths = files.keys().cloned().collect::<Vec<_>>();
+        paths.sort();
+        assert_eq!(
+            paths,
+            [
+                PathBuf::from("__init__.pyi"),
+                PathBuf::from("child/__init__.pyi"),
+                PathBuf::from("child/grandchild.pyi"),
+                PathBuf::from("sibling.pyi"),
+            ]
+        );
+        // The parents passed to `module_stubs` must stay the module names, not the directories.
+        assert!(files[Path::new("child/__init__.pyi")].contains("from .. import Top"));
+        assert!(files[Path::new("child/grandchild.pyi")].contains("from .. import Top"));
+        assert!(files[Path::new("sibling.pyi")].is_empty());
+    }
+
+    /// Default values and attribute values go through the same renaming table as the type hints,
+    /// so the names they use must be collected too, or `serialize_expr` panics on them.
+    #[test]
+    fn names_in_defaults_and_values_are_imported() {
+        let math = |attr: &str| Expr::Attribute {
+            value: Box::new(Expr::Name { id: "math".into() }),
+            attr: attr.into(),
+        };
+        let module = Module {
+            name: "foo".into(),
+            modules: Vec::new(),
+            classes: Vec::new(),
+            functions: vec![Function {
+                name: "func".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: vec![Argument {
+                        name: "a".into(),
+                        default_value: Some(math("nan")),
+                        annotation: None,
+                    }],
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: None,
+                is_async: false,
+                docstring: None,
+            }],
+            attributes: vec![Attribute {
+                name: "X".into(),
+                value: Some(math("inf")),
+                annotation: None,
+                docstring: None,
+            }],
+            incomplete: false,
+            docstring: None,
+        };
+        assert_eq!(
+            module_stubs(&module, &[]),
+            "from math import inf, nan\n\n__all__ = [\"X\", \"func\"]\n\nX = inf\ndef func(a=nan): ...\n"
+        );
+    }
+
+    /// A class named like the root module used to be imported from itself and shadowed by builtins
+    #[test]
+    fn local_binding_named_like_the_root_module_is_kept() {
+        let module = Module {
+            name: "int".into(),
+            modules: Vec::new(),
+            classes: vec![Class {
+                name: "int".into(),
+                bases: Vec::new(),
+                methods: Vec::new(),
+                attributes: Vec::new(),
+                decorators: Vec::new(),
+                inner_classes: Vec::new(),
+                docstring: None,
+            }],
+            functions: vec![Function {
+                name: "make".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: vec![Argument {
+                        name: "a".into(),
+                        default_value: None,
+                        annotation: Some(Expr::Name { id: "int".into() }),
+                    }],
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: Some(Expr::Attribute {
+                    value: Box::new(Expr::Name { id: "int".into() }),
+                    attr: "int".into(),
+                }),
+                is_async: false,
+                docstring: None,
+            }],
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        assert_eq!(
+            module_stubs(&module, &[]),
+            "from builtins import int as int2\n\n__all__ = [\"int\", \"make\"]\n\nclass int: ...\ndef make(a: int2) -> int: ...\n"
+        );
     }
 }

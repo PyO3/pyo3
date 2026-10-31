@@ -1,4 +1,7 @@
 from typing import final
+from typing_extensions import disjoint_base
+
+__all__ = ["SubDict", "Subclass", "Subclassable"]
 
 @final
 class SubDict(dict):
@@ -10,6 +13,7 @@ class Subclass(Subclassable):
     def __new__(cls, /) -> Subclass: ...
     def __str__(self, /) -> str: ...
 
+@disjoint_base
 class Subclassable:
     def __new__(cls, /) -> Subclassable: ...
     def __str__(self, /) -> str: ...

@@ -16,6 +16,7 @@ It's also possible to tweak its configuration (mostly to tune its performance).
 
 ```rust,no_run
 #[pyo3::pymodule]
+# #[pyo3(name = "example_logging")]
 mod my_module {
     use log::info;
     use pyo3::prelude::*;
@@ -28,7 +29,7 @@ mod my_module {
     }
 
     #[pymodule_init]
-    fn init(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    fn init() {
         // A good place to install the Rust -> Python logger.
         pyo3_log::init();
     }

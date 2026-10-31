@@ -212,9 +212,9 @@ impl TzClass {
 pub mod datetime {
     #[pymodule_export]
     use super::{
-        date_from_timestamp, datetime_from_timestamp, get_date_tuple, get_datetime_tuple,
+        TzClass, date_from_timestamp, datetime_from_timestamp, get_date_tuple, get_datetime_tuple,
         get_datetime_tuple_fold, get_datetime_tzinfo, get_delta_tuple, get_time_tuple,
         get_time_tuple_fold, get_time_tzinfo, make_date, make_datetime, make_delta, make_time,
-        time_with_fold, TzClass,
+        time_with_fold,
     };
 }

@@ -214,7 +214,7 @@ It can either return `()` or `PyResult<()>`.
 # #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 use pyo3::types::{PyDict, PyTuple, PySuper};
 # #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
-use crate::pyo3::PyTypeInfo;
+use pyo3::PyTypeInfo;
 
 # #[cfg(not(any(Py_LIMITED_API, GraalPy)))]
 #[pyclass(extends = PyDict)]
@@ -276,6 +276,7 @@ The next step is to create the Python module and add our class to it:
 # struct Number(i32);
 #
 #[pymodule]
+# #[pyo3(name = "example_class_module")]
 mod my_module {
     #[pymodule_export]
     use super::Number;
@@ -1511,9 +1512,6 @@ struct MyClass {
 impl pyo3::types::DerefToPyAny for MyClass {}
 
 unsafe impl pyo3::type_object::PyTypeInfo for MyClass {
-    const NAME: &'static str = "MyClass";
-    const MODULE: ::std::option::Option<&'static str> = ::std::option::Option::None;
-
     #[inline]
     fn type_object_raw(py: pyo3::Python<'_>) -> *mut pyo3::ffi::PyTypeObject {
         <Self as pyo3::impl_::pyclass::PyClassImpl>::lazy_type_object()
@@ -1560,6 +1558,10 @@ impl pyo3::impl_::pyclass::PyClassImpl for MyClass {
         use pyo3::impl_::pyclass::LazyTypeObject;
         static TYPE_OBJECT: LazyTypeObject<MyClass> = LazyTypeObject::new();
         &TYPE_OBJECT
+    }
+
+    fn __traverse__(&self, _visit: pyo3::pyclass::PyVisit<'_>) -> Result<(), pyo3::pyclass::PyTraverseError> {
+        Ok(())
     }
 }
 

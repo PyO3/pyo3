@@ -200,10 +200,10 @@ fn test_concat() {
         let d = seq_dict(py);
 
         py_run!(
-        py,
-        *d,
-        "s1 = ByteSequence([1, 2]); s2 = ByteSequence([3, 4]); assert list(s1 + s2) == [1, 2, 3, 4]"
-    );
+            py,
+            *d,
+            "s1 = ByteSequence([1, 2]); s2 = ByteSequence([3, 4]); assert list(s1 + s2) == [1, 2, 3, 4]"
+        );
         py_expect_exception!(
             py,
             *d,
@@ -253,6 +253,47 @@ fn test_inplace_repeat() {
     });
 }
 
+#[pyclass(sequence)]
+struct SequenceOperators;
+
+#[pymethods]
+impl SequenceOperators {
+    fn __concat__(&self, _other: &Self) -> &'static str {
+        "concat"
+    }
+
+    fn __inplace_concat__(&self, _other: &Self) -> &'static str {
+        "inplace_concat"
+    }
+
+    fn __repeat__(&self, _count: isize) -> &'static str {
+        "repeat"
+    }
+
+    fn __inplace_repeat__(&self, _count: isize) -> &'static str {
+        "inplace_repeat"
+    }
+}
+
+#[test]
+fn sequence_operators_use_distinct_slots() {
+    Python::attach(|py| {
+        let d = [
+            ("left", Bound::new(py, SequenceOperators).unwrap()),
+            ("right", Bound::new(py, SequenceOperators).unwrap()),
+        ]
+        .into_py_dict(py)
+        .unwrap();
+
+        py_assert!(py, *d, "left + right == 'concat'");
+        py_run!(py, *d, "result = left; result += right");
+        py_assert!(py, *d, "result == 'inplace_concat'");
+        py_assert!(py, *d, "left * 2 == 'repeat'");
+        py_run!(py, *d, "result = left; result *= 2");
+        py_assert!(py, *d, "result == 'inplace_repeat'");
+    });
+}
+
 // Check that #[pyo3(get, set)] works correctly for Vec<PyObject>
 
 #[pyclass]
@@ -283,12 +324,13 @@ fn test_any_object_list_set() {
         let list = Bound::new(py, AnyObjectList { items: vec![] }).unwrap();
 
         py_run!(py, list, "list.items = [1, 2, 3]");
-        assert!(list
-            .borrow()
-            .items
-            .iter()
-            .zip(&[1u32, 2, 3])
-            .all(|(a, b)| a.bind(py).eq(b.into_pyobject(py).unwrap()).unwrap()));
+        assert!(
+            list.borrow()
+                .items
+                .iter()
+                .zip(&[1u32, 2, 3])
+                .all(|(a, b)| a.bind(py).eq(b.into_pyobject(py).unwrap()).unwrap())
+        );
     });
 }
 

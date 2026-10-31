@@ -1,5 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "bytes")]
 
 //! Conversions to and from [bytes](https://docs.rs/bytes/latest/bytes/)'s [`Bytes`].
@@ -46,6 +44,7 @@
 //! }
 //!
 //! #[pymodule]
+//! # #[pyo3(name = "example_bytes")]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(get_message_bytes, m)?)?;
 //!     m.add_function(wrap_pyfunction!(num_bytes, m)?)?;
@@ -66,6 +65,8 @@
 //! ```
 use bytes::Bytes;
 
+#[cfg(feature = "experimental-inspect")]
+use crate::PyTypeInfo;
 use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
@@ -74,8 +75,6 @@ use crate::instance::Bound;
 use crate::platform::prelude::*;
 use crate::pybacked::PyBackedBytes;
 use crate::types::PyBytes;
-#[cfg(feature = "experimental-inspect")]
-use crate::PyTypeInfo;
 use crate::{Borrowed, CastError, FromPyObject, PyAny, PyErr, Python};
 
 impl<'a, 'py> FromPyObject<'a, 'py> for Bytes {
@@ -118,8 +117,8 @@ impl<'py> IntoPyObject<'py> for &Bytes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods, PyBytes};
     use crate::Python;
+    use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods, PyBytes};
 
     #[test]
     fn test_bytes() {
@@ -141,6 +140,8 @@ mod tests {
             assert_eq!(&*bytes, b"foobar");
 
             // Editing the bytearray should not change extracted Bytes
+            // SAFETY: the slice is dropped within this statement without running any Python code,
+            // and `bytes` holds a copy of the data, so the buffer is not aliased
             unsafe { py_bytearray.as_bytes_mut()[0] = b'x' };
             assert_eq!(&bytes, "foobar");
             assert_eq!(&py_bytearray.extract::<Vec<u8>>().unwrap(), b"xoobar");

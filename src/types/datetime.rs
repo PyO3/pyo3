@@ -8,27 +8,27 @@ use crate::err::PyErr;
 use crate::err::PyResult;
 #[cfg(not(Py_LIMITED_API))]
 use crate::ffi::{
-    self, PyDateTime_CAPI, PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR,
-    PyDateTime_DATE_GET_MICROSECOND, PyDateTime_DATE_GET_MINUTE, PyDateTime_DATE_GET_SECOND,
-    PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS, PyDateTime_DELTA_GET_SECONDS,
-    PyDateTime_FromTimestamp, PyDateTime_GET_DAY, PyDateTime_GET_MONTH, PyDateTime_GET_YEAR,
-    PyDateTime_IMPORT, PyDateTime_TIME_GET_FOLD, PyDateTime_TIME_GET_HOUR,
-    PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
-    PyDate_FromTimestamp,
+    self, PyDate_FromTimestamp, PyDateTime_CAPI, PyDateTime_DATE_GET_FOLD,
+    PyDateTime_DATE_GET_HOUR, PyDateTime_DATE_GET_MICROSECOND, PyDateTime_DATE_GET_MINUTE,
+    PyDateTime_DATE_GET_SECOND, PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS,
+    PyDateTime_DELTA_GET_SECONDS, PyDateTime_FromTimestamp, PyDateTime_GET_DAY,
+    PyDateTime_GET_MONTH, PyDateTime_GET_YEAR, PyDateTime_IMPORT, PyDateTime_TIME_GET_FOLD,
+    PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE,
+    PyDateTime_TIME_GET_SECOND,
 };
 #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
-use crate::ffi::{PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO, Py_IsNone};
+use crate::ffi::{Py_IsNone, PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO};
 #[cfg(Py_LIMITED_API)]
 use crate::type_object::PyTypeInfo;
 #[cfg(Py_LIMITED_API)]
-use crate::types::typeobject::PyTypeMethods;
-#[cfg(Py_LIMITED_API)]
 use crate::types::IntoPyDict;
-use crate::types::{any::PyAnyMethods, PyString, PyType};
-#[cfg(not(Py_LIMITED_API))]
-use crate::{ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple, BoundObject};
-use crate::{sync::PyOnceLock, Py};
+#[cfg(Py_LIMITED_API)]
+use crate::types::typeobject::PyTypeMethods;
+use crate::types::{PyString, PyType, any::PyAnyMethods};
 use crate::{Borrowed, Bound, IntoPyObject, PyAny, Python};
+#[cfg(not(Py_LIMITED_API))]
+use crate::{BoundObject, ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple};
+use crate::{Py, sync::PyOnceLock};
 #[cfg(not(Py_LIMITED_API))]
 use core::ffi::c_int;
 
@@ -48,6 +48,24 @@ fn ensure_datetime_api(py: Python<'_>) -> PyResult<&'static PyDateTime_CAPI> {
 #[cfg(not(Py_LIMITED_API))]
 fn expect_datetime_api(py: Python<'_>) -> &'static PyDateTime_CAPI {
     ensure_datetime_api(py).expect("failed to import `datetime` C API")
+}
+
+#[cfg(Py_LIMITED_API)]
+macro_rules! limited_api_descriptor_get {
+    ($self:expr, $owner:ty, $attr:literal, $output:ty) => {{
+        let py = $self.py();
+        static DESCRIPTOR_GET: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+        DESCRIPTOR_GET
+            .get_or_try_init(py, || {
+                <$owner>::type_object(py)
+                    .getattr($attr)
+                    .and_then(|descriptor| descriptor.getattr("__get__"))
+                    .map(|getter| getter.unbind())
+            })
+            .and_then(|getter| getter.bind(py).call1(($self, <$owner>::type_object(py))))
+            .and_then(|value| value.extract::<$output>())
+            .unwrap_or_default()
+    }};
 }
 
 // Type Check macros
@@ -102,7 +120,6 @@ ffi_fun_with_autoinit! {
 // Access traits
 
 /// Trait for accessing the date components of a struct containing a date.
-#[cfg(not(Py_LIMITED_API))]
 pub trait PyDateAccess {
     /// Returns the year, as a positive int.
     ///
@@ -126,7 +143,6 @@ pub trait PyDateAccess {
 /// Note: These access the individual components of a (day, second,
 /// microsecond) representation of the delta, they are *not* intended as
 /// aliases for calculating the total duration in each of these units.
-#[cfg(not(Py_LIMITED_API))]
 pub trait PyDeltaAccess {
     /// Returns the number of days, as an int from -999999999 to 999999999.
     ///
@@ -146,7 +162,6 @@ pub trait PyDeltaAccess {
 }
 
 /// Trait for accessing the time components of a struct containing a time.
-#[cfg(not(Py_LIMITED_API))]
 pub trait PyTimeAccess {
     /// Returns the hour, as an int from 0 through 23.
     ///
@@ -261,18 +276,38 @@ impl PyDate {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
 impl PyDateAccess for Bound<'_, PyDate> {
     fn get_year(&self) -> i32 {
-        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyDate, "year", i32)
+            }
+            _ => {
+                unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
+            }
+        }
     }
 
     fn get_month(&self) -> u8 {
-        unsafe { PyDateTime_GET_MONTH(self.as_ptr()) as u8 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyDate, "month", u8)
+            }
+            _ => {
+                unsafe { PyDateTime_GET_MONTH(self.as_ptr()) as u8 }
+            }
+        }
     }
 
     fn get_day(&self) -> u8 {
-        unsafe { PyDateTime_GET_DAY(self.as_ptr()) as u8 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyDate, "day", u8)
+            }
+            _ => {
+                unsafe { PyDateTime_GET_DAY(self.as_ptr()) as u8 }
+            }
+        }
     }
 }
 
@@ -431,41 +466,95 @@ impl PyDateTime {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
 impl PyDateAccess for Bound<'_, PyDateTime> {
     fn get_year(&self) -> i32 {
-        unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyDateTime, "year", i32)
+            }
+            _ => {
+                unsafe { PyDateTime_GET_YEAR(self.as_ptr()) }
+            }
+        }
     }
 
     fn get_month(&self) -> u8 {
-        unsafe { PyDateTime_GET_MONTH(self.as_ptr()) as u8 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyDateTime, "month", u8)
+            }
+            _ => {
+                unsafe { PyDateTime_GET_MONTH(self.as_ptr()) as u8 }
+            }
+        }
     }
 
     fn get_day(&self) -> u8 {
-        unsafe { PyDateTime_GET_DAY(self.as_ptr()) as u8 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyDateTime, "day", u8)
+            }
+            _ => {
+                unsafe { PyDateTime_GET_DAY(self.as_ptr()) as u8 }
+            }
+        }
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
 impl PyTimeAccess for Bound<'_, PyDateTime> {
     fn get_hour(&self) -> u8 {
-        unsafe { PyDateTime_DATE_GET_HOUR(self.as_ptr()) as u8 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyDateTime, "hour", u8)
+            }
+            _ => {
+                unsafe { PyDateTime_DATE_GET_HOUR(self.as_ptr()) as u8 }
+            }
+        }
     }
 
     fn get_minute(&self) -> u8 {
-        unsafe { PyDateTime_DATE_GET_MINUTE(self.as_ptr()) as u8 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyDateTime, "minute", u8)
+            }
+            _ => {
+                unsafe { PyDateTime_DATE_GET_MINUTE(self.as_ptr()) as u8 }
+            }
+        }
     }
 
     fn get_second(&self) -> u8 {
-        unsafe { PyDateTime_DATE_GET_SECOND(self.as_ptr()) as u8 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyDateTime, "second", u8)
+            }
+            _ => {
+                unsafe { PyDateTime_DATE_GET_SECOND(self.as_ptr()) as u8 }
+            }
+        }
     }
 
     fn get_microsecond(&self) -> u32 {
-        unsafe { PyDateTime_DATE_GET_MICROSECOND(self.as_ptr()) as u32 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyDateTime, "microsecond", u32)
+            }
+            _ => {
+                unsafe { PyDateTime_DATE_GET_MICROSECOND(self.as_ptr()) as u32 }
+            }
+        }
     }
 
     fn get_fold(&self) -> bool {
-        unsafe { PyDateTime_DATE_GET_FOLD(self.as_ptr()) > 0 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyDateTime, "fold", usize) > 0
+            }
+            _ => {
+                unsafe { PyDateTime_DATE_GET_FOLD(self.as_ptr()) != 0 }
+            }
+        }
     }
 }
 
@@ -615,26 +704,60 @@ impl PyTime {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
 impl PyTimeAccess for Bound<'_, PyTime> {
     fn get_hour(&self) -> u8 {
-        unsafe { PyDateTime_TIME_GET_HOUR(self.as_ptr()) as u8 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyTime, "hour", u8)
+            }
+            _ => {
+                unsafe { PyDateTime_TIME_GET_HOUR(self.as_ptr()) as u8 }
+            }
+        }
     }
 
     fn get_minute(&self) -> u8 {
-        unsafe { PyDateTime_TIME_GET_MINUTE(self.as_ptr()) as u8 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyTime, "minute", u8)
+            }
+            _ => {
+                unsafe { PyDateTime_TIME_GET_MINUTE(self.as_ptr()) as u8 }
+            }
+        }
     }
 
     fn get_second(&self) -> u8 {
-        unsafe { PyDateTime_TIME_GET_SECOND(self.as_ptr()) as u8 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyTime, "second", u8)
+            }
+            _ => {
+                unsafe { PyDateTime_TIME_GET_SECOND(self.as_ptr()) as u8 }
+            }
+        }
     }
 
     fn get_microsecond(&self) -> u32 {
-        unsafe { PyDateTime_TIME_GET_MICROSECOND(self.as_ptr()) as u32 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyTime, "microsecond", u32)
+            }
+            _ => {
+                unsafe { PyDateTime_TIME_GET_MICROSECOND(self.as_ptr()) as u32 }
+            }
+        }
     }
 
     fn get_fold(&self) -> bool {
-        unsafe { PyDateTime_TIME_GET_FOLD(self.as_ptr()) != 0 }
+        cfg_select! {
+            Py_LIMITED_API => {
+                limited_api_descriptor_get!(self, PyTime, "fold", usize) > 0
+            }
+            _ => {
+                unsafe { PyDateTime_TIME_GET_FOLD(self.as_ptr()) != 0 }
+            }
+        }
     }
 }
 
@@ -855,18 +978,38 @@ impl PyDelta {
     }
 }
 
-#[cfg(not(Py_LIMITED_API))]
 impl PyDeltaAccess for Bound<'_, PyDelta> {
     fn get_days(&self) -> i32 {
-        unsafe { PyDateTime_DELTA_GET_DAYS(self.as_ptr()) }
+        cfg_select! {
+            Py_LIMITED_API =>  {
+                limited_api_descriptor_get!(self, PyDelta, "days", i32)
+            },
+            _ => {
+                unsafe { PyDateTime_DELTA_GET_DAYS(self.as_ptr()) }
+            }
+        }
     }
 
     fn get_seconds(&self) -> i32 {
-        unsafe { PyDateTime_DELTA_GET_SECONDS(self.as_ptr()) }
+        cfg_select! {
+            Py_LIMITED_API =>  {
+                limited_api_descriptor_get!(self, PyDelta, "seconds", i32)
+            },
+            _ => {
+                unsafe { PyDateTime_DELTA_GET_SECONDS(self.as_ptr()) }
+            }
+        }
     }
 
     fn get_microseconds(&self) -> i32 {
-        unsafe { PyDateTime_DELTA_GET_MICROSECONDS(self.as_ptr()) }
+        cfg_select! {
+            Py_LIMITED_API =>  {
+                limited_api_descriptor_get!(self, PyDelta, "microseconds", i32)
+            },
+            _ => {
+                unsafe { PyDateTime_DELTA_GET_MICROSECONDS(self.as_ptr()) }
+            }
+        }
     }
 }
 
@@ -883,8 +1026,17 @@ fn opt_to_pyobj(opt: Option<&Bound<'_, PyTzInfo>>) -> *mut ffi::PyObject {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(not(Py_LIMITED_API))]
+    use crate::ffi::PyDateTime_IMPORT;
     #[cfg(feature = "macros")]
     use crate::py_run;
+    use crate::types::{IntoPyDict, PyDate, PyDateTime, PyTime, PyTzInfo};
+
+    use alloc::ffi::CString;
+    use core::iter;
+
+    use assert_approx_eq::assert_approx_eq;
 
     #[test]
     #[cfg(feature = "macros")]
@@ -923,7 +1075,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
     #[cfg_attr(target_arch = "wasm32", ignore)] // DateTime import fails on wasm for mysterious reasons
     fn test_new_with_fold() {
         Python::attach(|py| {
@@ -990,5 +1141,243 @@ mod tests {
 
             PyTzInfo::fixed_offset(py, PyDelta::new(py, 1, 0, 0, true).unwrap()).unwrap_err();
         })
+    }
+
+    fn _get_subclasses<'py>(
+        py: Python<'py>,
+        py_type: &str,
+        args: &str,
+    ) -> PyResult<(Bound<'py, PyAny>, Bound<'py, PyAny>, Bound<'py, PyAny>)> {
+        // Import the class from Python and create some subclasses
+        let datetime = py.import("datetime")?;
+
+        let locals = [(py_type, datetime.getattr(py_type)?)]
+            .into_py_dict(py)
+            .unwrap();
+
+        let make_subclass_py = CString::new(format!("class Subklass({py_type}):\n    pass"))?;
+
+        let make_sub_subclass_py = c"class SubSubklass(Subklass):\n    pass";
+
+        py.run(&make_subclass_py, None, Some(&locals))?;
+        py.run(make_sub_subclass_py, None, Some(&locals))?;
+
+        // Construct an instance of the base class
+        let obj = py.eval(
+            &CString::new(format!("{py_type}({args})"))?,
+            None,
+            Some(&locals),
+        )?;
+
+        // Construct an instance of the subclass
+        let sub_obj = py.eval(
+            &CString::new(format!("Subklass({args})"))?,
+            None,
+            Some(&locals),
+        )?;
+
+        // Construct an instance of the sub-subclass
+        let sub_sub_obj = py.eval(
+            &CString::new(format!("SubSubklass({args})"))?,
+            None,
+            Some(&locals),
+        )?;
+
+        Ok((obj, sub_obj, sub_sub_obj))
+    }
+
+    #[cfg(not(Py_LIMITED_API))]
+    macro_rules! assert_check_exact {
+        ($check_func:ident, $check_func_exact:ident, $obj: expr) => {
+            unsafe {
+                use crate::ffi::*;
+                assert_ne!($check_func(($obj).as_ptr()), 0);
+                assert_ne!($check_func_exact(($obj).as_ptr()), 0);
+            }
+        };
+    }
+
+    #[cfg(not(Py_LIMITED_API))]
+    macro_rules! assert_check_only {
+        ($check_func:ident, $check_func_exact:ident, $obj: expr) => {
+            unsafe {
+                use crate::ffi::*;
+                assert_ne!($check_func(($obj).as_ptr()), 0);
+                assert_eq!($check_func_exact(($obj).as_ptr()), 0);
+            }
+        };
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_date_check() {
+        Python::attach(|py| {
+            let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "date", "2018, 1, 1").unwrap();
+            unsafe { PyDateTime_IMPORT() }
+            assert_check_exact!(PyDate_Check, PyDate_CheckExact, obj);
+            assert_check_only!(PyDate_Check, PyDate_CheckExact, sub_obj);
+            assert_check_only!(PyDate_Check, PyDate_CheckExact, sub_sub_obj);
+            assert!(obj.is_instance_of::<PyDate>());
+            assert!(!obj.is_instance_of::<PyTime>());
+            assert!(!obj.is_instance_of::<PyDateTime>());
+        });
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_time_check() {
+        Python::attach(|py| {
+            let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "time", "12, 30, 15").unwrap();
+            unsafe { PyDateTime_IMPORT() }
+
+            assert_check_exact!(PyTime_Check, PyTime_CheckExact, obj);
+            assert_check_only!(PyTime_Check, PyTime_CheckExact, sub_obj);
+            assert_check_only!(PyTime_Check, PyTime_CheckExact, sub_sub_obj);
+            assert!(!obj.is_instance_of::<PyDate>());
+            assert!(obj.is_instance_of::<PyTime>());
+            assert!(!obj.is_instance_of::<PyDateTime>());
+        });
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_datetime_check() {
+        Python::attach(|py| {
+            let (obj, sub_obj, sub_sub_obj) =
+                _get_subclasses(py, "datetime", "2018, 1, 1, 13, 30, 15")
+                    .map_err(|e| e.display(py))
+                    .unwrap();
+            unsafe { PyDateTime_IMPORT() }
+
+            assert_check_only!(PyDate_Check, PyDate_CheckExact, obj);
+            assert_check_exact!(PyDateTime_Check, PyDateTime_CheckExact, obj);
+            assert_check_only!(PyDateTime_Check, PyDateTime_CheckExact, sub_obj);
+            assert_check_only!(PyDateTime_Check, PyDateTime_CheckExact, sub_sub_obj);
+            assert!(obj.is_instance_of::<PyDate>());
+            assert!(!obj.is_instance_of::<PyTime>());
+            assert!(obj.is_instance_of::<PyDateTime>());
+        });
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_delta_check() {
+        Python::attach(|py| {
+            let (obj, sub_obj, sub_sub_obj) = _get_subclasses(py, "timedelta", "1, -3").unwrap();
+            unsafe { PyDateTime_IMPORT() }
+
+            assert_check_exact!(PyDelta_Check, PyDelta_CheckExact, obj);
+            assert_check_only!(PyDelta_Check, PyDelta_CheckExact, sub_obj);
+            assert_check_only!(PyDelta_Check, PyDelta_CheckExact, sub_sub_obj);
+        });
+    }
+
+    #[test]
+    fn test_datetime_utc() {
+        Python::attach(|py| {
+            let utc = PyTzInfo::utc(py).unwrap();
+
+            let dt = PyDateTime::new(py, 2018, 1, 1, 0, 0, 0, 0, Some(&utc)).unwrap();
+
+            let locals = [("dt", dt)].into_py_dict(py).unwrap();
+
+            let offset: f32 = py
+                .eval(c"dt.utcoffset().total_seconds()", None, Some(&locals))
+                .unwrap()
+                .extract()
+                .unwrap();
+            assert_approx_eq!(offset, 0f32);
+        });
+    }
+
+    static INVALID_DATES: &[(i32, u8, u8)] = &[
+        (-1, 1, 1),
+        (0, 1, 1),
+        (10000, 1, 1),
+        (2 << 30, 1, 1),
+        (2018, 0, 1),
+        (2018, 13, 1),
+        (2018, 1, 0),
+        (2017, 2, 29),
+        (2018, 1, 32),
+    ];
+
+    static INVALID_TIMES: &[(u8, u8, u8, u32)] =
+        &[(25, 0, 0, 0), (255, 0, 0, 0), (0, 60, 0, 0), (0, 0, 61, 0)];
+
+    #[test]
+    fn test_pydate_out_of_bounds() {
+        Python::attach(|py| {
+            for val in INVALID_DATES {
+                let (year, month, day) = val;
+                let dt = PyDate::new(py, *year, *month, *day);
+                dt.unwrap_err();
+            }
+        });
+    }
+
+    #[test]
+    fn test_pytime_out_of_bounds() {
+        Python::attach(|py| {
+            for val in INVALID_TIMES {
+                let (hour, minute, second, microsecond) = val;
+                let dt = PyTime::new(py, *hour, *minute, *second, *microsecond, None);
+                dt.unwrap_err();
+            }
+        });
+    }
+
+    #[test]
+    fn test_pydatetime_out_of_bounds() {
+        Python::attach(|py| {
+            let valid_time = (0, 0, 0, 0);
+            let valid_date = (2018, 1, 1);
+
+            let invalid_dates = INVALID_DATES.iter().zip(iter::repeat(&valid_time));
+            let invalid_times = iter::repeat(&valid_date).zip(INVALID_TIMES.iter());
+
+            let vals = invalid_dates.chain(invalid_times);
+
+            for val in vals {
+                let (date, time) = val;
+                let (year, month, day) = date;
+                let (hour, minute, second, microsecond) = time;
+                let dt = PyDateTime::new(
+                    py,
+                    *year,
+                    *month,
+                    *day,
+                    *hour,
+                    *minute,
+                    *second,
+                    *microsecond,
+                    None,
+                );
+                dt.unwrap_err();
+            }
+        });
+    }
+
+    #[test]
+    fn test_property_on_subclass() {
+        Python::attach(|py| {
+            py.run(
+                c"import datetime
+class MyDate(datetime.date):
+    @property
+    def year(self):
+        raise RuntimeError('subclass year property should not be called')",
+                None,
+                None,
+            )
+            .unwrap();
+
+            let my_date: Bound<'_, PyDate> = py
+                .eval(c"MyDate(2024, 9, 24)", None, None)
+                .unwrap()
+                .cast_into()
+                .unwrap();
+            assert_eq!(my_date.get_year(), 2024);
+        });
     }
 }

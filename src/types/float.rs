@@ -1,16 +1,18 @@
 use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::PyStaticExpr;
+use crate::conversions::std::num::INT_INPUT_TYPE;
+#[cfg(feature = "experimental-inspect")]
+use crate::inspect::{PyStaticExpr, type_hint_identifier, type_hint_union};
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound, Borrowed, FromPyObject, PyAny, PyErr, Python,
+    Borrowed, FromPyObject, PyAny, PyErr, Python, ffi, ffi_ptr_ext::FfiPtrExt, instance::Bound,
 };
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
 use core::convert::Infallible;
 use core::ffi::c_double;
@@ -123,7 +125,10 @@ impl<'py> FromPyObject<'_, 'py> for f64 {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyFloat::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = type_hint_union!(
+        type_hint_identifier!("typing", "SupportsFloat"),
+        INT_INPUT_TYPE
+    );
 
     // PyFloat_AsDouble returns -1.0 upon failure
     #[allow(clippy::float_cmp)]
@@ -181,7 +186,7 @@ impl<'a, 'py> FromPyObject<'a, 'py> for f32 {
     type Error = <f64 as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyFloat::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = <f64 as FromPyObject<'a, 'py>>::INPUT_TYPE;
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
         Ok(obj.extract::<f64>()? as f32)
@@ -268,9 +273,9 @@ impl_partial_eq_for_float!(f32);
 #[cfg(test)]
 mod tests {
     use crate::{
+        Python,
         conversion::IntoPyObject,
         types::{PyAnyMethods, PyFloat, PyFloatMethods},
-        Python,
     };
 
     macro_rules! num_to_py_object_and_back (

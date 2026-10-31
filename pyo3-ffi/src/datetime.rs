@@ -7,11 +7,11 @@
 #[cfg(not(PyPy))]
 use crate::PyCapsule_Import;
 #[cfg(GraalPy)]
-use crate::{PyLong_AsLong, PyLong_Check, PyObject_GetAttrString, Py_DecRef};
-use crate::{PyObject, PyObject_TypeCheck, PyTypeObject, Py_IS_TYPE, Py_None};
+use crate::{Py_DecRef, PyLong_AsLong, PyLong_Check, PyObject_GetAttrString};
+use crate::{Py_IS_TYPE, Py_None, PyObject, PyObject_TypeCheck, PyTypeObject};
+use core::ffi::CStr;
 use core::ffi::c_char;
 use core::ffi::c_int;
-use core::ffi::CStr;
 use core::ptr;
 use core::sync::atomic::{AtomicPtr, Ordering};
 #[cfg(not(PyPy))]
@@ -350,7 +350,7 @@ pub unsafe fn PyDateTime_DELTA_GET_MICROSECONDS(o: *mut PyObject) -> c_int {
 // but copying them seems suboptimal
 #[inline]
 #[cfg(GraalPy)]
-pub unsafe fn _get_attr(obj: *mut PyObject, field: &core::ffi::CStr) -> c_int {
+unsafe fn _get_attr(obj: *mut PyObject, field: &core::ffi::CStr) -> c_int {
     let result = PyObject_GetAttrString(obj, field.as_ptr());
     Py_DecRef(result); // the original macros are borrowing
     if PyLong_Check(result) == 1 {

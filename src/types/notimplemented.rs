@@ -1,8 +1,8 @@
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::{
-    ffi, ffi_ptr_ext::FfiPtrExt, types::any::PyAnyMethods, Borrowed, Bound, PyAny, PyTypeInfo,
-    Python,
+    Borrowed, Bound, PyAny, PyTypeInfo, Python, ffi, ffi_ptr_ext::FfiPtrExt,
+    types::any::PyAnyMethods,
 };
 
 /// Represents the Python `NotImplemented` object.
@@ -28,9 +28,6 @@ impl PyNotImplemented {
 }
 
 unsafe impl PyTypeInfo for PyNotImplemented {
-    const NAME: &'static str = "NotImplementedType";
-    const MODULE: Option<&'static str> = None;
-
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_identifier!("types", "NotImplementedType");
 
@@ -67,9 +64,11 @@ mod tests {
     #[test]
     fn test_notimplemented_type_object_consistent() {
         Python::attach(|py| {
-            assert!(PyNotImplemented::get(py)
-                .get_type()
-                .is(PyNotImplemented::type_object(py)));
+            assert!(
+                PyNotImplemented::get(py)
+                    .get_type()
+                    .is(PyNotImplemented::type_object(py))
+            );
         })
     }
 

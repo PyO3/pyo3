@@ -1,3 +1,5 @@
+//! Python dictionaries and related types.
+
 use crate::err::{self, PyErr, PyResult};
 use crate::ffi::Py_ssize_t;
 use crate::ffi_ptr_ext::FfiPtrExt;
@@ -6,13 +8,17 @@ use crate::inspect::type_hint_subscript;
 use crate::instance::{Borrowed, Bound};
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyList, PyMapping};
-use crate::{ffi, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
+use crate::{BoundObject, IntoPyObject, IntoPyObjectExt, Python, ffi};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
+
+pub(crate) mod items;
+pub(crate) mod keys;
+pub(crate) mod values;
 
 /// Represents a Python `dict`.
 ///
@@ -51,48 +57,6 @@ pyobject_native_type_core!(
     #standalone_type_hint=type_hint_subscript!(PyDict::TYPE_HINT, PyAny::TYPE_HINT, PyAny::TYPE_HINT)
 );
 
-/// Represents a Python `dict_keys`.
-#[cfg(not(any(PyPy, GraalPy, RustPython)))]
-#[repr(transparent)]
-pub struct PyDictKeys(PyAny);
-
-#[cfg(not(any(PyPy, GraalPy, RustPython)))]
-pyobject_native_type_core!(
-    PyDictKeys,
-    pyobject_native_static_type_object!(ffi::PyDictKeys_Type),
-    "builtins",
-    "dict_keys",
-    #checkfunction=ffi::PyDictKeys_Check
-);
-
-/// Represents a Python `dict_values`.
-#[cfg(not(any(PyPy, GraalPy, RustPython)))]
-#[repr(transparent)]
-pub struct PyDictValues(PyAny);
-
-#[cfg(not(any(PyPy, GraalPy, RustPython)))]
-pyobject_native_type_core!(
-    PyDictValues,
-    pyobject_native_static_type_object!(ffi::PyDictValues_Type),
-    "builtins",
-    "dict_values",
-    #checkfunction=ffi::PyDictValues_Check
-);
-
-/// Represents a Python `dict_items`.
-#[cfg(not(any(PyPy, GraalPy, RustPython)))]
-#[repr(transparent)]
-pub struct PyDictItems(PyAny);
-
-#[cfg(not(any(PyPy, GraalPy, RustPython)))]
-pyobject_native_type_core!(
-    PyDictItems,
-    pyobject_native_static_type_object!(ffi::PyDictItems_Type),
-    "builtins",
-    "dict_items",
-    #checkfunction=ffi::PyDictItems_Check
-);
-
 impl PyDict {
     /// Creates a new empty dictionary.
     pub fn new(py: Python<'_>) -> Bound<'_, PyDict> {
@@ -110,7 +74,7 @@ impl PyDict {
     pub fn from_sequence<'py>(seq: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
         let py = seq.py();
         let dict = Self::new(py);
-        err::error_on_minusone(py, unsafe {
+        err::error_on_negative(py, unsafe {
             ffi::PyDict_MergeFromSeq2(dict.as_ptr(), seq.as_ptr(), 1)
         })?;
         Ok(dict)
@@ -280,49 +244,31 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     where
         K: IntoPyObject<'py>,
     {
-        fn inner(dict: &Bound<'_, PyDict>, key: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
-            match unsafe { ffi::PyDict_Contains(dict.as_ptr(), key.as_ptr()) } {
-                1 => Ok(true),
-                0 => Ok(false),
-                _ => Err(PyErr::fetch(dict.py())),
-            }
-        }
-
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        match unsafe { ffi::PyDict_Contains(self.as_ptr(), key.as_ptr()) } {
+            1 => Ok(true),
+            0 => Ok(false),
+            _ => Err(PyErr::fetch(py)),
+        }
     }
 
     fn get_item<K>(&self, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
     where
         K: IntoPyObject<'py>,
     {
-        fn inner<'py>(
-            dict: &Bound<'py, PyDict>,
-            key: Borrowed<'_, '_, PyAny>,
-        ) -> PyResult<Option<Bound<'py, PyAny>>> {
-            let py = dict.py();
-            let mut result: *mut ffi::PyObject = core::ptr::null_mut();
-            match unsafe {
-                ffi::compat::PyDict_GetItemRef(dict.as_ptr(), key.as_ptr(), &mut result)
-            } {
-                core::ffi::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
-                0 => Ok(None),
-                1..=core::ffi::c_int::MAX => {
-                    // Safety: PyDict_GetItemRef positive return value means the result is a valid
-                    // owned reference
-                    Ok(Some(unsafe { result.assume_owned_unchecked(py) }))
-                }
+        let py = self.py();
+        let key = key.into_pyobject_or_pyerr(py)?;
+        let mut result: *mut ffi::PyObject = core::ptr::null_mut();
+        match unsafe { ffi::compat::PyDict_GetItemRef(self.as_ptr(), key.as_ptr(), &mut result) } {
+            core::ffi::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
+            0 => Ok(None),
+            1..=core::ffi::c_int::MAX => {
+                // Safety: PyDict_GetItemRef positive return value means the result is a valid
+                // owned reference
+                Ok(Some(unsafe { result.assume_owned_unchecked(py) }))
             }
         }
-
-        let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
     }
 
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
@@ -330,39 +276,23 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         K: IntoPyObject<'py>,
         V: IntoPyObject<'py>,
     {
-        fn inner(
-            dict: &Bound<'_, PyDict>,
-            key: Borrowed<'_, '_, PyAny>,
-            value: Borrowed<'_, '_, PyAny>,
-        ) -> PyResult<()> {
-            err::error_on_minusone(dict.py(), unsafe {
-                ffi::PyDict_SetItem(dict.as_ptr(), key.as_ptr(), value.as_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-            value.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        let value = value.into_pyobject_or_pyerr(py)?;
+        err::error_on_negative(py, unsafe {
+            ffi::PyDict_SetItem(self.as_ptr(), key.as_ptr(), value.as_ptr())
+        })
     }
 
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
         K: IntoPyObject<'py>,
     {
-        fn inner(dict: &Bound<'_, PyDict>, key: Borrowed<'_, '_, PyAny>) -> PyResult<()> {
-            err::error_on_minusone(dict.py(), unsafe {
-                ffi::PyDict_DelItem(dict.as_ptr(), key.as_ptr())
-            })
-        }
-
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        err::error_on_negative(py, unsafe {
+            ffi::PyDict_DelItem(self.as_ptr(), key.as_ptr())
+        })
     }
 
     fn keys(&self) -> Bound<'py, PyList> {
@@ -421,13 +351,13 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
     }
 
     fn update(&self, other: &Bound<'_, PyMapping>) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
+        err::error_on_negative(self.py(), unsafe {
             ffi::PyDict_Update(self.as_ptr(), other.as_ptr())
         })
     }
 
     fn update_if_missing(&self, other: &Bound<'_, PyMapping>) -> PyResult<()> {
-        err::error_on_minusone(self.py(), unsafe {
+        err::error_on_negative(self.py(), unsafe {
             ffi::PyDict_Merge(self.as_ptr(), other.as_ptr(), 0)
         })
     }
@@ -437,33 +367,20 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         K: IntoPyObject<'py>,
         V: IntoPyObject<'py>,
     {
-        fn inner(
-            dict: &Bound<'_, PyDict>,
-            key: Borrowed<'_, '_, PyAny>,
-            value: Borrowed<'_, '_, PyAny>,
-        ) -> PyResult<bool> {
-            setdefault_result_from_nonerror_return_code(err::error_on_minusone_with_result(
-                dict.py(),
-                unsafe {
-                    ffi::compat::PyDict_SetDefaultRef(
-                        dict.as_ptr(),
-                        key.as_ptr(),
-                        value.as_ptr(),
-                        core::ptr::null_mut(),
-                    )
-                },
-            ))
-        }
         let py = self.py();
-
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-            default_value
-                .into_pyobject_or_pyerr(py)?
-                .into_any()
-                .as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        let value = default_value.into_pyobject_or_pyerr(py)?;
+        setdefault_result_from_nonerror_return_code(err::error_on_negative_with_result(
+            py,
+            unsafe {
+                ffi::compat::PyDict_SetDefaultRef(
+                    self.as_ptr(),
+                    key.as_ptr(),
+                    value.as_ptr(),
+                    core::ptr::null_mut(),
+                )
+            },
+        ))
     }
 
     fn set_default_with_result<K, V>(
@@ -475,37 +392,23 @@ impl<'py> PyDictMethods<'py> for Bound<'py, PyDict> {
         K: IntoPyObject<'py>,
         V: IntoPyObject<'py>,
     {
-        fn inner<'py>(
-            dict: &Bound<'_, PyDict>,
-            key: Borrowed<'_, '_, PyAny>,
-            value: Borrowed<'_, '_, PyAny>,
-            py: Python<'py>,
-        ) -> PyResult<(bool, Bound<'py, PyAny>)> {
-            let mut result = core::ptr::NonNull::dangling().as_ptr();
-            let code = setdefault_result_from_nonerror_return_code(
-                err::error_on_minusone_with_result(dict.py(), unsafe {
-                    ffi::compat::PyDict_SetDefaultRef(
-                        dict.as_ptr(),
-                        key.as_ptr(),
-                        value.as_ptr(),
-                        &mut result,
-                    )
-                }),
-            )?;
-            // SAFETY: the interpreter should have set this to a valid owned PyObject pointer
-            let out_result = unsafe { result.assume_owned_unchecked(py) };
-            Ok((code, out_result))
-        }
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-            default_value
-                .into_pyobject_or_pyerr(py)?
-                .into_any()
-                .as_borrowed(),
-            py,
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        let value = default_value.into_pyobject_or_pyerr(py)?;
+        let mut result = core::ptr::dangling_mut();
+        let code = setdefault_result_from_nonerror_return_code(
+            err::error_on_negative_with_result(py, unsafe {
+                ffi::compat::PyDict_SetDefaultRef(
+                    self.as_ptr(),
+                    key.as_ptr(),
+                    value.as_ptr(),
+                    &mut result,
+                )
+            }),
+        )?;
+        // SAFETY: the interpreter should have set this to a valid owned PyObject pointer
+        let out_result = unsafe { result.assume_owned_unchecked(py) };
+        Ok((code, out_result))
     }
 }
 
@@ -955,9 +858,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::collections::HashMap;
     use crate::platform::prelude::*;
-    use crate::platform::HashMap;
     use crate::types::{PyAnyMethods as _, PyTuple};
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
+    use crate::types::{PyDictItems, PyDictKeys, PyDictValues};
     use alloc::collections::BTreeMap;
 
     #[test]
@@ -1737,10 +1642,11 @@ mod tests {
                 .into_py_dict(py)
                 .unwrap();
 
-            assert!(dict
-                .iter()
-                .find(|(_, v)| v.extract::<bool>().unwrap())
-                .is_none());
+            assert!(
+                dict.iter()
+                    .find(|(_, v)| v.extract::<bool>().unwrap())
+                    .is_none()
+            );
         });
     }
 
@@ -1759,10 +1665,11 @@ mod tests {
             let dict = [(1, false), (2, false), (3, false)]
                 .into_py_dict(py)
                 .unwrap();
-            assert!(dict
-                .iter()
-                .position(|(_, v)| v.extract::<bool>().unwrap())
-                .is_none());
+            assert!(
+                dict.iter()
+                    .position(|(_, v)| v.extract::<bool>().unwrap())
+                    .is_none()
+            );
         });
     }
 
@@ -1788,10 +1695,11 @@ mod tests {
             assert_eq!(sum, 6);
 
             let dict = [(1, "foo"), (2, "bar")].into_py_dict(py).unwrap();
-            assert!(dict
-                .iter()
-                .try_fold(0, |acc, (_, v)| PyResult::Ok(acc + v.extract::<i32>()?))
-                .is_err());
+            assert!(
+                dict.iter()
+                    .try_fold(0, |acc, (_, v)| PyResult::Ok(acc + v.extract::<i32>()?))
+                    .is_err()
+            );
         });
     }
 

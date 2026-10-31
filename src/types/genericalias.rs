@@ -1,12 +1,12 @@
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
-use crate::{ffi, Bound, PyAny, Python};
+use crate::{Bound, PyAny, Python, ffi};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
 
 /// Represents a Python [`types.GenericAlias`](https://docs.python.org/3/library/types.html#types.GenericAlias) object.
@@ -63,9 +63,9 @@ impl PyGenericAlias {
 
 #[cfg(test)]
 mod tests {
+    use crate::Python;
     use crate::instance::BoundObject;
     use crate::types::any::PyAnyMethods;
-    use crate::Python;
 
     use super::PyGenericAlias;
 

@@ -130,6 +130,7 @@ extern_libpython! {
         firstlineno: c_int,
     ) -> *mut PyCodeObject;
     #[cfg(not(GraalPy))]
+    #[cfg_attr(PyPy, link_name = "PyPyCode_Addr2Line")]
     pub fn PyCode_Addr2Line(arg1: *mut PyCodeObject, arg2: c_int) -> c_int;
     // skipped PyCodeAddressRange "for internal use only"
     // skipped _PyCode_CheckLineNumber

@@ -5,11 +5,11 @@ use crate::impl_::pycell::PyClassObjectBaseLayout as _;
 use crate::impl_::pyclass::PyClassImpl;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
-use crate::pycell::impl_::PyClassObjectLayout as _;
 use crate::pycell::PyBorrowMutError;
-use crate::pycell::{impl_::PyClassBorrowChecker, PyBorrowError};
+use crate::pycell::impl_::PyClassObjectLayout as _;
+use crate::pycell::{PyBorrowError, impl_::PyClassBorrowChecker};
 use crate::pyclass::boolean_struct::False;
-use crate::{ffi, Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyClass, PyErr};
+use crate::{Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyClass, PyErr, ffi};
 use core::convert::Infallible;
 use core::fmt;
 use core::marker::PhantomData;
@@ -107,7 +107,9 @@ impl<'a, T: PyClass> PyClassGuard<'a, T> {
         Self::try_from_class_object(obj.get_class_object())
     }
 
-    fn try_from_class_object(obj: &'a <T as PyClassImpl>::Layout) -> Result<Self, PyBorrowError> {
+    pub(crate) fn try_from_class_object(
+        obj: &'a <T as PyClassImpl>::Layout,
+    ) -> Result<Self, PyBorrowError> {
         obj.ensure_threadsafe();
         obj.borrow_checker().try_borrow().map(|_| Self {
             ptr: NonNull::from(obj).cast(),
@@ -475,25 +477,12 @@ impl<U: ?Sized> Drop for PyClassGuardMap<'_, U> {
 ///         _slf: *mut ::pyo3::ffi::PyObject,
 ///     ) -> ::pyo3::PyResult<*mut ::pyo3::ffi::PyObject> {
 ///         let function = Number::increment;
-/// #       #[allow(clippy::let_unit_value)]
-///         let mut holder_0 = ::pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT;
-///         let result = {
-///             let ret = function(::pyo3::impl_::extract_argument::extract_pyclass_ref_mut::<Number>(
-///                 unsafe { ::pyo3::impl_::extract_argument::cast_function_argument(py, _slf) },
-///                 &mut holder_0,
-///             )?);
-///             {
-///                 let result = {
-///                     let obj = ret;
-/// #                   #[allow(clippy::useless_conversion)]
-///                     ::pyo3::impl_::wrap::converter(&obj)
-///                         .wrap(obj)
-///                         .map_err(::core::convert::Into::<::pyo3::PyErr>::into)
-///                 };
-///                 ::pyo3::impl_::wrap::converter(&result).map_into_ptr(py, result)
-///             }
-///         };
-///         result
+///         let (mut holder_0,) = (::pyo3::impl_::extract_argument::FunctionArgumentHolder::INIT,);
+///         let ret = function(::pyo3::impl_::extract_argument::extract_pyclass_ref_mut::<Number>(
+///             unsafe { ::pyo3::impl_::extract_argument::cast_function_argument(py, _slf) },
+///             &mut holder_0,
+///         )?);
+///         ::pyo3::impl_::wrap::converter(&ret).wrap_into_ptr(py, ret)
 ///     }
 ///
 ///     unsafe {
@@ -949,7 +938,7 @@ impl<U: ?Sized> Drop for PyClassGuardMapMut<'_, U> {
 #[cfg(feature = "macros")]
 mod tests {
     use super::{PyClassGuard, PyClassGuardMut};
-    use crate::{types::PyAnyMethods as _, Bound, IntoPyObject as _, Py, PyErr, Python};
+    use crate::{Bound, IntoPyObject as _, Py, PyErr, Python, types::PyAnyMethods as _};
 
     #[test]
     fn test_into_frozen_super_released_borrow() {

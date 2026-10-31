@@ -1,15 +1,15 @@
-use crate::err::{error_on_minusone, PyResult};
+use crate::err::{self, PyResult};
 use crate::platform::prelude::*;
-use crate::types::{any::PyAnyMethods, string::PyStringMethods, PyString};
-use crate::{ffi, Bound, PyAny};
+use crate::types::{PyString, any::PyAnyMethods, string::PyStringMethods};
+use crate::{Bound, PyAny, ffi};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
 #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
-use crate::{types::PyFrame, PyTypeCheck, Python};
+use crate::{PyTypeCheck, Python, types::PyFrame};
 
 /// Represents a Python traceback.
 ///
@@ -112,7 +112,7 @@ impl<'py> PyTracebackMethods<'py> for Bound<'py, PyTraceback> {
             .getattr(intern!(py, "StringIO"))?
             .call0()?;
         let result = unsafe { ffi::PyTraceBack_Print(self.as_ptr(), string_io.as_ptr()) };
-        error_on_minusone(py, result)?;
+        err::error_on_negative(py, result)?;
         let formatted = string_io
             .getattr(intern!(py, "getvalue"))?
             .call0()?
@@ -128,8 +128,8 @@ mod tests {
     use super::*;
     use crate::IntoPyObject;
     use crate::{
-        types::{dict::PyDictMethods, PyDict},
         PyErr, Python,
+        types::{PyDict, dict::PyDictMethods},
     };
 
     #[test]
@@ -212,7 +212,8 @@ def f():
             )
             .unwrap();
             assert_eq!(
-                traceback.format().unwrap(), "Traceback (most recent call last):\n  File \"file1.py\", line 10, in func1\n  File \"file2.py\", line 20, in func2\n"
+                traceback.format().unwrap(),
+                "Traceback (most recent call last):\n  File \"file1.py\", line 10, in func1\n  File \"file2.py\", line 20, in func2\n"
             );
         })
     }

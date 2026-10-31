@@ -14,10 +14,10 @@ extern_libpython! {
     pub fn PyBool_Check(op: *mut PyObject) -> c_int;
 
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
-    #[cfg_attr(PyPy, link_name = "_PyPy_FalseStruct")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "_PyPy_FalseStruct")]
     static mut _Py_FalseStruct: PyLongObject;
     #[cfg(all(not(GraalPy), not(all(Py_3_13, Py_LIMITED_API))))]
-    #[cfg_attr(PyPy, link_name = "_PyPy_TrueStruct")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "_PyPy_TrueStruct")]
     static mut _Py_TrueStruct: PyLongObject;
 
     #[cfg(GraalPy)]
@@ -64,6 +64,6 @@ pub unsafe fn Py_IsFalse(x: *mut PyObject) -> c_int {
 // skipped Py_RETURN_FALSE
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyBool_FromLong")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBool_FromLong")]
     pub fn PyBool_FromLong(arg1: c_long) -> *mut PyObject;
 }

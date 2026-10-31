@@ -40,9 +40,8 @@ pub mod buf_and_str {
         }
 
         #[staticmethod]
-        pub fn from_buffer(buf: &Bound<'_, PyAny>) -> PyResult<usize> {
-            let buf = PyBuffer::<u8>::get(buf)?;
-            Ok(buf.item_count())
+        pub fn from_buffer(buf: PyBuffer<u8>) -> usize {
+            buf.item_count()
         }
     }
 

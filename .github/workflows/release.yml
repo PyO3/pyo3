@@ -12,6 +12,7 @@ on:
 jobs:
   release:
     permissions:
+      contents: read
       id-token: write
 
     runs-on: ubuntu-latest
@@ -23,14 +24,14 @@ jobs:
           ref: ${{ github.event.inputs.version || github.ref }}
           persist-credentials: false
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
-          save-cache: false
+          enable-cache: false
 
-      - uses: rust-lang/crates-io-auth-action@v1
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
         id: auth
 
       - name: Publish to crates.io
-        run: uvx nox -s publish
+        run: cargo publish --workspace
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}

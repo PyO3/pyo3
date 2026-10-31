@@ -1,6 +1,8 @@
-//@revisions: default inspect
-//@[default] without-experimental-inspect
+//@revisions: default nostd inspect
+//@[default,nostd] no-experimental-inspect
 //@[inspect] with-experimental-inspect
+//@[default,inspect] with-std
+//@[nostd] no-std
 
 use pyo3::prelude::*;
 
@@ -56,7 +58,7 @@ struct InvalidGetterType {
     #[pyo3(get)]
     value: ::std::marker::PhantomData<i32>,
     //~^ ERROR: `PhantomData<i32>` cannot be converted to a Python object
-    //~[inspect]| ERROR: the trait bound `PhantomData<i32>: pyo3::impl_::introspection::return_type::Sealed` is not satisfied
+    //~[inspect]| ERROR: `PhantomData<i32>` cannot be converted to a Python object
 }
 
 fn main() {}

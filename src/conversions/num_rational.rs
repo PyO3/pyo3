@@ -1,5 +1,3 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "num-rational")]
 //! Conversions to and from [num-rational](https://docs.rs/num-rational) types.
 //!
@@ -29,6 +27,7 @@
 //! }
 //!
 //! #[pymodule]
+//! # #[pyo3(name = "example_num_rational")]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(add_five_to_fraction, m)?)?;
 //!     Ok(())
@@ -52,8 +51,8 @@ use crate::inspect::PyStaticExpr;
 use crate::sync::PyOnceLock;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_identifier;
-use crate::types::any::PyAnyMethods;
 use crate::types::PyType;
+use crate::types::any::PyAnyMethods;
 use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, PyResult, Python};
 #[cfg(feature = "num-bigint")]
 use num_bigint::BigInt;
@@ -77,9 +76,11 @@ macro_rules! rational_conversion {
                 let py = obj.py();
                 let py_numerator_obj = obj.getattr(crate::intern!(py, "numerator"))?;
                 let py_denominator_obj = obj.getattr(crate::intern!(py, "denominator"))?;
+                // SAFETY: `PyNumber_Long` returns a new owned reference or NULL with an error set
                 let numerator_owned = unsafe {
                     Bound::from_owned_ptr_or_err(py, ffi::PyNumber_Long(py_numerator_obj.as_ptr()))?
                 };
+                // SAFETY: `PyNumber_Long` returns a new owned reference or NULL with an error set
                 let denominator_owned = unsafe {
                     Bound::from_owned_ptr_or_err(
                         py,
@@ -130,8 +131,8 @@ rational_conversion!(BigInt);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::dict::PyDictMethods;
     use crate::types::PyDict;
+    use crate::types::dict::PyDictMethods;
 
     #[cfg(not(target_arch = "wasm32"))]
     use proptest::prelude::*;

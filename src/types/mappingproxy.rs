@@ -1,18 +1,20 @@
 // Copyright (c) 2017-present PyO3 Project and Contributors
 
+//! Python mapping proxies and related types.
+
 use super::PyMapping;
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Bound;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyIterator, PyList};
-use crate::{ffi, Python};
 #[cfg(RustPython)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
-    Py,
 };
+use crate::{Python, ffi};
 
 /// Represents a Python `mappingproxy`.
 #[repr(transparent)]
@@ -124,6 +126,7 @@ impl<'py, 'a> PyMappingProxyMethods<'py, 'a> for Bound<'py, PyMappingProxy> {
     }
 }
 
+/// Iterator over the key-value pairs of a Python mapping proxy.
 pub struct BoundMappingProxyIterator<'py, 'a> {
     iterator: Bound<'py, PyIterator>,
     mappingproxy: &'a Bound<'py, PyMappingProxy>,
@@ -148,10 +151,12 @@ impl<'py> Iterator for BoundMappingProxyIterator<'py, '_> {
 mod tests {
 
     use super::*;
-    use crate::platform::prelude::*;
-    use crate::platform::HashMap;
-    use crate::types::dict::*;
     use crate::Python;
+    use crate::platform::collections::HashMap;
+    use crate::platform::prelude::*;
+    use crate::types::dict::*;
+    #[cfg(not(any(PyPy, GraalPy, RustPython)))]
+    use crate::types::{PyDictItems, PyDictKeys, PyDictValues};
     use crate::{
         exceptions::PyKeyError,
         types::{PyInt, PyTuple},
@@ -172,10 +177,12 @@ mod tests {
                     .extract::<i32>()
                     .unwrap()
             );
-            assert!(mappingproxy
-                .get_item(8i32)
-                .unwrap_err()
-                .is_instance_of::<PyKeyError>(py));
+            assert!(
+                mappingproxy
+                    .get_item(8i32)
+                    .unwrap_err()
+                    .is_instance_of::<PyKeyError>(py)
+            );
         });
     }
 
@@ -220,10 +227,12 @@ mod tests {
                     .extract::<i32>()
                     .unwrap()
             );
-            assert!(mappingproxy
-                .get_item(8i32)
-                .unwrap_err()
-                .is_instance_of::<PyKeyError>(py));
+            assert!(
+                mappingproxy
+                    .get_item(8i32)
+                    .unwrap_err()
+                    .is_instance_of::<PyKeyError>(py)
+            );
         });
     }
 

@@ -1,15 +1,12 @@
-// TODO https://github.com/PyO3/pyo3/issues/5487
-#![allow(clippy::undocumented_unsafe_blocks)]
-
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_subscript, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier, type_hint_subscript};
 use crate::platform::prelude::*;
 use crate::{
+    Borrowed, CastError, PyResult, PyTypeInfo,
     conversion::{FromPyObject, FromPyObjectOwned, FromPyObjectSequence, IntoPyObject},
     exceptions::PyTypeError,
     ffi,
     types::{PyAnyMethods, PySequence, PyString},
-    Borrowed, CastError, PyResult, PyTypeInfo,
 };
 use crate::{Bound, PyAny, PyErr, Python};
 
@@ -60,8 +57,15 @@ where
 {
     type Error = PyErr;
 
+    // `SupportsGetItem` is the closest static approximation of `PySequence_Check`, and unlike
+    // `collections.abc.Sequence` it also accepts e.g. NumPy arrays. Type checkers therefore also
+    // accept `dict` and `str`, which extraction rejects at runtime.
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = type_hint_subscript!(PySequence::TYPE_HINT, T::INPUT_TYPE);
+    const INPUT_TYPE: PyStaticExpr = type_hint_subscript!(
+        type_hint_identifier!("_typeshed", "SupportsGetItem"),
+        type_hint_identifier!("builtins", "int"),
+        T::INPUT_TYPE
+    );
 
     fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Some(extractor) = T::sequence_extractor(obj, crate::conversion::private::Token) {
@@ -82,6 +86,7 @@ where
 {
     // Types that pass `PySequence_Check` usually implement enough of the sequence protocol
     // to support this function and if not, we will only fail extraction safely.
+    // SAFETY: passing valid pointer to python API
     if unsafe { ffi::PySequence_Check(obj.as_ptr()) } == 0 {
         return Err(CastError::new(obj, PySequence::type_object(obj.py()).into_any()).into());
     }
@@ -95,10 +100,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::Python;
     use crate::conversion::IntoPyObject;
     use crate::platform::prelude::*;
     use crate::types::{PyAnyMethods, PyBytes, PyBytesMethods, PyList};
-    use crate::Python;
 
     #[test]
     fn test_vec_intopyobject_impl() {

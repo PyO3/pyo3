@@ -1,12 +1,12 @@
 use crate::conversion::IntoPyObject;
 use crate::exceptions::PyValueError;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, type_hint_union, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier, type_hint_union};
 use crate::sync::PyOnceLock;
+use crate::types::PyType;
 use crate::types::any::PyAnyMethods;
 use crate::types::string::PyStringMethods;
-use crate::types::PyType;
-use crate::{intern, Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python};
+use crate::{Borrowed, Bound, FromPyObject, Py, PyAny, PyErr, Python, intern};
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 impl FromPyObject<'_, '_> for IpAddr {

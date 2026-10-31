@@ -1,1 +1,8 @@
-* text=auto eol=lf
+# ui_test expectations require LF, even on Windows.
+# https://github.com/oli-obk/ui_test/issues/177
+*.stderr text eol=lf
+*.stdout text eol=lf
+
+# Normalize committed Rust source to LF, preserving
+# local checkout preferences.
+*.rs text

@@ -2,11 +2,11 @@ use crate::platform::prelude::*;
 use alloc::borrow::Cow;
 
 use crate::{
+    Borrowed, Bound, IntoPyObjectExt, Py, PyAny, PyErr, PyErrArguments, PyTypeInfo, Python,
     exceptions,
     types::{
         PyAnyMethods, PyNone, PyStringMethods, PyTuple, PyTupleMethods, PyType, PyTypeMethods,
     },
-    Borrowed, Bound, IntoPyObjectExt, Py, PyAny, PyErr, PyErrArguments, PyTypeInfo, Python,
 };
 
 /// Error that indicates an object was not an instance of a given target type.
@@ -179,8 +179,8 @@ impl core::fmt::Display for DisplayClassInfo<'_, '_> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::{PyBool, PyString},
         PyTypeInfo,
+        types::{PyBool, PyString},
     };
 
     use super::*;

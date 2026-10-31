@@ -1,18 +1,19 @@
 #[cfg(feature = "experimental-inspect")]
 use crate::py_expr::PyExpr;
 use crate::{
-    attributes::{kw, KeywordAttribute},
+    attributes::{KeywordAttribute, kw},
     method::FnArg,
     utils::expr_to_python,
 };
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::{
+    Expr, Token,
     ext::IdentExt,
     parse::{Parse, ParseStream},
+    parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
-    Expr, Token,
 };
 
 #[derive(Clone)]
@@ -296,6 +297,12 @@ impl PythonSignature {
             .checked_sub(self.default_positional_parameters.len())
             .expect("should always have positional defaults <= positional parameters")
     }
+
+    /// Makes every positional parameter positional-only, exactly as a trailing `/` in a
+    /// signature does. Deliberately leaves keyword-only parameters alone.
+    pub fn make_all_parameters_positional_only(&mut self) {
+        self.positional_only_parameters = self.positional_parameters.len();
+    }
 }
 
 #[derive(Clone)]
@@ -391,7 +398,7 @@ impl ParseState {
     ) -> syn::Result<()> {
         match self {
             ParseState::Positional => {
-                signature.positional_only_parameters = signature.positional_parameters.len();
+                signature.make_all_parameters_positional_only();
                 *self = ParseState::PositionalAfterPosargs;
                 Ok(())
             }
@@ -512,10 +519,10 @@ impl<'a> FunctionSignature<'a> {
                     if let Some((_, annotation)) = &varargs.colon_and_annotation {
                         let FnArg::VarArgs(fn_arg) = fn_arg else {
                             unreachable!(
-                                    "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                                "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
                                 parsed and transformed below. Because the have to come last and are only allowed \
                                 once, this has to be a regular argument."
-                                );
+                            );
                         };
                         fn_arg.annotation = Some(annotation.as_type_hint());
                     }
@@ -528,10 +535,10 @@ impl<'a> FunctionSignature<'a> {
                     if let Some((_, annotation)) = &kwargs.colon_and_annotation {
                         let FnArg::KwArgs(fn_arg) = fn_arg else {
                             unreachable!(
-                                    "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
+                                "`Python` and `CancelHandle` are already handled above and `*args`/`**kwargs` are \
                                 parsed and transformed below. Because the have to come last and are only allowed \
                                 once, this has to be a regular argument."
-                                );
+                            );
                         };
                         fn_arg.annotation = Some(annotation.as_type_hint());
                     }
@@ -576,6 +583,26 @@ impl<'a> FunctionSignature<'a> {
             arguments,
             python_signature,
             attribute: None,
+        }
+    }
+
+    /// Gives the last `count` positional parameters a `None` default, matching a CPython slot
+    /// wrapper which substitutes `None` for the trailing arguments the caller may omit.
+    pub fn default_trailing_parameters_to_none(&mut self, count: usize) {
+        let mut defaulted = 0;
+        for arg in self.arguments.iter_mut().rev() {
+            if defaulted == count {
+                break;
+            }
+            if let FnArg::Regular(arg) = arg {
+                arg.default_value = Some(Box::new(parse_quote!(None)));
+                defaulted += 1;
+            }
+        }
+        for _ in 0..defaulted {
+            self.python_signature
+                .default_positional_parameters
+                .push(parse_quote!(None));
         }
     }
 

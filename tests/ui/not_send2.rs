@@ -1,4 +1,4 @@
-//@normalize-stderr-test: ".*/src/rust/(.*)" -> "../src/$1"
+
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 

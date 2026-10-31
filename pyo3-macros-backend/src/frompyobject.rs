@@ -4,10 +4,10 @@ use crate::derive_attributes::{ContainerAttributes, FieldAttributes, FieldGetter
 use crate::py_expr::PyExpr;
 use crate::utils::{self, Ctx};
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
 use syn::{
-    ext::IdentExt, parse_quote, punctuated::Punctuated, spanned::Spanned, DataEnum, DeriveInput,
-    Fields, Ident, Result, Token,
+    DataEnum, DeriveInput, Fields, Ident, Result, Token, ext::IdentExt, parse_quote,
+    punctuated::Punctuated, spanned::Spanned,
 };
 
 /// Describes derivation input of an enum.
@@ -73,8 +73,8 @@ impl<'a> Enum<'a> {
                 }();
 
                 match maybe_ret {
-                    ok @ ::std::result::Result::Ok(_) => return ok,
-                    ::std::result::Result::Err(err) => err
+                    ok @ ::core::result::Result::Ok(_) => return ok,
+                    ::core::result::Result::Err(err) => err
                 }
             });
 
@@ -87,7 +87,7 @@ impl<'a> Enum<'a> {
             let errors = [
                 #(#var_extracts),*
             ];
-            ::std::result::Result::Err(
+            ::core::result::Result::Err(
                 #pyo3_path::impl_::frompyobject::failed_to_extract_enum(
                     obj.py(),
                     #ty_name,
@@ -377,8 +377,8 @@ impl<'a> Container<'a> {
 
         quote!(
             match #pyo3_path::types::PyAnyMethods::extract(obj) {
-                ::std::result::Result::Ok((#(#field_idents),*)) => ::std::result::Result::Ok(#self_ty(#(#fields),*)),
-                ::std::result::Result::Err(err) => ::std::result::Result::Err(err),
+                ::core::result::Result::Ok((#(#field_idents),*)) => ::core::result::Result::Ok(#self_ty(#(#fields),*)),
+                ::core::result::Result::Err(err) => ::core::result::Result::Err(err),
             }
         )
     }
@@ -436,9 +436,9 @@ impl<'a> Container<'a> {
                 let default_expr = if let Some(default_expr) = &default.value {
                     default_expr.to_token_stream()
                 } else {
-                    quote!(::std::default::Default::default())
+                    quote!(::core::default::Default::default())
                 };
-                quote!(if let ::std::result::Result::Ok(value) = #getter {
+                quote!(if let ::core::result::Result::Ok(value) = #getter {
                     #extractor
                 } else {
                     #default_expr
@@ -453,7 +453,7 @@ impl<'a> Container<'a> {
             fields.push(quote!(#ident: #extracted));
         }
 
-        quote!(::std::result::Result::Ok(#self_ty{#fields}))
+        quote!(::core::result::Result::Ok(#self_ty{#fields}))
     }
 
     #[cfg(feature = "experimental-inspect")]
@@ -555,27 +555,16 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
     #[cfg(feature = "experimental-inspect")]
     let input_type = {
         let pyo3_crate_path = &ctx.pyo3_path;
-        let input_type = if tokens
-            .generics
-            .params
-            .iter()
-            .all(|p| matches!(p, syn::GenericParam::Lifetime(_)))
-        {
-            match &tokens.data {
-                syn::Data::Enum(en) => Enum::new(en, &tokens.ident, options)?.input_type(),
-                syn::Data::Struct(st) => {
-                    let ident = &tokens.ident;
-                    Container::new(&st.fields, parse_quote!(#ident), options.clone())?.input_type()
-                }
-                syn::Data::Union(_) => {
-                    // Not supported at this point
-                    PyExpr::module_attr("_typeshed", "Incomplete")
-                }
+        let input_type = match &tokens.data {
+            syn::Data::Enum(en) => Enum::new(en, &tokens.ident, options)?.input_type(),
+            syn::Data::Struct(st) => {
+                let ident = &tokens.ident;
+                Container::new(&st.fields, parse_quote!(#ident), options.clone())?.input_type()
             }
-        } else {
-            // We don't know how to deal with generic parameters
-            // Blocked by https://github.com/rust-lang/rust/issues/76560
-            PyExpr::module_attr("_typeshed", "Incomplete")
+            syn::Data::Union(_) => {
+                // Not supported at this point
+                PyExpr::module_attr("_typeshed", "Incomplete")
+            }
         }
         .to_introspection_token_stream(pyo3_crate_path);
         quote! { const INPUT_TYPE: #pyo3_crate_path::inspect::PyStaticExpr = #input_type; }
@@ -588,7 +577,7 @@ pub fn build_derive_from_pyobject(tokens: &DeriveInput) -> Result<TokenStream> {
         #[automatically_derived]
         impl #impl_generics #pyo3_path::FromPyObject<'_, #lt_param> for #ident #ty_generics #where_clause {
             type Error = #pyo3_path::PyErr;
-            fn extract(obj: #pyo3_path::Borrowed<'_, #lt_param, #pyo3_path::PyAny>) -> ::std::result::Result<Self, #pyo3_path::PyErr> {
+            fn extract(obj: #pyo3_path::Borrowed<'_, #lt_param, #pyo3_path::PyAny>) -> ::core::result::Result<Self, #pyo3_path::PyErr> {
                 let obj: &#pyo3_path::Bound<'_, _> = &*obj;
                 #derives
             }

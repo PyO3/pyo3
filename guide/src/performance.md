@@ -56,6 +56,47 @@ fn frobnicate<'py>(value: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
 }
 ```
 
+## String interning
+
+Every time a Rust `&str` is converted into a Python string, for example via `PyString::new` or through an `IntoPyObject` implementation, PyO3 allocates a new `PyString` object.
+For strings that are reused repeatedly at the same call site, e.g. as dictionary keys or attribute names, this repeated allocation is unnecessary overhead.
+
+The [`intern!`] macro caches a `PyString` in static storage the first time it is evaluated for a given call site, and returns a reference to that same object on every subsequent call, avoiding the repeated allocation.
+
+For example, instead of writing
+
+```rust,no_run
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+# use pyo3::types::PyDict;
+
+#[pyfunction]
+fn create_dict(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
+    let dict = PyDict::new(py);
+    // A new `PyString` is created for every call of this function.
+    dict.set_item("foo", 42)?;
+    Ok(dict)
+}
+```
+
+use the more efficient
+
+```rust,no_run
+# #![allow(dead_code)]
+# use pyo3::prelude::*;
+# use pyo3::{intern, types::PyDict};
+
+#[pyfunction]
+fn create_dict(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
+    let dict = PyDict::new(py);
+    // A `PyString` is created once and reused for the lifetime of the program.
+    dict.set_item(intern!(py, "foo"), 42)?;
+    Ok(dict)
+}
+```
+
+[`intern!`]: {{#PYO3_DOCS_URL}}/pyo3/macro.intern.html
+
 ## Access to Bound implies access to Python token
 
 Calling `Python::attach` is effectively a no-op when we're already attached to the interpreter, but checking that this is the case still has a cost.

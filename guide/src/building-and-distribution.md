@@ -28,8 +28,8 @@ An example output of doing this is shown below:
 
 ```console
 $ PYO3_PRINT_CONFIG=1 cargo build
-   Compiling pyo3-ffi v0.29.0 (/Users/goldbaum/Documents/pyo3/pyo3-ffi)
-error: failed to run custom build command for `pyo3-ffi v0.29.0 (/Users/goldbaum/Documents/pyo3/pyo3-ffi)`
+   Compiling pyo3-ffi v0.30.0 (/Users/goldbaum/Documents/pyo3/pyo3-ffi)
+   error: failed to run custom build command for `pyo3-ffi v0.30.0 (/Users/goldbaum/Documents/pyo3/pyo3-ffi)`
 
 Caused by:
   process didn't exit successfully: `/Users/goldbaum/Documents/pyo3/target/debug/build/pyo3-ffi-71f0882ba738a1f0/build-script-build` (exit status: 101)
@@ -98,7 +98,8 @@ The PyO3 ecosystem has two packaging tools, [`maturin`] and [`setuptools-rust`],
 
 PyO3 has some functionality for configuring projects when building Python extension modules:
 
-- The `PYO3_BUILD_EXTENSION_MODULE` environment variable, which must be set when building Python extension modules. `maturin` and `setuptools-rust` set this automatically.
+- The `PYO3_BUILD_EXTENSION_MODULE` environment variable, which must be set when building Python extension modules.
+  `maturin` and `setuptools-rust` set this automatically.
 - The `abi3` and `abi3t` Cargo feature and their version-specific `abi3-pyXY` and `abi3t-pyXY` companions, which are used to opt-in to the limited Python API and a flavor of stable ABI in order to support multiple Python versions in a single wheel.
   The free-threaded build of CPython cannot load `abi3` wheels but both builds can load `abi3t` wheels.
 
@@ -168,7 +169,8 @@ See [PEP 3149](https://peps.python.org/pep-3149/) for more background on platfor
 
 #### macOS
 
-On macOS, because the `PYO3_BUILD_EXTENSION_MODULE` environment variable disables linking to `libpython` ([see the next section](#the-extension-module-feature)), some additional linker arguments need to be set. `maturin` and `setuptools-rust` both pass these arguments for PyO3 automatically, but projects using manual builds will need to set these directly in order to support macOS.
+On macOS, because the `PYO3_BUILD_EXTENSION_MODULE` environment variable disables linking to `libpython` ([see the next section](#the-extension-module-feature)), some additional linker arguments need to be set.
+`maturin` and `setuptools-rust` both pass these arguments for PyO3 automatically, but projects using manual builds will need to set these directly in order to support macOS.
 
 The easiest way to set the correct linker arguments is to add a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) with the following content:
 

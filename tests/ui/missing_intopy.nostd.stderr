@@ -1,0 +1,36 @@
+error[E0277]: `Blah` cannot be converted to a Python object
+   --> tests/ui/missing_intopy.rs:10:14
+    |
+ 10 | fn blah() -> Blah {
+    |              ^^^^ unsatisfied trait bound
+    |
+help: the trait `IntoPyObject<'_>` is not implemented for `Blah`
+   --> tests/ui/missing_intopy.rs:7:1
+    |
+  7 | struct Blah;
+    | ^^^^^^^^^^^
+    = note: `IntoPyObject` is automatically implemented by the `#[pyclass]` macro
+    = note: if you do not wish to have a corresponding Python type, implement it manually
+    = note: if you do not own `Blah` you can perform a manual conversion to one of the types in `pyo3::types::*`
+    = help: the following other types implement trait `IntoPyObject<'py>`:
+              &&'a T
+              &&str
+              &'a (T0, T1)
+              &'a (T0, T1, T2)
+              &'a (T0, T1, T2, T3)
+              &'a (T0, T1, T2, T3, T4)
+              &'a (T0, T1, T2, T3, T4, T5)
+              &'a (T0, T1, T2, T3, T4, T5, T6)
+            and $N others
+note: required by a bound in `pyo3::impl_::wrap::UnknownReturnType::<T>::wrap_into_ptr`
+ --> src/impl_/wrap.rs
+  |
+  |     pub fn wrap_into_ptr<'py>(&self, _: Python<'py>, _: T) -> PyResult<*mut ffi::PyObject>
+  |            ------------- required by a bound in this associated function
+  |     where
+  |         T: IntoPyObject<'py>,
+  |            ^^^^^^^^^^^^^^^^^ required by this bound in `UnknownReturnType::<T>::wrap_into_ptr`
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0277`.

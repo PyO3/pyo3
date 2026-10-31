@@ -16,6 +16,14 @@ pub const fn assert_immutable_type_supported() {
     );
 }
 
+#[track_caller]
+pub const fn assert_type_implements_traverse(implements_traverse: bool) {
+    assert!(
+        implements_traverse,
+        "an implementation of `__clear__` requires an implementation of `__traverse__`"
+    )
+}
+
 mod tests {
     #[cfg(feature = "macros")]
     #[test]

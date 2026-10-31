@@ -4,10 +4,10 @@ use crate::derive_attributes::{ContainerAttributes, FieldAttributes};
 use crate::py_expr::PyExpr;
 use crate::utils::{self, Ctx};
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::spanned::Spanned as _;
-use syn::{parse_quote, DataEnum, DeriveInput, Fields, Ident, Index, Result};
+use syn::{DataEnum, DeriveInput, Fields, Ident, Index, Result, parse_quote};
 
 struct ItemOption(Option<syn::Lit>);
 
@@ -261,25 +261,28 @@ impl<'a, const REF: bool> Container<'a, REF> {
             .iter()
             .enumerate()
             .map(|(i, f)| {
-                let key = f
-                    .item
-                    .as_ref()
-                    .and_then(|item| item.0.as_ref())
-                    .map(|item| item.into_token_stream())
-                    .unwrap_or_else(|| {
+                let key = match f.item.as_ref().and_then(|item| item.0.as_ref()) {
+                    Some(syn::Lit::Str(key)) => quote!(#pyo3_path::intern!(py, #key)),
+                    Some(key) => quote!(#key),
+                    None => {
                         let name = f.ident.unraw().to_string();
-                        self.rename_rule.map(|rule| utils::apply_renaming_rule(rule, &name)).unwrap_or(name).into_token_stream()
-                    });
+                        let name = self
+                            .rename_rule
+                            .map(|rule| utils::apply_renaming_rule(rule, &name))
+                            .unwrap_or(name);
+                        quote!(#pyo3_path::intern!(py, #name))
+                    }
+                };
                 let value = Ident::new(&format!("arg{i}"), f.field.ty.span());
 
                 if let Some(expr_path) = f.into_py_with.as_ref().map(|i|&i.value) {
                     let cow = if REF {
-                        quote!(::std::borrow::Cow::Borrowed(#value))
+                        quote!(#pyo3_path::impl_::alloc::borrow::Cow::Borrowed(#value))
                     } else {
-                        quote!(::std::borrow::Cow::Owned(#value))
+                        quote!(#pyo3_path::impl_::alloc::borrow::Cow::Owned(#value))
                     };
                     quote! {
-                        let into_py_with: fn(::std::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
+                        let into_py_with: fn(#pyo3_path::impl_::alloc::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
                         #pyo3_path::types::PyDictMethods::set_item(&dict, #key, into_py_with(#cow, py)?)?;
                     }
                 } else {
@@ -300,7 +303,7 @@ impl<'a, const REF: bool> Container<'a, REF> {
                 #unpack
                 let dict = #pyo3_path::types::PyDict::new(py);
                 #setter
-                ::std::result::Result::Ok::<_, Self::Error>(dict)
+                ::core::result::Result::Ok::<_, Self::Error>(dict)
             },
         }
     }
@@ -326,13 +329,13 @@ impl<'a, const REF: bool> Container<'a, REF> {
 
                 if let Some(expr_path) = f.into_py_with.as_ref().map(|i|&i.value) {
                     let cow = if REF {
-                        quote!(::std::borrow::Cow::Borrowed(#value))
+                        quote!(#pyo3_path::impl_::alloc::borrow::Cow::Borrowed(#value))
                     } else {
-                        quote!(::std::borrow::Cow::Owned(#value))
+                        quote!(#pyo3_path::impl_::alloc::borrow::Cow::Owned(#value))
                     };
                     quote_spanned! { ty.span() =>
                         {
-                            let into_py_with: fn(::std::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
+                            let into_py_with: fn(#pyo3_path::impl_::alloc::borrow::Cow<'_, _>, #pyo3_path::Python<'py>) -> #pyo3_path::PyResult<#pyo3_path::Bound<'py, #pyo3_path::PyAny>> = #expr_path;
                             into_py_with(#cow, py)?
                         },
                     }
@@ -374,10 +377,37 @@ impl<'a, const REF: bool> Container<'a, REF> {
                      }| { Self::field_output_type(into_py_with, &field.ty) },
                 )),
             ),
-            ContainerType::Struct(_) => {
-                // TODO: implement using a Protocol?
-                PyExpr::module_attr("_typeshed", "Incomplete")
+            ContainerType::Struct(fields) => {
+                // TODO: use a TypedDict?
+                let key_type = fields
+                    .iter()
+                    .map(|f| Self::field_key_type(&f.item))
+                    .reduce(PyExpr::union)
+                    .expect("Structs have at least one field");
+                let value_type = fields
+                    .iter()
+                    .map(|f| Self::field_output_type(&f.into_py_with, &f.field.ty))
+                    .reduce(PyExpr::union)
+                    .expect("Structs have at least one field");
+                PyExpr::subscript(
+                    PyExpr::builtin("dict"),
+                    PyExpr::tuple([key_type, value_type]),
+                )
             }
+        }
+    }
+
+    #[cfg(feature = "experimental-inspect")]
+    fn field_key_type(item: &Option<ItemOption>) -> PyExpr {
+        match item.as_ref().and_then(|item| item.0.as_ref()) {
+            None | Some(syn::Lit::Str(_) | syn::Lit::Char(_) | syn::Lit::CStr(_)) => {
+                PyExpr::builtin("str")
+            }
+            Some(syn::Lit::Int(_) | syn::Lit::Byte(_)) => PyExpr::builtin("int"),
+            Some(syn::Lit::Float(_)) => PyExpr::builtin("float"),
+            Some(syn::Lit::Bool(_)) => PyExpr::builtin("bool"),
+            Some(syn::Lit::ByteStr(_)) => PyExpr::builtin("bytes"),
+            Some(_) => PyExpr::module_attr("_typeshed", "Incomplete"),
         }
     }
 
@@ -386,6 +416,8 @@ impl<'a, const REF: bool> Container<'a, REF> {
         if into_py_with.is_some() {
             // We don't know what into_py_with is doing
             PyExpr::module_attr("_typeshed", "Incomplete")
+        } else if REF {
+            PyExpr::from_into_py_object(parse_quote!(&#ty), None)
         } else {
             PyExpr::from_into_py_object(ty.clone(), None)
         }
@@ -446,7 +478,7 @@ impl<'a, const REF: bool> Enum<'a, REF> {
                         {#body}
                             .map(#pyo3_path::BoundObject::into_any)
                             .map(#pyo3_path::BoundObject::into_bound)
-                            .map_err(::std::convert::Into::<#pyo3_path::PyErr>::into)
+                            .map_err(::core::convert::Into::<#pyo3_path::PyErr>::into)
                     }
                 }
             })
@@ -569,33 +601,22 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
     #[cfg(feature = "experimental-inspect")]
     let output_type = {
         let pyo3_crate_path = &ctx.pyo3_path;
-        let output_type = if tokens
-            .generics
-            .params
-            .iter()
-            .all(|p| matches!(p, syn::GenericParam::Lifetime(_)))
-        {
-            match &tokens.data {
-                syn::Data::Enum(en) => Enum::<REF>::new(en, &tokens.ident)?.output_type(),
-                syn::Data::Struct(st) => {
-                    let ident = &tokens.ident;
-                    Container::<REF>::new(
-                        Some(Ident::new("self", Span::call_site())),
-                        &st.fields,
-                        parse_quote!(#ident),
-                        options,
-                    )?
-                    .output_type()
-                }
-                syn::Data::Union(_) => {
-                    // Not supported at this point
-                    PyExpr::module_attr("_typeshed", "Incomplete")
-                }
+        let output_type = match &tokens.data {
+            syn::Data::Enum(en) => Enum::<REF>::new(en, &tokens.ident)?.output_type(),
+            syn::Data::Struct(st) => {
+                let ident = &tokens.ident;
+                Container::<REF>::new(
+                    Some(Ident::new("self", Span::call_site())),
+                    &st.fields,
+                    parse_quote!(#ident),
+                    options,
+                )?
+                .output_type()
             }
-        } else {
-            // We don't know how to deal with generic parameters
-            // Blocked by https://github.com/rust-lang/rust/issues/76560
-            PyExpr::module_attr("_typeshed", "Incomplete")
+            syn::Data::Union(_) => {
+                // Not supported at this point
+                PyExpr::module_attr("_typeshed", "Incomplete")
+            }
         }
         .to_introspection_token_stream(pyo3_crate_path);
         quote! { const OUTPUT_TYPE: #pyo3_path::inspect::PyStaticExpr = #output_type; }
@@ -611,7 +632,7 @@ pub fn build_derive_into_pyobject<const REF: bool>(tokens: &DeriveInput) -> Resu
             type Error = #error;
             #output_type
 
-            fn into_pyobject(self, py: #pyo3_path::Python<#lt_param>) -> ::std::result::Result<
+            fn into_pyobject(self, py: #pyo3_path::Python<#lt_param>) -> ::core::result::Result<
                 <Self as #pyo3_path::conversion::IntoPyObject<#lt_param>>::Output,
                 <Self as #pyo3_path::conversion::IntoPyObject<#lt_param>>::Error,
             > {

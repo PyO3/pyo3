@@ -1,3 +1,4 @@
+import argparse
 import shutil
 import sys
 from collections.abc import Iterable
@@ -11,7 +12,13 @@ nox.options.sessions = ["test"]
 
 @nox.session
 def test(session: nox.Session):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--features")
+    (args, unhandled_posargs) = parser.parse_known_args(session.posargs)
+
     session.env["MATURIN_PEP517_ARGS"] = "--profile=dev"
+    if args.features:
+        session.env["MATURIN_PEP517_ARGS"] += f" --features={args.features}"
     session.install("-v", ".[dev]")
 
     def try_install_binary(package: str, constraint: str):
@@ -22,16 +29,25 @@ def test(session: nox.Session):
             pass
 
     try_install_binary("numpy", ">=1.16")
-    # https://github.com/zopefoundation/zope.interface/issues/316
-    # - is a dependency of gevent
-    try_install_binary("zope.interface", "<7")
     try_install_binary("gevent", ">=22.10.2")
-    ignored_paths = []
+    # hypothesis itself depends on PyO3 so newer Python versions may fail
+    # to build
+    try_install_binary("hypothesis", ">=6.156.1")
+    # The stubs are generated from a build with `experimental-async,experimental-inspect`,
+    # so only such a build exports the members they declare. The `test-introspection`
+    # session runs this test against one.
+    ignored_paths = ["tests/test_stubs.py"]
     if sys.version_info < (3, 10):
         # Match syntax is only available in Python >= 3.10
         ignored_paths.append("tests/test_enums_match.py")
     ignore_args = [f"--ignore={path}" for path in ignored_paths]
-    session.run("pytest", *ignore_args, *session.posargs)
+
+    extra_args = []
+    # https://github.com/oracle/graalpython/issues/1211
+    if sys.implementation.name == "graalpy":
+        extra_args.append("--assert=plain")
+
+    session.run("pytest", *extra_args, *ignore_args, *unhandled_posargs)
 
 
 @nox.session

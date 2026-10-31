@@ -1,4 +1,4 @@
-use crate::{vectorcallfunc, PyObject, Py_TYPE, Py_ssize_t};
+use crate::{Py_TYPE, Py_ssize_t, PyObject, vectorcallfunc};
 #[cfg(all(any(not(PyPy), not(Py_3_11)), not(Py_3_12)))]
 use core::ffi::c_char;
 #[cfg(not(Py_3_11))]
@@ -6,15 +6,15 @@ use core::ffi::c_int;
 
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::{
-    PyListObject, PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE, PyTupleObject, PyTuple_GET_ITEM,
-    PyTuple_GET_SIZE,
+    PyList_Check, PyList_GET_ITEM, PyList_GET_SIZE, PyListObject, PyTuple_GET_ITEM,
+    PyTuple_GET_SIZE, PyTupleObject,
 };
 
 #[cfg(not(Py_3_11))]
 use crate::Py_buffer;
 
 #[cfg(not(any(PyPy, Py_3_11)))]
-use crate::{PyCallable_Check, PyType_HasFeature, Py_TPFLAGS_HAVE_VECTORCALL};
+use crate::{Py_TPFLAGS_HAVE_VECTORCALL, PyCallable_Check, PyType_HasFeature};
 #[cfg(not(any(Py_3_12, PyPy)))]
 use crate::{PyThreadState, PyThreadState_GET, PyTuple_Check};
 use libc::size_t;
@@ -182,23 +182,23 @@ extern_libpython! {
 
 #[cfg(not(Py_3_11))] // moved to src/buffer.rs from 3.11
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyObject_GetBuffer")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_GetBuffer")]
     pub fn PyObject_GetBuffer(obj: *mut PyObject, view: *mut Py_buffer, flags: c_int) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyBuffer_GetPointer")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBuffer_GetPointer")]
     pub fn PyBuffer_GetPointer(
         view: *mut Py_buffer,
         indices: *mut Py_ssize_t,
     ) -> *mut core::ffi::c_void;
-    #[cfg_attr(PyPy, link_name = "PyPyBuffer_SizeFromFormat")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBuffer_SizeFromFormat")]
     pub fn PyBuffer_SizeFromFormat(format: *const c_char) -> Py_ssize_t;
-    #[cfg_attr(PyPy, link_name = "PyPyBuffer_ToContiguous")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBuffer_ToContiguous")]
     pub fn PyBuffer_ToContiguous(
         buf: *mut core::ffi::c_void,
         view: *mut Py_buffer,
         len: Py_ssize_t,
         order: c_char,
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyBuffer_FromContiguous")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBuffer_FromContiguous")]
     pub fn PyBuffer_FromContiguous(
         view: *mut Py_buffer,
         buf: *mut core::ffi::c_void,
@@ -206,7 +206,7 @@ extern_libpython! {
         order: c_char,
     ) -> c_int;
     pub fn PyObject_CopyData(dest: *mut PyObject, src: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyBuffer_IsContiguous")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBuffer_IsContiguous")]
     pub fn PyBuffer_IsContiguous(view: *const Py_buffer, fort: c_char) -> c_int;
     pub fn PyBuffer_FillContiguousStrides(
         ndims: c_int,
@@ -215,7 +215,7 @@ extern_libpython! {
         itemsize: c_int,
         fort: c_char,
     );
-    #[cfg_attr(PyPy, link_name = "PyPyBuffer_FillInfo")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBuffer_FillInfo")]
     pub fn PyBuffer_FillInfo(
         view: *mut Py_buffer,
         o: *mut PyObject,
@@ -224,7 +224,7 @@ extern_libpython! {
         readonly: c_int,
         flags: c_int,
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyBuffer_Release")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBuffer_Release")]
     pub fn PyBuffer_Release(view: *mut Py_buffer);
 }
 

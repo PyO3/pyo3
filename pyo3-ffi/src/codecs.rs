@@ -9,11 +9,13 @@ extern_libpython! {
     // skipped non-limited _PyCodec_Lookup from Include/codecs.h
     // skipped non-limited _PyCodec_Forget from Include/codecs.h
     pub fn PyCodec_KnownEncoding(encoding: *const c_char) -> c_int;
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCodec_Encode")]
     pub fn PyCodec_Encode(
         object: *mut PyObject,
         encoding: *const c_char,
         errors: *const c_char,
     ) -> *mut PyObject;
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCodec_Decode")]
     pub fn PyCodec_Decode(
         object: *mut PyObject,
         encoding: *const c_char,
@@ -24,14 +26,16 @@ extern_libpython! {
     // skipped non-limited _PyCodec_DecodeText from Include/codecs.h
     // skipped non-limited _PyCodecInfo_GetIncrementalDecoder from Include/codecs.h
     // skipped non-limited _PyCodecInfo_GetIncrementalEncoder from Include/codecs.h
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCodec_Encoder")]
     pub fn PyCodec_Encoder(encoding: *const c_char) -> *mut PyObject;
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCodec_Decoder")]
     pub fn PyCodec_Decoder(encoding: *const c_char) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyCodec_IncrementalEncoder")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCodec_IncrementalEncoder")]
     pub fn PyCodec_IncrementalEncoder(
         encoding: *const c_char,
         errors: *const c_char,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyCodec_IncrementalDecoder")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCodec_IncrementalDecoder")]
     pub fn PyCodec_IncrementalDecoder(
         encoding: *const c_char,
         errors: *const c_char,

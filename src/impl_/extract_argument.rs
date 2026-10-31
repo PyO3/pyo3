@@ -1,22 +1,24 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+use crate::PyTypeInfo;
 use crate::platform::prelude::*;
+use crate::types::PyType;
 use core::ptr::NonNull;
 
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_union, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_union};
 #[cfg(feature = "experimental-inspect")]
 use crate::types::PyNone;
 #[cfg(any(Py_3_10, not(Py_LIMITED_API), feature = "experimental-inspect"))]
 use crate::types::PyString;
 use crate::{
+    Borrowed, Bound, CastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr,
+    PyResult, PyTypeCheck, Python,
     exceptions::PyTypeError,
     ffi,
     pyclass::boolean_struct::False,
-    types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
-    Borrowed, Bound, CastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr,
-    PyResult, PyTypeCheck, Python,
+    types::{PyDict, PyTuple, any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods},
 };
 
 /// Helper type used to keep implementation more concise.
@@ -29,8 +31,8 @@ type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
 /// The public API is `FromPyObject`.
 mod function_argument {
     use crate::{
-        impl_::extract_argument::PyFunctionArgument, pyclass::boolean_struct::False, FromPyObject,
-        PyClass, PyTypeCheck,
+        FromPyObject, PyClass, PyTypeCheck, impl_::extract_argument::PyFunctionArgument,
+        pyclass::boolean_struct::False,
     };
 
     pub trait Sealed<const IMPLEMENTS_FROMPYOBJECT: bool> {}
@@ -122,7 +124,8 @@ where
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = type_hint_union!(T::INPUT_TYPE, PyNone::TYPE_HINT);
+    const INPUT_TYPE: PyStaticExpr =
+        type_hint_union!(T::INPUT_TYPE, <PyNone as PyTypeCheck>::TYPE_HINT);
 
     #[inline]
     fn extract(
@@ -143,7 +146,7 @@ impl<'a, 'holder, 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'holder 
     type Error = <alloc::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = <PyString as PyTypeCheck>::TYPE_HINT;
 
     #[inline]
     fn extract(
@@ -292,6 +295,62 @@ pub unsafe fn cast_bound_ref_trusted<'a, 'py, T: PyTypeCheck>(
     }
 }
 
+/// Fused extraction for receivers which implement `TryFrom<&Bound<T>>` (e.g. `Py<T>`,
+/// `Bound<T>`, `PyRef<T>`), used to keep the generated code small. Trusted variant: performs an
+/// unchecked cast for extension-type slot receivers where CPython guarantees the receiver type.
+///
+/// # Safety
+/// The caller must ensure that `bound_ref` is an instance of `T`. This invariant is upheld by
+/// CPython when dispatching through type slots.
+#[inline]
+pub unsafe fn extract_receiver_trusted<'a, 'py, T, R>(
+    bound_ref: &'a Bound<'py, PyAny>,
+) -> PyResult<R>
+where
+    T: PyTypeCheck + 'a,
+    R: TryFrom<&'a Bound<'py, T>>,
+    R::Error: Into<PyErr>,
+{
+    // SAFETY: caller guarantees `bound_ref` is an instance of `T`
+    let bound = unsafe { cast_bound_ref_trusted::<T>(bound_ref) }?;
+    R::try_from(bound).map_err(Into::into)
+}
+
+/// As [`extract_receiver_trusted`], but performs a checked cast.
+#[inline]
+pub fn extract_receiver<'a, 'py, T, R>(bound_ref: &'a Bound<'py, PyAny>) -> PyResult<R>
+where
+    T: PyTypeCheck + 'a,
+    R: TryFrom<&'a Bound<'py, T>>,
+    R::Error: Into<PyErr>,
+{
+    let bound = bound_ref.cast::<T>().map_err(PyErr::from)?;
+    R::try_from(bound).map_err(Into::into)
+}
+
+/// Extracts a `cls` receiver from a class instance, assuming the correct instance
+/// type has been provided.
+#[inline]
+pub fn extract_cls_receiver_trusted<'a, 'py>(
+    slf: &'a Bound<'py, PyAny>,
+    holder: &'a mut Option<Bound<'py, PyType>>,
+) -> &'a Bound<'py, PyType> {
+    holder.insert(slf.get_type())
+}
+
+/// Extracts a `cls` receiver from a class instance, performing a checked cast.
+#[inline]
+pub fn extract_cls_receiver<'a, 'py, T>(
+    slf: &'a Bound<'py, PyAny>,
+    holder: &'a mut Option<Bound<'py, PyType>>,
+) -> PyResult<&'a Bound<'py, PyType>>
+where
+    T: PyTypeInfo,
+{
+    slf.cast::<T>()?; // Perform type check
+    Ok(extract_cls_receiver_trusted(slf, holder))
+}
+
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
 pub fn extract_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
     obj: Borrowed<'a, 'py, PyAny>,
@@ -304,6 +363,28 @@ where
     match PyFunctionArgument::extract(obj, holder) {
         Ok(value) => Ok(value),
         Err(e) => Err(argument_extraction_error(obj.py(), arg_name, e.into())),
+    }
+}
+
+/// Fused unwrap + [`extract_argument`], used for required arguments to keep the generated
+/// code small.
+///
+/// The macro-generated caller guarantees `obj` is `Some` (the `FunctionDescription`
+/// `extract_arguments_` methods check that all required arguments are provided); the `None`
+/// arm is unreachable but kept as a branch so that this function is safe to call (avoiding
+/// an `unsafe` block in the generated code).
+#[inline]
+pub fn extract_required_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
+    obj: Option<Borrowed<'a, 'py, PyAny>>,
+    holder: &'holder mut T::Holder,
+    arg_name: &str,
+) -> PyResult<T>
+where
+    T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
+{
+    match obj {
+        Some(obj) => extract_argument(obj, holder, arg_name),
+        None => unreachable!("required argument was not extracted"),
     }
 }
 
@@ -335,6 +416,23 @@ pub fn from_py_with<'a, 'py, T>(
     }
 }
 
+/// Fused unwrap + [`from_py_with`], used for required arguments with a
+/// `#[pyo3(from_py_with)]` annotation to keep the generated code small.
+///
+/// As [`extract_required_argument`], the `None` arm is unreachable but kept as a branch so
+/// that this function is safe to call.
+#[inline]
+pub fn from_py_with_required<'a, 'py, T>(
+    obj: Option<&'a Bound<'py, PyAny>>,
+    arg_name: &str,
+    extractor: fn(&'a Bound<'py, PyAny>) -> PyResult<T>,
+) -> PyResult<T> {
+    match obj {
+        Some(obj) => from_py_with(obj, arg_name, extractor),
+        None => unreachable!("required argument was not extracted"),
+    }
+}
+
 /// Alternative to [`extract_argument`] used when the argument has a `#[pyo3(from_py_with)]` annotation and also a default value.
 pub fn from_py_with_with_default<'a, 'py, T>(
     obj: Option<&'a Bound<'py, PyAny>>,
@@ -360,40 +458,6 @@ pub fn argument_extraction_error(py: Python<'_>, arg_name: &str, error: PyErr) -
             .call_method1(crate::intern!(py, "add_note"), (msg,));
     };
     error
-}
-
-/// Unwraps the Option<&PyAny> produced by the FunctionDescription `extract_arguments_` methods.
-/// They check if required methods are all provided.
-///
-/// # Safety
-/// `argument` must not be `None`
-#[inline]
-pub unsafe fn unwrap_required_argument<'a, 'py>(
-    argument: Option<Borrowed<'a, 'py, PyAny>>,
-) -> Borrowed<'a, 'py, PyAny> {
-    match argument {
-        Some(value) => value,
-        #[cfg(debug_assertions)]
-        None => unreachable!("required method argument was not extracted"),
-        // SAFETY: invariant of calling this function. Enforced by the macros.
-        #[cfg(not(debug_assertions))]
-        None => unsafe { core::hint::unreachable_unchecked() },
-    }
-}
-
-/// Variant of above used with `from_py_with` extractors on required arguments.
-#[inline]
-pub unsafe fn unwrap_required_argument_bound<'a, 'py>(
-    argument: Option<&'a Bound<'py, PyAny>>,
-) -> &'a Bound<'py, PyAny> {
-    match argument {
-        Some(value) => value,
-        #[cfg(debug_assertions)]
-        None => unreachable!("required method argument was not extracted"),
-        // SAFETY: invariant of calling this function. Enforced by the macros.
-        #[cfg(not(debug_assertions))]
-        None => unsafe { core::hint::unreachable_unchecked() },
-    }
 }
 
 /// Cast a raw `*mut ffi::PyObject` to a `PyArg`. This is used to access safer PyO3
@@ -449,6 +513,13 @@ pub struct KeywordOnlyParameterDescription {
     pub required: bool,
 }
 
+impl KeywordOnlyParameterDescription {
+    /// Compact constructor used by the macros to keep the generated code small.
+    pub const fn new(name: &'static str, required: bool) -> Self {
+        Self { name, required }
+    }
+}
+
 /// Function argument specification for a `#[pyfunction]` or `#[pymethod]`.
 pub struct FunctionDescription {
     pub cls_name: Option<&'static str>,
@@ -460,6 +531,25 @@ pub struct FunctionDescription {
 }
 
 impl FunctionDescription {
+    /// Compact constructor used by the macros to keep the generated code small.
+    pub const fn new(
+        cls_name: Option<&'static str>,
+        func_name: &'static str,
+        positional_parameter_names: &'static [&'static str],
+        positional_only_parameters: usize,
+        required_positional_parameters: usize,
+        keyword_only_parameters: &'static [KeywordOnlyParameterDescription],
+    ) -> Self {
+        Self {
+            cls_name,
+            func_name,
+            positional_parameter_names,
+            positional_only_parameters,
+            required_positional_parameters,
+            keyword_only_parameters,
+        }
+    }
+
     fn full_name(&self) -> String {
         if let Some(cls_name) = self.cls_name {
             format!("{}.{}()", cls_name, self.func_name)
@@ -1022,11 +1112,11 @@ fn push_parameter_list(msg: &mut String, parameter_names: &[&str]) {
 
 #[cfg(test)]
 mod tests {
+    use crate::Python;
     use crate::platform::prelude::*;
     use crate::types::{IntoPyDict, PyTuple};
-    use crate::Python;
 
-    use super::{push_parameter_list, FunctionDescription, NoVarargs, NoVarkeywords};
+    use super::{FunctionDescription, NoVarargs, NoVarkeywords, push_parameter_list};
 
     #[test]
     fn unexpected_keyword_argument() {

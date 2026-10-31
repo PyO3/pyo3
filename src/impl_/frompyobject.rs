@@ -1,7 +1,7 @@
+use crate::Bound;
 use crate::platform::prelude::*;
 use crate::types::any::PyAnyMethods;
-use crate::Bound;
-use crate::{exceptions::PyTypeError, FromPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{FromPyObject, PyAny, PyErr, PyResult, Python, exceptions::PyTypeError};
 
 #[cold]
 pub fn failed_to_extract_enum(
