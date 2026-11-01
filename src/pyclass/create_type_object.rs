@@ -48,14 +48,25 @@ pub(crate) fn create_type_object<T>(py: Python<'_>) -> PyResult<PyClassTypeObjec
 where
     T: PyClass,
 {
-    // Written this way to monomorphize the majority of the logic.
+    /// Slots which are implemented by PyO3 in all cases because the inherited implementations
+    /// are not suitable for `#[pyclass]` internals.
+    struct FixedSlots {
+        // See https://github.com/python/cpython/issues/160749 - explicitly set tp_alloc in all cases
+        // to ensure that the allocator is suitable for the type. We pair it with `tp_free`.
+        alloc: ffi::allocfunc,
+        free: ffi::freefunc,
+        // tp_dealloc, tp_traverse and tp_clear need to ensure correct handling of the GC
+        dealloc: ffi::destructor,
+        traverse: ffi::traverseproc,
+        synthesized_clear: ffi::inquiry,
+    }
+
+    // Written this way to avoid monomorphizing the majority of the logic.
     #[expect(clippy::too_many_arguments)]
     unsafe fn inner(
         py: Python<'_>,
         base: *mut ffi::PyTypeObject,
-        tp_dealloc: ffi::destructor,
-        tp_traverse: ffi::traverseproc,
-        synthesized_clear: ffi::inquiry,
+        fixed_slots: &FixedSlots,
         is_mapping: bool,
         is_sequence: bool,
         is_immutable_type: bool,
@@ -70,16 +81,32 @@ where
     ) -> PyResult<PyClassTypeObject> {
         unsafe {
             PyTypeBuilder {
-                slots: Vec::new(),
+                slots: vec![
+                    ffi::PyType_Slot {
+                        slot: ffi::Py_tp_alloc,
+                        pfunc: fixed_slots.alloc as *mut c_void,
+                    },
+                    ffi::PyType_Slot {
+                        slot: ffi::Py_tp_free,
+                        pfunc: fixed_slots.free as *mut c_void,
+                    },
+                    ffi::PyType_Slot {
+                        slot: ffi::Py_tp_dealloc,
+                        pfunc: fixed_slots.dealloc as *mut c_void,
+                    },
+                    ffi::PyType_Slot {
+                        slot: ffi::Py_tp_traverse,
+                        pfunc: fixed_slots.traverse as *mut c_void,
+                    },
+                    // NB there is logic inside `PyTypeBuilder::build` to install a `tp_clear` only when necessary
+                ],
                 method_defs: Vec::new(),
                 member_defs: Vec::new(),
                 getset_builders: HashMap::new(),
                 #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
                 cleanup: Vec::new(),
                 tp_base: base,
-                tp_dealloc,
-                tp_traverse,
-                synthesized_clear,
+                synthesized_clear: fixed_slots.synthesized_clear,
                 is_mapping,
                 is_sequence,
                 is_immutable_type,
@@ -102,9 +129,13 @@ where
         inner(
             py,
             T::BaseType::type_object_raw(py),
-            tp_dealloc::<T>,
-            tp_traverse::<T>,
-            synthesized_clear::<T>,
+            &FixedSlots {
+                alloc: T::TP_ALLOC,
+                free: T::TP_FREE,
+                dealloc: tp_dealloc::<T>,
+                traverse: tp_traverse::<T>,
+                synthesized_clear: synthesized_clear::<T>,
+            },
             T::IS_MAPPING,
             T::IS_SEQUENCE,
             T::IS_IMMUTABLE_TYPE,
@@ -134,8 +165,6 @@ struct PyTypeBuilder {
     #[cfg(all(not(Py_LIMITED_API), not(Py_3_10)))]
     cleanup: Vec<PyTypeBuilderCleanup>,
     tp_base: *mut ffi::PyTypeObject,
-    tp_dealloc: ffi::destructor,
-    tp_traverse: ffi::traverseproc,
     /// `tp_clear` to install when the class defines no `__clear__` of its own
     synthesized_clear: ffi::inquiry,
     is_mapping: bool,
@@ -419,9 +448,6 @@ impl PyTypeBuilder {
                 self.class_flags |= ffi::Py_TPFLAGS_DISALLOW_INSTANTIATION;
             }
         }
-
-        unsafe { self.push_slot(ffi::Py_tp_dealloc, self.tp_dealloc as *mut c_void) }
-        unsafe { self.push_slot(ffi::Py_tp_traverse, self.tp_traverse as *mut c_void) }
 
         // We may need to install a `tp_clear` if this type didn't define one:
         if !self.has_clear {
