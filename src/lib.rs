@@ -413,6 +413,9 @@ mod internal_tricks;
 
 mod platform;
 
+#[macro_use]
+pub(crate) mod fmt;
+
 // Macro dependencies, also contains macros exported for use across the codebase and
 // in expanded macros.
 #[doc(hidden)]
@@ -427,7 +430,6 @@ pub mod coroutine;
 mod err;
 pub mod exceptions;
 pub mod ffi;
-pub(crate) mod fmt;
 mod instance;
 mod interpreter_lifecycle;
 pub mod marker;

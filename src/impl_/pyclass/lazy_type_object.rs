@@ -21,6 +21,7 @@ use crate::{
 };
 
 use super::PyClassItemsIter;
+use crate::types::PyString;
 
 /// Lazy type object for PyClass.
 #[doc(hidden)]
@@ -114,7 +115,7 @@ impl LazyTypeObjectInner {
             wrap_in_runtime_error(
                 py,
                 err,
-                format!("An error occurred while initializing class {name}"),
+                py_format!(py, "An error occurred while initializing class {name}").unwrap(),
             )
         })
     }
@@ -185,11 +186,12 @@ impl LazyTypeObjectInner {
                             return Err(wrap_in_runtime_error(
                                 py,
                                 err,
-                                format!(
+                                py_format!(
+                                    py,
                                     "An error occurred while initializing `{}.{}`",
                                     name,
                                     attr.name.to_str().unwrap()
-                                ),
+                                )?,
                             ));
                         }
                     }
@@ -238,7 +240,7 @@ impl LazyTypeObjectInner {
             return Err(wrap_in_runtime_error(
                 py,
                 err,
-                format!("An error occurred while initializing `{name}.__dict__`"),
+                py_format!(py, "An error occurred while initializing `{name}.__dict__`")?,
             ));
         }
 
@@ -283,8 +285,8 @@ pub fn pyclass_type_object_raw<T: PyClass>(py: Python<'_>) -> *mut ffi::PyTypeOb
 }
 
 #[cold]
-fn wrap_in_runtime_error(py: Python<'_>, err: PyErr, message: String) -> PyErr {
-    let runtime_err = PyRuntimeError::new_err(message);
+fn wrap_in_runtime_error(py: Python<'_>, err: PyErr, message: Bound<'_, PyString>) -> PyErr {
+    let runtime_err = PyRuntimeError::new_err(message.unbind());
     runtime_err.set_cause(py, Some(err));
     runtime_err
 }

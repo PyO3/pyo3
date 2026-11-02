@@ -67,6 +67,8 @@ use chrono::{
     DateTime, Datelike, Duration, LocalResult, NaiveDate, NaiveDateTime, NaiveTime, Offset,
     TimeZone, Timelike,
 };
+#[cfg(feature = "chrono-local")]
+use core::convert::identity;
 
 impl<'py> IntoPyObject<'py> for Duration {
     type Target = PyDelta;
@@ -439,9 +441,9 @@ impl FromPyObject<'_, '_> for FixedOffset {
         let py_timedelta =
             ob.call_method1(intern!(ob.py(), "utcoffset"), (PyNone::get(ob.py()),))?;
         if py_timedelta.is_none() {
-            return Err(PyTypeError::new_err(format!(
-                "{ob:?} is not a fixed offset timezone"
-            )));
+            return Err(PyTypeError::new_err(
+                py_format!(ob.py(), "{ob:?} is not a fixed offset timezone")?.unbind(),
+            ));
         }
         let total_seconds: Duration = py_timedelta.extract()?;
         // This cast is safe since the timedelta is limited to -24 hours and 24 hours.
@@ -508,7 +510,8 @@ impl<'py> IntoPyObject<'py> for Local {
         let tz = LOCAL_TZ
             .get_or_try_init(py, || {
                 let iana_name = iana_time_zone::get_timezone().map_err(|e| {
-                    PyRuntimeError::new_err(format!("Could not get local timezone: {e}"))
+                    py_format!(py, "Could not get local timezone: {e}")
+                        .map_or_else(identity, |msg| PyRuntimeError::new_err(msg.unbind()))
                 })?;
                 PyTzInfo::timezone(py, iana_name).map(Bound::unbind)
             })?
@@ -545,10 +548,9 @@ impl FromPyObject<'_, '_> for Local {
             Ok(Local)
         } else {
             let name = local_tz.getattr("key")?.cast_into::<PyString>()?;
-            Err(PyValueError::new_err(format!(
-                "expected local timezone {}",
-                name.to_cow()?
-            )))
+            Err(PyValueError::new_err(
+                py_format!(ob.py(), "expected local timezone {}", name.to_cow()?)?.unbind(),
+            ))
         }
     }
 
@@ -647,9 +649,13 @@ fn py_datetime_to_datetime_with_timezone<Tz: TimeZone>(
                 Ok(earliest)
             }
         }
-        LocalResult::None => Err(PyValueError::new_err(format!(
-            "The datetime {dt:?} contains an incompatible timezone"
-        ))),
+        LocalResult::None => Err(PyValueError::new_err(
+            py_format!(
+                dt.py(),
+                "The datetime {dt:?} contains an incompatible timezone"
+            )?
+            .unbind(),
+        )),
     }
 }
 

@@ -396,11 +396,15 @@ impl PyCapsule {
         let ptr = Self::import_pointer(py, name)?.cast();
 
         if !ptr.is_aligned() {
-            return Err(PySystemError::new_err(format!(
-                "The pointer from the `{}` capsule is not aligned to rust type {}",
-                name.to_string_lossy(),
-                core::any::type_name::<T>()
-            )));
+            return Err(PySystemError::new_err(
+                py_format!(
+                    py,
+                    "The pointer from the `{}` capsule is not aligned to rust type {}",
+                    name.to_string_lossy(),
+                    core::any::type_name::<T>()
+                )?
+                .unbind(),
+            ));
         }
 
         // SAFETY: caller has upheld the safety contract and we just checked pointer alignment
