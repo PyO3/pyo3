@@ -8,6 +8,19 @@ import nox
 from nox.command import CommandFailed
 
 nox.options.sessions = ["test"]
+nox.options.default_venv_backend = "uv"
+
+
+def uv_sync(session: nox.Session, groups: Iterable[str] = []):
+    cmd = ["uv", "sync", "--locked", "--no-default-groups"]
+    cmd.extend([f"--group={g}" for g in groups])
+    session.run_install(
+        *cmd,
+        env={
+            "UV_PROJECT_ENVIRONMENT": session.virtualenv.location,
+            "UV_PYTHON": session.virtualenv.location,
+        },
+    )
 
 
 @nox.session
@@ -19,7 +32,8 @@ def test(session: nox.Session):
     session.env["MATURIN_PEP517_ARGS"] = "--profile=dev"
     if args.features:
         session.env["MATURIN_PEP517_ARGS"] += f" --features={args.features}"
-    session.install("-v", ".[dev]")
+
+    uv_sync(session, ["dev"])
 
     def try_install_binary(package: str, constraint: str):
         try:
@@ -52,7 +66,7 @@ def test(session: nox.Session):
 
 @nox.session
 def bench(session: nox.Session):
-    session.install(".[dev]")
+    uv_sync(session, ["dev"])
     session.run("pytest", "--benchmark-enable", "--benchmark-only", *session.posargs)
 
 
@@ -60,7 +74,7 @@ def bench(session: nox.Session):
 def mypy(session: nox.Session):
     type_checker(
         session,
-        ("python", "-m", "mypy", "tests"),
+        ("mypy", "tests"),
     )
     # TODO: enable stubtest session.run_always("python", "-m", "mypy.stubtest", "pyo3_pytests")
 
@@ -69,17 +83,17 @@ def mypy(session: nox.Session):
 def pyrefly(session: nox.Session):
     type_checker(
         session,
-        ("python", "-m", "pyrefly", "check", "tests"),
+        ("pyrefly", "check", "--search-path", ".", "tests"),
     )
 
 
 def type_checker(session: nox.Session, command: Iterable[str]):
     session.env["MATURIN_PEP517_ARGS"] = "--profile=dev"
+    uv_sync(session, ["dev"])
     try:
         # We move the stubs where maturin is expecting them to be
         shutil.copytree("stubs", "pyo3_pytests")
         (Path("pyo3_pytests") / "py.typed").touch()
-        session.install(".[dev]")
 
         session.run_always(*command)
     finally:

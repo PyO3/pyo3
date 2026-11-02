@@ -9,7 +9,7 @@ build-backend = "mesonpy"
 name = "{{project-name}}"
 version = "0.1.0"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = ["pytest"]
 
 [tool.meson-python.args]
