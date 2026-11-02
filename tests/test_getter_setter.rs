@@ -351,6 +351,6 @@ fn test_unit_getter() {
 
     Python::attach(|py| {
         let instance = Py::new(py, Container { value: () }).unwrap();
-        py_run!(py, instance, "assert instance.value is ()");
+        py_run!(py, instance, "assert instance.value == ()");
     })
 }
