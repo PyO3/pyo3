@@ -354,3 +354,41 @@ fn test_unit_getter() {
         py_run!(py, instance, "assert instance.value is ()");
     })
 }
+
+#[test]
+fn test_properties_in_definition_order() {
+    #[pyclass]
+    struct Ordered {
+        #[pyo3(get, set)]
+        zebra: i32,
+        #[pyo3(get)]
+        apple: i32,
+        #[pyo3(set)]
+        mango: i32,
+    }
+
+    #[pymethods]
+    impl Ordered {
+        #[setter]
+        fn set_kiwi(&mut self, _value: i32) {}
+
+        #[getter]
+        fn banana(&self) -> i32 {
+            0
+        }
+
+        #[getter]
+        fn kiwi(&self) -> i32 {
+            0
+        }
+    }
+
+    Python::attach(|py| {
+        let ty = py.get_type::<Ordered>();
+        py_assert!(
+            py,
+            ty,
+            "[name for name in ty.__dict__ if isinstance(ty.__dict__[name], type(ty.zebra))] == ['zebra', 'apple', 'mango', 'kiwi', 'banana']"
+        );
+    });
+}
