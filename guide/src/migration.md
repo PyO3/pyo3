@@ -5,6 +5,20 @@ For a detailed list of all changes, see the [CHANGELOG](changelog.md).
 
 ## from 0.30.* to 0.31
 
+### Mutex critical sections now update poisoning state on free-threaded Python
+
+<details open>
+<summary><small>Click to expand</small></summary>
+
+On free-threaded Python, `with_critical_section_mutex` and `with_critical_section_mutex2` now update the poisoning state of poisoning `PyMutex` instances when a new panic unwinds out of the closure.
+Code which catches that panic may therefore receive `PoisonError` from a subsequent `lock()` call.
+Handle the error and, after restoring a valid state, use `clear_poison()` if appropriate.
+
+Existing poison still does not prevent critical-section entry.
+Nonpoisoning mutexes and the non-locking critical-section behavior on GIL-enabled Python are unchanged.
+
+</details>
+
 ### Removed methods from `PyBuffer<T>`: `as_slice`, `as_mut_slice`, `as_fortran_slice`, and `as_fortran_mut_slice`
 
 <details open>
