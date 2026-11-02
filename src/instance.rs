@@ -2195,7 +2195,7 @@ where
     type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = T::STANDALONE_TYPE_HINT;
 
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
@@ -2210,7 +2210,7 @@ where
     type Error = CastError<'a, 'py>;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = T::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = T::STANDALONE_TYPE_HINT;
 
     /// Extracts `Self` from the source `PyObject`.
     fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
