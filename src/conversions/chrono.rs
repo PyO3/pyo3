@@ -655,6 +655,8 @@ fn py_datetime_to_datetime_with_timezone<Tz: TimeZone>(
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::*;
     use crate::platform::prelude::*;
     use crate::{BoundObject, test_utils::assert_warnings, types::PyTuple};

@@ -427,6 +427,8 @@ pub mod impl_ {
 
 #[cfg(all(test, Py_3_14, not(Py_GIL_DISABLED)))]
 mod watcher_tests {
+    extern crate std;
+
     use super::impl_::{ContextWatcherCallback, ContextWatcherCallbackDef, context_watcher};
     use super::{ContextEvent, PyContext};
     use crate::exceptions::{PyRuntimeError, PyValueError};
