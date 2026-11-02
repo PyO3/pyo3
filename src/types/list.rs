@@ -99,6 +99,11 @@ impl PyList {
             .try_into()
             .expect("out of range integral type conversion attempted on `elements.len()`");
 
+        #[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED, not(RustPython)))]
+        if len >= list_extend::MIN_LEN && py.is_free_threaded_runtime() {
+            return list_extend::new_from_iter(py, elements, len);
+        }
+
         let list = unsafe { ffi::PyList_New(len).assume_owned(py).cast_into_unchecked() };
 
         let count = (&mut elements)
@@ -124,6 +129,184 @@ impl PyList {
     /// Constructs a new empty list.
     pub fn empty(py: Python<'_>) -> Bound<'_, PyList> {
         unsafe { ffi::PyList_New(0).assume_owned(py).cast_into_unchecked() }
+    }
+}
+
+/// Builds lists on free-threaded CPython through `PySequence_List` instead of `PyList_SetItem`.
+///
+/// Under the limited API, `PyList_SetItem` takes the list's critical section for every item
+/// (https://github.com/python/cpython/issues/158660). `PySequence_List` builds the list from a
+/// `pyo3.ListBuildIterator` instance. CPython's list-extension loop preallocates from the
+/// instance's length callback and holds the list's critical section across the loop. CPython's
+/// list-extension loop steals each new reference returned by the instance's `tp_iternext`
+/// callback, avoiding an extra reference-count operation. The `tp_iternext` callback calls a Rust
+/// closure stored in thread-local state instead of a PyO3 `__next__` trampoline.
+///
+/// `PyType_FromSpec` creates the `pyo3.ListBuildIterator` type without the `macros` feature.
+/// A `#[pymethods]` `__next__` trampoline costs more per item than the critical section.
+/// `pyo3.ListBuildIterator` instances are not GC-tracked, so `gc.get_objects()` cannot expose
+/// an instance while `PyList::new` builds a list.
+#[cfg(all(Py_LIMITED_API, Py_GIL_DISABLED, not(RustPython)))]
+mod list_extend {
+    use super::PyList;
+    use crate::err::PyResult;
+    use crate::exceptions::PySystemError;
+    use crate::ffi::{self, Py_ssize_t};
+    use crate::ffi_ptr_ext::FfiPtrExt;
+    use crate::impl_::panic::PanicTrap;
+    #[cfg(wip_feature_std)]
+    use crate::panic::PanicException;
+    use crate::sync::PyOnceLock;
+    use crate::types::PyType;
+    use crate::{Bound, Py, PyAny, PyErr, Python};
+    use core::cell::Cell;
+    use core::ptr::{self, NonNull};
+
+    /// Below this conservative cutoff, allocating a `ListBuildIterator` may outweigh the
+    /// per-item savings, so `PyList::new` continues to use `PyList_SetItem`.
+    pub(super) const MIN_LEN: Py_ssize_t = 32;
+
+    /// The `ItemProducer` closure returns a new reference, NULL on exhaustion, or NULL with a
+    /// placeholder exception after an element conversion error.
+    type ItemProducer = dyn FnMut() -> *mut ffi::PyObject;
+
+    crate::platform::thread_local! {
+        /// Item producer and length for a list currently being built on this thread.
+        static ACTIVE_BUILD: Cell<Option<(NonNull<ItemProducer>, Py_ssize_t)>> = const { Cell::new(None) };
+    }
+
+    unsafe extern "C" fn next(_iterator: *mut ffi::PyObject) -> *mut ffi::PyObject {
+        let trap = PanicTrap::new("uncaught panic while building a PyList");
+        let item = match ACTIVE_BUILD.with(Cell::get) {
+            // SAFETY: `new_from_iter` keeps the item producer alive while `PySequence_List`
+            // runs. Without an active list build, `next` returns end-of-iteration.
+            Some((producer, _)) => unsafe { (*producer.as_ptr())() },
+            None => ptr::null_mut(),
+        };
+        trap.disarm();
+        item
+    }
+
+    unsafe extern "C" fn len(_iterator: *mut ffi::PyObject) -> Py_ssize_t {
+        ACTIVE_BUILD.with(Cell::get).map_or(0, |(_, len)| len)
+    }
+
+    // TODO(subinterpreters): Cache the `ListBuildIterator` heap type per interpreter once PyO3
+    // supports subinterpreters.
+    fn get_iterator_type(py: Python<'_>) -> &Py<PyType> {
+        static ITERATOR_TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        ITERATOR_TYPE.get_or_init(py, || {
+            let mut slots = [
+                ffi::PyType_Slot {
+                    slot: ffi::Py_tp_iter,
+                    pfunc: ffi::PyObject_SelfIter as *mut _,
+                },
+                ffi::PyType_Slot {
+                    slot: ffi::Py_tp_iternext,
+                    pfunc: next as *mut _,
+                },
+                ffi::PyType_Slot {
+                    slot: ffi::Py_sq_length,
+                    pfunc: len as *mut _,
+                },
+                ffi::PyType_Slot {
+                    slot: 0,
+                    pfunc: ptr::null_mut(),
+                },
+            ];
+            let mut spec = ffi::PyType_Spec {
+                name: c"pyo3.ListBuildIterator".as_ptr(),
+                basicsize: 0,
+                itemsize: 0,
+                flags: ffi::Py_TPFLAGS_DEFAULT as _,
+                slots: slots.as_mut_ptr(),
+            };
+            // SAFETY: `spec` and `slots` remain valid until `PyType_FromSpec` returns.
+            unsafe {
+                ffi::PyType_FromSpec(&mut spec)
+                    .assume_owned_or_err(py)
+                    .expect("failed to create the list build iterator type")
+                    .cast_into_unchecked::<PyType>()
+                    .unbind()
+            }
+        })
+    }
+
+    /// Restore the previous `ItemProducer` pointer after a nested list build.
+    struct RestoreBuild(Option<(NonNull<ItemProducer>, Py_ssize_t)>);
+
+    impl Drop for RestoreBuild {
+        fn drop(&mut self) {
+            ACTIVE_BUILD.with(|current| current.set(self.0));
+        }
+    }
+
+    #[track_caller]
+    pub(super) fn new_from_iter<'py>(
+        py: Python<'py>,
+        mut elements: impl Iterator<Item = PyResult<Bound<'py, PyAny>>>,
+        len: Py_ssize_t,
+    ) -> PyResult<Bound<'py, PyList>> {
+        // Allocate a `ListBuildIterator` for this list. `ACTIVE_BUILD` holds the item producer.
+        // A nested list build allocates another `ListBuildIterator` and restores the previous
+        // item producer.
+        // SAFETY: PyType_GenericAlloc returns a new reference or NULL with an exception set.
+        let iterator = unsafe {
+            ffi::PyType_GenericAlloc(get_iterator_type(py).as_ptr().cast(), 0)
+                .assume_owned_or_err(py)?
+        };
+        let mut count: Py_ssize_t = 0;
+        let mut failure: Option<PyErr> = None;
+        let list = {
+            let mut producer = || {
+                // Catch panics before returning to CPython. PyErr::fetch resumes the panic below.
+                // Without std, the PanicTrap in `next` aborts instead.
+                #[cfg(wip_feature_std)]
+                let next =
+                    std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| elements.next()))
+                        .unwrap_or_else(|payload| {
+                            Some(Err(PanicException::from_panic_payload(payload)))
+                        });
+                #[cfg(not(wip_feature_std))]
+                let next = elements.next();
+                match next {
+                    Some(Ok(item)) => {
+                        count += 1;
+                        return item.into_ptr();
+                    }
+                    None => return ptr::null_mut(),
+                    // Keep the conversion error on the Rust side: `PySequence_List` treats
+                    // `StopIteration` as exhaustion and could silently truncate the list.
+                    Some(Err(err)) => failure = Some(err),
+                }
+                // `PySystemError` makes `PySequence_List` fail instead of treating the
+                // conversion error as exhaustion.
+                PySystemError::new_err("PyList::new: element conversion failed").restore(py);
+                ptr::null_mut()
+            };
+            let producer: &mut (dyn FnMut() -> *mut ffi::PyObject + '_) = &mut producer;
+            // SAFETY: `transmute` erases the borrow lifetime. `next` uses the producer pointer
+            // only while `PySequence_List` runs. `RestoreBuild` restores the previous
+            // `ACTIVE_BUILD` value before the producer closure is dropped.
+            let producer: NonNull<ItemProducer> =
+                unsafe { core::mem::transmute(NonNull::from(producer)) };
+            let _restore =
+                RestoreBuild(ACTIVE_BUILD.with(|current| current.replace(Some((producer, len)))));
+            // SAFETY: PySequence_List returns a new list or NULL with an exception set.
+            unsafe { ffi::PySequence_List(iterator.as_ptr()).assume_owned_or_err(py) }
+        };
+        if let Some(err) = failure {
+            // `PyErr::fetch` resumes a caught panic stored as `PanicException`.
+            err.restore(py);
+            return Err(PyErr::fetch(py));
+        }
+        let list = list?;
+        assert!(
+            count >= len,
+            "Attempted to create PyList but `elements` was smaller than reported by its `size_hint` implementation."
+        );
+        // SAFETY: PySequence_List returns a list.
+        Ok(unsafe { list.cast_into_unchecked() })
     }
 }
 
@@ -899,6 +1082,53 @@ mod tests {
             assert_eq!(3, list.get_item(1).unwrap().extract::<i32>().unwrap());
             assert_eq!(5, list.get_item(2).unwrap().extract::<i32>().unwrap());
             assert_eq!(7, list.get_item(3).unwrap().extract::<i32>().unwrap());
+        });
+    }
+
+    #[test]
+    fn test_new_iterator_path() {
+        Python::attach(|py| {
+            for len in [0, 1, 32] {
+                let expected: Vec<usize> = (0..len).collect();
+                let objects: Vec<_> = expected
+                    .iter()
+                    .map(|value| value.into_pyobject(py).unwrap())
+                    .collect();
+                for list in [PyList::new(py, &expected), PyList::new(py, &objects)] {
+                    assert_eq!(list.unwrap().extract::<Vec<usize>>().unwrap(), expected);
+                }
+                // Converting each `&expected` item builds an inner list.
+                let nested = PyList::new(py, vec![&expected; 32]).unwrap();
+                assert_eq!(
+                    nested.extract::<Vec<Vec<usize>>>().unwrap(),
+                    vec![expected; 32]
+                );
+            }
+        });
+    }
+
+    #[test]
+    fn new_reports_stop_iteration_from_conversion() {
+        use crate::exceptions::PyStopIteration;
+        use crate::{Bound, PyAny, PyErr};
+
+        // `PySequence_List` treats `StopIteration` as exhaustion, but `PyList::new` must report
+        // the same exception when an item conversion fails with `StopIteration`.
+        struct Stop;
+
+        impl<'py> IntoPyObject<'py> for Stop {
+            type Target = PyAny;
+            type Output = Bound<'py, PyAny>;
+            type Error = PyErr;
+
+            fn into_pyobject(self, _py: Python<'py>) -> PyResult<Self::Output> {
+                Err(PyStopIteration::new_err(()))
+            }
+        }
+
+        Python::attach(|py| {
+            let err = PyList::new(py, (0..32).map(|_| Stop)).unwrap_err();
+            assert!(err.is_instance_of::<PyStopIteration>(py));
         });
     }
 
@@ -1778,6 +2008,21 @@ mod tests {
                 5,
                 "list should contain all elements even though size_hint is 0"
             );
+        })
+    }
+
+    #[test]
+    fn test_new_from_non_exact_iter_with_lower_bound() {
+        Python::attach(|py| {
+            for len in [0, 32] {
+                let iter = (0..len).chain((len..len + 3).filter(|_| true));
+                assert_eq!(iter.size_hint().0, len);
+                let list = PyList::new(py, iter).unwrap();
+                assert_eq!(
+                    list.extract::<Vec<usize>>().unwrap(),
+                    (0..len + 3).collect::<Vec<_>>()
+                );
+            }
         })
     }
 }
