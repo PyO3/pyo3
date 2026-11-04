@@ -533,6 +533,9 @@ fn introspection_id_to_type_hint_for_root_module(
 fn find_introspection_chunks_in_binary_object(path: &Path) -> Result<Vec<Chunk>> {
     let library_content =
         fs::read(path).with_context(|| format!("Failed to read {}", path.display()))?;
+    if library_content.starts_with(b"\0asm") {
+        return find_introspection_chunks_in_wasm(&library_content);
+    }
     match Object::parse(&library_content)
         .context("The built library is not valid or not supported by our binary parser")?
     {
@@ -558,7 +561,7 @@ fn find_introspection_chunks_in_binary_object(path: &Path) -> Result<Vec<Chunk>>
         Object::PE(pe) => find_introspection_chunks_in_pe(&pe, &library_content),
         other => {
             bail!(
-                "Only ELF, Mach-o and PE containers can be introspected, got {other:?} from file {path:?}",
+                "Only ELF, Mach-o, PE and WebAssembly containers can be introspected, got {other:?} from file {path:?}",
                 path = path.display()
             )
         }
@@ -685,11 +688,46 @@ fn find_introspection_chunks_in_pe(pe: &PE<'_>, library_content: &[u8]) -> Resul
     Ok(chunks)
 }
 
+/// On WebAssembly, data symbols are not reliably exported (e.g. rustc does not export them on
+/// Emscripten), so the introspection fragments are put next to each other in a custom section.
+fn find_introspection_chunks_in_wasm(library_content: &[u8]) -> Result<Vec<Chunk>> {
+    let mut chunks = Vec::new();
+    for payload in wasmparser::Parser::new(0).parse_all(library_content) {
+        let wasmparser::Payload::CustomSection(section) = payload? else {
+            continue;
+        };
+        if !is_introspection_symbol(section.name()) {
+            continue;
+        }
+        let mut data = section.data();
+        while !data.is_empty() {
+            let (chunk, chunk_len) = deserialize_chunk_with_length(section.name(), data, true)?;
+            chunks.push(chunk);
+            data = &data[chunk_len..];
+        }
+    }
+    Ok(chunks)
+}
+
 fn deserialize_chunk(
     symbol_name: &str,
     content_with_chunk_at_the_beginning: &[u8],
     is_little_endian: bool,
 ) -> Result<Chunk> {
+    Ok(deserialize_chunk_with_length(
+        symbol_name,
+        content_with_chunk_at_the_beginning,
+        is_little_endian,
+    )?
+    .0)
+}
+
+/// Returns the chunk and the number of bytes it takes, including the length prefix
+fn deserialize_chunk_with_length(
+    symbol_name: &str,
+    content_with_chunk_at_the_beginning: &[u8],
+    is_little_endian: bool,
+) -> Result<(Chunk, usize)> {
     let symbol_version = introspection_symbol_version(symbol_name).unwrap_or_default();
     ensure!(
         symbol_version == "1",
@@ -710,12 +748,13 @@ fn deserialize_chunk(
         .ok_or_else(|| {
             anyhow!("The introspection chunk length {length} is greater that the binary size")
         })?;
-    serde_json::from_slice(chunk).with_context(|| {
+    let chunk = serde_json::from_slice(chunk).with_context(|| {
         format!(
             "Failed to parse introspection chunk: {:?}",
             String::from_utf8_lossy(chunk)
         )
-    })
+    })?;
+    Ok((chunk, 4 + length as usize))
 }
 
 fn is_introspection_symbol(name: &str) -> bool {

@@ -1804,22 +1804,72 @@ def test_introspection(session: nox.Session):
         for variant_lib_file in _introspection_library_variants(
             session, Path(lib_file), Path(stub_dir)
         ):
-            variant_stub_dir = Path(stub_dir) / variant_lib_file.stem
-            _run_cargo(
-                session,
-                "run",
-                "-p",
-                "pyo3-introspection",
-                "--",
-                str(variant_lib_file),
-                "pyo3_pytests",
-                str(variant_stub_dir),
+            _check_introspection_stubs(
+                session, variant_lib_file, Path(stub_dir) / variant_lib_file.stem
             )
-            _run(session, "ruff", "format", str(variant_stub_dir))
-            _ensure_directory_equals(variant_stub_dir, Path("pytests/stubs"))
         # The stubs only match a module built with the features used above, so this test
         # is skipped by the regular `pytests` session and runs here instead.
         _run(session, "pytest", "pytests/tests/test_stubs.py")
+
+
+@nox.session(name="test-introspection-wasm")
+def test_introspection_wasm(session: nox.Session):
+    """Checks the introspection of the pytests module built for Pyodide (requires emcc)"""
+    if shutil.which("emcc") is None:
+        session.error("emcc not found, please install and activate emsdk")
+    session.install("ruff")
+    target = "wasm32-unknown-emscripten"
+    release = os.environ.get("CARGO_BUILD_PROFILE") == "release"
+    _run(session, "rustup", "target", "add", target, external=True)
+    python_version = session.run(
+        "python",
+        "-c",
+        "import sys; print('{}.{}'.format(*sys.version_info))",
+        silent=True,
+    ).strip()
+    _run_cargo(
+        session,
+        "build",
+        "-p",
+        "pyo3-pytests",
+        "--features",
+        "experimental-async,experimental-inspect",
+        "--target",
+        target,
+        *(("--release",) if release else ()),
+        env={
+            "PYO3_CROSS_PYTHON_VERSION": python_version,
+            "PYO3_BUILD_EXTENSION_MODULE": "1",
+        },
+    )
+    target_dir = json.loads(
+        _get_output("cargo", "metadata", "--format-version=1", "--no-deps")
+    )["target_directory"]
+    lib_file = (
+        Path(target_dir)
+        / target
+        / ("release" if release else "debug")
+        / "pyo3_pytests.wasm"
+    )
+    with tempfile.TemporaryDirectory() as stub_dir:
+        _check_introspection_stubs(session, lib_file, Path(stub_dir))
+
+
+def _check_introspection_stubs(
+    session: nox.Session, lib_file: Path, stub_dir: Path
+) -> None:
+    _run_cargo(
+        session,
+        "run",
+        "-p",
+        "pyo3-introspection",
+        "--",
+        str(lib_file),
+        "pyo3_pytests",
+        str(stub_dir),
+    )
+    _run(session, "ruff", "format", str(stub_dir))
+    _ensure_directory_equals(stub_dir, Path("pytests/stubs"))
 
 
 def _introspection_library_variants(

@@ -67,7 +67,8 @@ pub const fn typing_or_extensions_if_not_3_15() -> PyStaticExpr {
     }
 }
 
-#[repr(C)]
+/// Packed so that fragments are contiguous when grouped in a single link section (on WebAssembly)
+#[repr(C, packed)]
 pub struct SerializedIntrospectionFragment<const LEN: usize> {
     pub length: u32,
     pub fragment: [u8; LEN],
