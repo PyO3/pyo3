@@ -121,7 +121,7 @@ class SupportsReadWrite(Protocol):
   Parameters are positional-only unless a `#[pyo3(signature = (...))]` is given, so that implementations can name them freely.
 - A protocol only appears in the stubs if a type hint refers to it.
   It is declared in the root module, so that using it in more modules doesn't move it.
-  If the root module already has a member with the same name, the protocol is renamed to e.g. `_SupportsReadWrite2`; `#[pyo3(name = "...")]` sets another name.
+  Its name must not clash with another member of the root module, otherwise stub generation fails; `#[pyo3(name = "...")]` sets another name.
 - It only exists in the stubs, hence [`@type_check_only`](https://docs.python.org/3/library/typing.html#typing.type_check_only) and it is not listed in `__all__`: it can be imported in an `if TYPE_CHECKING:` block, but not at runtime.
 
 ## Constraints and limitations

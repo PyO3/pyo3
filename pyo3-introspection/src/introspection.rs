@@ -36,7 +36,7 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
         bail!("No module named {main_module_name} found")
     };
     // Protocols become plain classes of the root module, their methods stay indexed
-    let protocols = place_protocols(root, &chunks_by_id, &chunks_by_parent);
+    let protocols = place_protocols(root, &chunks_by_id, &chunks_by_parent)?;
     let (chunks_by_id, chunks_by_parent) = index_chunks(
         chunks
             .iter()
@@ -108,13 +108,14 @@ fn index_chunks<'a>(
 ///
 /// A protocol only exists in the stubs and may be declared by a library crate that cannot know
 /// which modules use it. Each one an annotation refers to is put in the root module, so that
-/// using it in more modules doesn't move it. It gets a new name if the root module already has a
-/// member with the same name. The unused ones are left out.
+/// using it in more modules doesn't move it. Its name must not clash with another member of the
+/// root module, since renaming it would change its name for the users. The unused ones are left
+/// out.
 fn place_protocols(
     root: &Chunk,
     chunks_by_id: &ChunksById<'_>,
     chunks_by_parent: &ChunksByParent<'_>,
-) -> Vec<Chunk> {
+) -> Result<Vec<Chunk>> {
     let Chunk::Module { id: root_id, .. } = root else {
         unreachable!("the root is a module")
     };
@@ -137,7 +138,7 @@ fn place_protocols(
     };
     let mut names = children(root)
         .into_iter()
-        .map(|member| chunk_name(member).to_owned())
+        .map(chunk_name)
         .collect::<HashSet<_>>();
 
     // The protocols used anywhere in the module tree, including by other protocols
@@ -154,36 +155,30 @@ fn place_protocols(
         }
     }
 
-    // Ids are sorted, so the renaming is stable
     used.into_iter()
         .map(|id| {
             let Chunk::Protocol { name, doc, .. } = chunks_by_id[id] else {
                 unreachable!("only protocols are placed")
             };
-            let name = if names.contains(name) {
-                (2..)
-                    .map(|i| format!("_{name}{i}"))
-                    .find(|name| !names.contains(name))
-                    .expect("there is always a free name")
-            } else {
-                name.clone()
-            };
-            names.insert(name.clone());
+            ensure!(
+                names.insert(name),
+                "Protocol {id} can't be added to the root module, which already has a member named {name}"
+            );
             let typing = |attr: &str| ChunkExpr::Attribute {
                 value: Box::new(ChunkExpr::Name {
                     id: "typing".into(),
                 }),
                 attr: attr.into(),
             };
-            Chunk::Class {
+            Ok(Chunk::Class {
                 id: id.into(),
-                name,
+                name: name.clone(),
                 bases: vec![typing("Protocol")],
                 // It is not defined at runtime
                 decorators: vec![typing("type_check_only")],
                 parent: Some(root_id.clone()),
                 doc: doc.clone(),
-            }
+            })
         })
         .collect()
 }
@@ -1067,13 +1062,11 @@ mod tests {
     #[test]
     fn protocols_are_placed_in_the_root_module() {
         let chunks = [
-            r#"{"type": "module", "id": "m", "name": "m", "members": ["a", "b", "c"]}"#.into(),
+            r#"{"type": "module", "id": "m", "name": "m", "members": ["a", "b"]}"#.into(),
             r#"{"type": "module", "id": "a", "name": "a", "members": ["fa"]}"#.into(),
-            r#"{"type": "module", "id": "b", "name": "b", "members": ["fb", "gb"]}"#.into(),
-            r#"{"type": "class", "id": "c", "name": "C"}"#.into(),
+            r#"{"type": "module", "id": "b", "name": "b", "members": ["fb"]}"#.into(),
             function("fa", None, "lib::OnlyA"),
             function("fb", None, "lib::Shared"),
-            function("gb", None, "lib::C"),
             function("ga", Some("a"), "lib::Shared"),
             // Only used by the method of `lib::OnlyA`
             format!(
@@ -1082,20 +1075,15 @@ mod tests {
             ),
             r#"{"type": "protocol", "id": "lib::Shared", "name": "Shared"}"#.into(),
             r#"{"type": "protocol", "id": "lib::Nested", "name": "Nested"}"#.into(),
-            // `m` already has a `C` member
-            r#"{"type": "protocol", "id": "lib::C", "name": "C"}"#.into(),
             r#"{"type": "protocol", "id": "lib::Unused", "name": "Unused"}"#.into(),
         ]
         .map(|chunk: String| serde_json::from_str(&chunk).unwrap());
         let module = parse_chunks(&chunks, "m").unwrap();
-        assert_eq!(
-            class_names(&module),
-            ["C", "Nested", "OnlyA", "Shared", "_C2"]
-        );
+        assert_eq!(class_names(&module), ["Nested", "OnlyA", "Shared"]);
         for submodule in &module.modules {
             assert_eq!(class_names(submodule), [] as [&str; 0]);
         }
-        let protocol = &module.classes[2];
+        let protocol = &module.classes[1];
         assert_eq!(protocol.methods[0].name, "method");
         assert_eq!(
             protocol.bases,
@@ -1115,18 +1103,29 @@ mod tests {
                 attr: "type_check_only".into()
             }]
         );
-        // The annotations refer to the new name
-        let gb = module.modules[1]
-            .functions
-            .iter()
-            .find(|f| f.name == "gb")
-            .unwrap();
+        // The annotations refer to the root module
+        let fb = &module.modules[1].functions[0];
         assert_eq!(
-            gb.arguments.arguments[0].annotation,
+            fb.arguments.arguments[0].annotation,
             Some(Expr::Attribute {
                 value: Box::new(Expr::Name { id: "m".into() }),
-                attr: "_C2".into()
+                attr: "Shared".into()
             })
+        );
+    }
+
+    #[test]
+    fn protocol_name_clash_is_an_error() {
+        let chunks = [
+            r#"{"type": "module", "id": "m", "name": "m", "members": ["f", "c"]}"#.into(),
+            r#"{"type": "class", "id": "c", "name": "C"}"#.into(),
+            function("f", None, "lib::C"),
+            r#"{"type": "protocol", "id": "lib::C", "name": "C"}"#.into(),
+        ]
+        .map(|chunk: String| serde_json::from_str(&chunk).unwrap());
+        assert_eq!(
+            parse_chunks(&chunks, "m").unwrap_err().to_string(),
+            "Protocol lib::C can't be added to the root module, which already has a member named C"
         );
     }
 }
