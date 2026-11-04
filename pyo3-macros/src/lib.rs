@@ -172,8 +172,9 @@ pub fn pyfunction(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// This defines a unit struct whose `TYPE_HINT` constant can be used as e.g.
-/// `FromPyObject::INPUT_TYPE`. Only available with the `experimental-inspect` feature. See the [type stub section of the guide][1] for details.
+/// This defines a unit struct `SupportsReadWrite`. `SupportsReadWrite::TYPE_HINT` can be used as
+/// the `INPUT_TYPE` of a `FromPyObject` implementation that accepts such objects. Only available
+/// with the `experimental-inspect` feature. See the [type stub section of the guide][1] for details.
 ///
 #[doc = concat!("[1]: https://pyo3.rs/v", env!("CARGO_PKG_VERSION"), "/type-stub.html#protocols")]
 #[cfg(feature = "experimental-inspect")]

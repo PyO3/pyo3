@@ -1,18 +1,19 @@
 //! `pyprotocol!`: declares a `typing.Protocol` that only exists in the generated type stubs.
 
+use crate::attributes::{self, CrateAttribute, NameAttribute, take_pyo3_options};
 use crate::combine_errors::CombineErrors;
-use crate::introspection::{function_introspection_code, protocol_introspection_code};
+use crate::introspection::{ProtocolMethod, protocol_introspection_code};
 use crate::method::FnArg;
 use crate::py_expr::PyExpr;
-use crate::pyfunction::{FunctionSignature, PyFunctionOptions};
+use crate::pyfunction::{FunctionSignature, SignatureAttribute};
 use crate::pymethod::check_generic;
 use crate::utils::{Ctx, get_doc};
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
-use syn::{Attribute, Ident, Result, TraitItemFn, Visibility, braced};
+use syn::{Attribute, Ident, ReceiverKind, Result, Token, TraitItemFn, Visibility, braced};
 
 /// The input of `pyprotocol!`: `pub Name { fn method(&self, ...) -> ...; }`
 pub struct PyProtocol {
@@ -42,14 +43,91 @@ impl Parse for PyProtocol {
     }
 }
 
-/// The span of a `#[pyo3]` option that neither protocols nor their methods support
-fn unsupported_option(options: &PyFunctionOptions) -> Option<Span> {
-    options
-        .pass_module
-        .as_ref()
-        .map(Spanned::span)
-        .or_else(|| options.text_signature.as_ref().map(|a| a.kw.span()))
-        .or_else(|| options.warnings.first().map(|w| w.span))
+/// The `#[pyo3]` options of a protocol
+#[derive(Default)]
+struct ProtocolOptions {
+    name: Option<NameAttribute>,
+    krate: Option<CrateAttribute>,
+}
+
+enum ProtocolOption {
+    Name(NameAttribute),
+    Crate(CrateAttribute),
+}
+
+impl Parse for ProtocolOption {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(attributes::kw::name) {
+            input.parse().map(Self::Name)
+        } else if lookahead.peek(Token![crate]) {
+            input.parse().map(Self::Crate)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl ProtocolOptions {
+    fn from_attrs(attrs: &mut Vec<Attribute>) -> Result<Self> {
+        let mut options = Self::default();
+        for option in take_pyo3_options(attrs)? {
+            match option {
+                ProtocolOption::Name(name) => set_option(&mut options.name, name, "name")?,
+                ProtocolOption::Crate(krate) => set_option(&mut options.krate, krate, "crate")?,
+            }
+        }
+        Ok(options)
+    }
+}
+
+/// The `#[pyo3]` options of a protocol method
+#[derive(Default)]
+struct ProtocolMethodOptions {
+    name: Option<NameAttribute>,
+    signature: Option<SignatureAttribute>,
+}
+
+enum ProtocolMethodOption {
+    Name(NameAttribute),
+    Signature(SignatureAttribute),
+}
+
+impl Parse for ProtocolMethodOption {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(attributes::kw::name) {
+            input.parse().map(Self::Name)
+        } else if lookahead.peek(attributes::kw::signature) {
+            input.parse().map(Self::Signature)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl ProtocolMethodOptions {
+    fn from_attrs(attrs: &mut Vec<Attribute>) -> Result<Self> {
+        let mut options = Self::default();
+        for option in take_pyo3_options(attrs)? {
+            match option {
+                ProtocolMethodOption::Name(name) => set_option(&mut options.name, name, "name")?,
+                ProtocolMethodOption::Signature(signature) => {
+                    set_option(&mut options.signature, signature, "signature")?
+                }
+            }
+        }
+        Ok(options)
+    }
+}
+
+fn set_option<T: Spanned>(option: &mut Option<T>, value: T, key: &str) -> Result<()> {
+    ensure_spanned!(
+        option.is_none(),
+        value.span() => format!("`{key}` may only be specified once")
+    );
+    *option = Some(value);
+    Ok(())
 }
 
 pub fn build_py_protocol(protocol: PyProtocol) -> Result<TokenStream> {
@@ -59,12 +137,7 @@ pub fn build_py_protocol(protocol: PyProtocol) -> Result<TokenStream> {
         ident,
         mut methods,
     } = protocol;
-    let options = PyFunctionOptions::from_attrs(&mut attrs)?;
-    if let Some(span) =
-        unsupported_option(&options).or_else(|| options.signature.as_ref().map(|a| a.kw.span()))
-    {
-        bail_spanned!(span => "only `name` and `crate` are supported on protocols");
-    }
+    let options = ProtocolOptions::from_attrs(&mut attrs)?;
     let ctx = &Ctx::new(&options.krate, None);
     let Ctx { pyo3_path, .. } = ctx;
     let python_name = options
@@ -74,18 +147,16 @@ pub fn build_py_protocol(protocol: PyProtocol) -> Result<TokenStream> {
         .unraw()
         .to_string();
 
-    let mut introspection = vec![protocol_introspection_code(
+    let methods = methods
+        .iter_mut()
+        .map(protocol_method)
+        .try_combine_syn_errors()?;
+    let introspection = protocol_introspection_code(
         pyo3_path,
         &ident,
         &python_name,
         get_doc(&attrs, None).as_ref(),
-    )];
-    let parent: syn::Type = syn::parse_quote!(#ident);
-    introspection.extend(
-        methods
-            .iter_mut()
-            .map(|method| method_introspection_code(method, &parent, ctx))
-            .try_combine_syn_errors()?,
+        &methods,
     );
 
     Ok(quote! {
@@ -107,16 +178,12 @@ pub fn build_py_protocol(protocol: PyProtocol) -> Result<TokenStream> {
                 );
         }
 
-        #(#introspection)*
+        #introspection
     })
 }
 
-/// Checks a protocol method and returns its introspection chunk
-fn method_introspection_code(
-    method: &mut TraitItemFn,
-    parent: &syn::Type,
-    ctx: &Ctx,
-) -> Result<TokenStream> {
+/// Checks a protocol method and returns what its introspection needs
+fn protocol_method(method: &mut TraitItemFn) -> Result<ProtocolMethod<'_>> {
     let TraitItemFn {
         attrs,
         sig,
@@ -131,17 +198,17 @@ fn method_introspection_code(
         bail_spanned!(asyncness.span() => "protocol methods cannot be `async`");
     }
     ensure_spanned!(
-        matches!(sig.inputs.first(), Some(syn::FnArg::Receiver(_))),
-        sig.paren_token.span.join() => "protocol methods must take `self`"
+        matches!(
+            sig.inputs.first(),
+            Some(syn::FnArg::Receiver(syn::Receiver {
+                kind: ReceiverKind::Reference(_, _, None),
+                ..
+            }))
+        ),
+        sig.paren_token.span.join() => "protocol methods must take `&self`"
     );
 
-    let options = PyFunctionOptions::from_attrs(attrs)?;
-    if let Some(span) =
-        unsupported_option(&options).or_else(|| options.krate.as_ref().map(Spanned::span))
-    {
-        bail_spanned!(span => "only `name` and `signature` are supported on protocol methods");
-    }
-
+    let options = ProtocolMethodOptions::from_attrs(attrs)?;
     let arguments = sig
         .inputs
         .iter_mut()
@@ -162,29 +229,23 @@ fn method_introspection_code(
     // Rust calls these methods: the arguments are converted to Python and the result back
     for argument in &mut signature.arguments {
         if let FnArg::Regular(arg) = argument {
-            arg.annotation = Some(PyExpr::from_into_py_object(arg.ty.clone(), None));
+            // Unless the signature gives an annotation
+            arg.annotation
+                .get_or_insert_with(|| PyExpr::from_into_py_object(arg.ty.clone(), None));
         }
     }
-    let python_name = options
-        .name
-        .as_ref()
-        .map_or(&sig.ident, |name| &name.value.0)
-        .unraw()
-        .to_string();
-    Ok(function_introspection_code(
-        &ctx.pyo3_path,
-        None,
-        &python_name,
-        &signature,
-        Some("self"),
-        match &sig.output {
+    Ok(ProtocolMethod {
+        name: options
+            .name
+            .as_ref()
+            .map_or(&sig.ident, |name| &name.value.0)
+            .unraw()
+            .to_string(),
+        signature,
+        returns: match &sig.output {
             syn::ReturnType::Type(_, t) => PyExpr::from_from_py_object((**t).clone(), None),
             syn::ReturnType::Default => PyExpr::none(),
         },
-        std::iter::empty(),
-        false,
-        false,
-        get_doc(attrs, None).as_ref(),
-        Some(parent),
-    ))
+        doc: get_doc(attrs, None),
+    })
 }

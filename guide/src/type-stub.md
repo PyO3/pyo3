@@ -83,7 +83,8 @@ PyO3 also provides the smaller `pyo3-introspection` binary that allows to genera
 
 ## Protocols
 
-`pyprotocol!` declares a [`typing.Protocol`](https://typing.python.org/en/latest/spec/protocol.html) for objects a `FromPyObject` implementation accepts by their methods.
+`pyprotocol!` declares a [`typing.Protocol`](https://typing.python.org/en/latest/spec/protocol.html) that only exists in the generated stubs.
+It is meant for Rust types that accept any Python object with the right methods: their `FromPyObject::INPUT_TYPE` can then be the protocol instead of a concrete class.
 Like `FromPyObject::INPUT_TYPE`, it is only available with the `experimental-inspect` feature.
 It also works in library crates:
 
@@ -103,7 +104,7 @@ impl<'py> FromPyObject<'_, 'py> for ReadWriteFile<'py> {
 }
 ```
 
-A `#[pyfunction]` taking a `ReadWriteFile` is then annotated with `SupportsReadWrite`, which is added to the stubs of the module that uses it:
+A `#[pyfunction]` taking a `ReadWriteFile` is then annotated with `SupportsReadWrite`, which is added to the stubs of the root module:
 
 ```python
 @type_check_only
@@ -119,8 +120,8 @@ class SupportsReadWrite(Protocol):
 - The methods describe calls made from Rust, so argument types use `IntoPyObject::OUTPUT_TYPE` and return types `FromPyObject::INPUT_TYPE`.
   Parameters are positional-only unless a `#[pyo3(signature = (...))]` is given, so that implementations can name them freely.
 - A protocol only appears in the stubs if a type hint refers to it.
-  It is declared in the deepest module containing all the modules that use it.
-  If that module already has a member with the same name, the protocol is renamed to e.g. `_SupportsReadWrite2`; `#[pyo3(name = "...")]` sets another name.
+  It is declared in the root module, so that using it in more modules doesn't move it.
+  If the root module already has a member with the same name, the protocol is renamed to e.g. `_SupportsReadWrite2`; `#[pyo3(name = "...")]` sets another name.
 - It only exists in the stubs, hence [`@type_check_only`](https://docs.python.org/3/library/typing.html#typing.type_check_only) and it is not listed in `__all__`: it can be imported in an `if TYPE_CHECKING:` block, but not at runtime.
 
 ## Constraints and limitations
