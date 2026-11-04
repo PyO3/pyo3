@@ -226,14 +226,6 @@ fn protocol_method(method: &mut TraitItemFn) -> Result<ProtocolMethod<'_>> {
         signature
     };
 
-    // Rust calls these methods: the arguments are converted to Python and the result back
-    for argument in &mut signature.arguments {
-        if let FnArg::Regular(arg) = argument {
-            // Unless the signature gives an annotation
-            arg.annotation
-                .get_or_insert_with(|| PyExpr::from_into_py_object(arg.ty.clone(), None));
-        }
-    }
     Ok(ProtocolMethod {
         name: options
             .name
