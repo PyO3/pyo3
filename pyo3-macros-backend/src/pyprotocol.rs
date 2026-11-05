@@ -226,6 +226,15 @@ fn protocol_method(method: &mut TraitItemFn) -> Result<ProtocolMethod<'_>> {
         signature
     };
 
+    // Rust calls these methods, so an argument is annotated with what Rust passes
+    // (`IntoPyObject::OUTPUT_TYPE`, e.g. `int` for `isize`), not with what a function would accept
+    // (`FromPyObject::INPUT_TYPE`, e.g. `SupportsIndex`), unless the signature gives an annotation
+    for argument in &mut signature.arguments {
+        if let FnArg::Regular(arg) = argument {
+            arg.annotation
+                .get_or_insert_with(|| PyExpr::from_into_py_object(arg.ty.clone(), None));
+        }
+    }
     Ok(ProtocolMethod {
         name: options
             .name
