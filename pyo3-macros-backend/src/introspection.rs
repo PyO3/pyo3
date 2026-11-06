@@ -131,16 +131,15 @@ pub fn protocol_introspection_code(
     doc: Option<&PythonDoc>,
     methods: &[ProtocolMethod<'_>],
 ) -> TokenStream {
-    let parent = ident_to_type(ident);
     let mut desc = BTreeMap::from([
         ("type", IntrospectionNode::String("protocol".into())),
         (
             "id",
-            IntrospectionNode::IntrospectionId(Some(parent.clone())),
+            IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
         ),
         ("name", IntrospectionNode::String(name.into())),
         (
-            "methods",
+            "body",
             IntrospectionNode::List(
                 methods
                     .iter()
@@ -155,7 +154,8 @@ pub fn protocol_introspection_code(
                             false,
                             false,
                             method.doc.as_ref(),
-                            Some(&parent),
+                            // The protocol chunk contains its methods
+                            None,
                         )
                         .into()
                     })

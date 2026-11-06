@@ -15,7 +15,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
-use std::{fs, iter, slice, str};
+use std::{fs, str};
 
 /// Introspect a cdylib built with PyO3 and returns the definition of a Python module.
 ///
@@ -27,7 +27,7 @@ pub fn introspect_cdylib(library_path: impl AsRef<Path>, main_module_name: &str)
 
 /// Parses the introspection chunks found in the binary
 fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
-    let (chunks_by_id, chunks_by_parent) = index_chunks(chunks);
+    let (mut chunks_by_id, mut chunks_by_parent) = index_chunks(chunks);
     // We look for the root chunk
     let Some(root) = chunks
         .iter()
@@ -35,17 +35,11 @@ fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
     else {
         bail!("No module named {main_module_name} found")
     };
-    // Protocols become plain classes of the root module, their methods stay indexed
+    // Protocols become plain classes of the root module, with the same id to keep their body
     let protocols = place_protocols(root, &chunks_by_id, &chunks_by_parent)?;
-    let (chunks_by_id, chunks_by_parent) = index_chunks(
-        chunks
-            .iter()
-            .flat_map(|chunk| match chunk {
-                Chunk::Protocol { methods, .. } => methods.as_slice(),
-                chunk => slice::from_ref(chunk),
-            })
-            .chain(&protocols),
-    );
+    for class in &protocols {
+        index_chunk(class, &mut chunks_by_id, &mut chunks_by_parent);
+    }
     let Chunk::Module {
         id,
         name,
@@ -77,31 +71,41 @@ fn index_chunks<'a>(
     chunks: impl IntoIterator<Item = &'a Chunk>,
 ) -> (ChunksById<'a>, ChunksByParent<'a>) {
     let mut chunks_by_id = HashMap::new();
-    let mut chunks_by_parent = HashMap::<_, Vec<_>>::new();
-    // The methods of a protocol are inside its chunk
-    let chunks = chunks.into_iter().flat_map(|chunk| {
-        let methods = match chunk {
-            Chunk::Protocol { methods, .. } => methods.as_slice(),
-            _ => &[],
-        };
-        iter::once(chunk).chain(methods)
-    });
+    let mut chunks_by_parent = HashMap::new();
     for chunk in chunks {
-        let (id, parent) = match chunk {
-            Chunk::Module { id, .. } | Chunk::Protocol { id, .. } => (Some(id.as_str()), None),
-            Chunk::Class { id, parent, .. } => (Some(id.as_str()), parent.as_deref()),
-            Chunk::Function { id, parent, .. } | Chunk::Attribute { id, parent, .. } => {
-                (id.as_deref(), parent.as_deref())
-            }
-        };
-        if let Some(id) = id {
-            chunks_by_id.insert(id, chunk);
-        }
-        if let Some(parent) = parent {
-            chunks_by_parent.entry(parent).or_default().push(chunk);
-        }
+        index_chunk(chunk, &mut chunks_by_id, &mut chunks_by_parent);
     }
     (chunks_by_id, chunks_by_parent)
+}
+
+fn index_chunk<'a>(
+    chunk: &'a Chunk,
+    chunks_by_id: &mut ChunksById<'a>,
+    chunks_by_parent: &mut ChunksByParent<'a>,
+) {
+    let (id, parent) = match chunk {
+        Chunk::Module { id, .. } => (Some(id.as_str()), None),
+        Chunk::Protocol { id, body, .. } => {
+            // The body is inside the protocol chunk, so it doesn't set its parent
+            chunks_by_parent.entry(id).or_default().extend(body);
+            for member in body {
+                if let Some(member_id) = chunk_id(member) {
+                    chunks_by_id.insert(member_id, member);
+                }
+            }
+            (Some(id.as_str()), None)
+        }
+        Chunk::Class { id, parent, .. } => (Some(id.as_str()), parent.as_deref()),
+        Chunk::Function { id, parent, .. } | Chunk::Attribute { id, parent, .. } => {
+            (id.as_deref(), parent.as_deref())
+        }
+    };
+    if let Some(id) = id {
+        chunks_by_id.insert(id, chunk);
+    }
+    if let Some(parent) = parent {
+        chunks_by_parent.entry(parent).or_default().push(chunk);
+    }
 }
 
 /// Turns the protocols the module tree refers to into classes of the root module.
@@ -938,9 +942,9 @@ enum Chunk {
     Protocol {
         id: String,
         name: String,
-        /// Function chunks whose parent is the protocol
+        /// The members of the class, e.g. methods, like `ast.ClassDef.body`
         #[serde(default)]
-        methods: Vec<Chunk>,
+        body: Vec<Chunk>,
         #[serde(default)]
         doc: Option<String>,
     },
@@ -1070,8 +1074,8 @@ mod tests {
             function("ga", Some("a"), "lib::Shared"),
             // Only used by the method of `lib::OnlyA`
             format!(
-                r#"{{"type": "protocol", "id": "lib::OnlyA", "name": "OnlyA", "methods": [{}]}}"#,
-                function("method", Some("lib::OnlyA"), "lib::Nested")
+                r#"{{"type": "protocol", "id": "lib::OnlyA", "name": "OnlyA", "body": [{}]}}"#,
+                function("method", None, "lib::Nested")
             ),
             r#"{"type": "protocol", "id": "lib::Shared", "name": "Shared"}"#.into(),
             r#"{"type": "protocol", "id": "lib::Nested", "name": "Nested"}"#.into(),
