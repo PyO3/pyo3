@@ -84,7 +84,7 @@ PyO3 also provides the smaller `pyo3-introspection` binary that allows to genera
 ## Protocols
 
 `pyprotocol!` declares a [`typing.Protocol`](https://typing.python.org/en/latest/spec/protocol.html) that only exists in the generated stubs.
-It is meant for Rust types that accept any Python object with the right methods: their `FromPyObject::INPUT_TYPE` can then be the protocol instead of a concrete class.
+It is meant for Rust types that implement `FromPyObject` and accept any object providing a set of methods: their `FromPyObject::INPUT_TYPE` can then be the protocol instead of a concrete class.
 Like `FromPyObject::INPUT_TYPE`, it is only available with the `experimental-inspect` feature.
 It also works in library crates:
 
