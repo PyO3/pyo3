@@ -25,6 +25,8 @@ mod pyclass;
 mod pyfunction;
 mod pyimpl;
 mod pymethod;
+#[cfg(feature = "experimental-inspect")]
+mod pyprotocol;
 mod quotes;
 
 pub use frompyobject::build_derive_from_pyobject;
@@ -33,4 +35,6 @@ pub use module::{PyModuleOptions, pymodule_function_impl, pymodule_module_impl};
 pub use pyclass::{PyClassArgs, build_py_class, build_py_enum};
 pub use pyfunction::{PyFunctionOptions, build_py_function};
 pub use pyimpl::{PyClassMethodsType, build_py_methods};
+#[cfg(feature = "experimental-inspect")]
+pub use pyprotocol::{PyProtocol, build_py_protocol};
 pub use utils::get_doc;

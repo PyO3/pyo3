@@ -81,6 +81,49 @@ You can also directly integrate the stubs in the built wheels by doing `maturin 
 
 PyO3 also provides the smaller `pyo3-introspection` binary that allows to generate stubs from an existing built extension using something like `pyo3-introspection my_module_binary.so my_module_name output` to introspect the `my_module_binary.so` dynamic library for the `my_module_name` Python module and generate its stubs in the `output` directory.
 
+## Protocols
+
+`pyprotocol!` declares a [`typing.Protocol`](https://typing.python.org/en/latest/spec/protocol.html) that only exists in the generated stubs.
+It is meant for Rust types that implement `FromPyObject` and accept any object providing a set of methods: their `FromPyObject::INPUT_TYPE` can then be the protocol instead of a concrete class.
+Like `FromPyObject::INPUT_TYPE`, it is only available with the `experimental-inspect` feature.
+It also works in library crates:
+
+```rust,ignore
+pyo3::pyprotocol! {
+    /// A binary stream that can be read from and written to
+    pub SupportsReadWrite {
+        #[pyo3(signature = (n = -1, /))]
+        fn read(&self, n: isize) -> Py<PyBytes>;
+        fn write(&self, data: &[u8]) -> usize;
+    }
+}
+
+impl<'py> FromPyObject<'_, 'py> for ReadWriteFile<'py> {
+    const INPUT_TYPE: PyStaticExpr = SupportsReadWrite::TYPE_HINT;
+    // ...
+}
+```
+
+A `#[pyfunction]` taking a `ReadWriteFile` is then annotated with `SupportsReadWrite`, which is added to the stubs of the root module:
+
+```python
+@type_check_only
+class SupportsReadWrite(Protocol):
+    """
+    A binary stream that can be read from and written to
+    """
+
+    def read(self, n: int = ..., /) -> bytes: ...
+    def write(self, data: bytes, /) -> SupportsIndex: ...
+```
+
+- The methods describe calls made from Rust, so argument types use `IntoPyObject::OUTPUT_TYPE` and return types `FromPyObject::INPUT_TYPE`.
+  Parameters are positional-only unless a `#[pyo3(signature = (...))]` is given, so that implementations can name them freely.
+- A protocol only appears in the stubs if a type hint refers to it.
+  It is declared in the root module, so that using it in more modules doesn't move it.
+  Its name must not clash with another member of the root module, otherwise stub generation fails; `#[pyo3(name = "...")]` sets another name.
+- It only exists in the stubs, hence [`@type_check_only`](https://docs.python.org/3/library/typing.html#typing.type_check_only) and it is not listed in `__all__`: it can be imported in an `if TYPE_CHECKING:` block, but not at runtime.
+
 ## Constraints and limitations
 
 - The `experimental-inspect` feature is required to generate the introspection fragments.
