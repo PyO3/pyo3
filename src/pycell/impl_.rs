@@ -777,6 +777,9 @@ mod tests {
     #[repr(align(8))]
     struct MaxAlignedClass;
 
+    #[repr(align(32))]
+    struct OveralignedValue;
+
     #[pyclass(crate = "crate", extends = BaseWithData)]
     struct ChildWithData(#[allow(unused)] u64);
 
@@ -818,6 +821,12 @@ mod tests {
         Python::attach(|py| {
             Py::new(py, MaxAlignedClass).unwrap();
         });
+    }
+
+    #[test]
+    #[should_panic(expected = "PyO3 does not support #[pyclass] types with alignment")]
+    fn test_rejects_overaligned_values() {
+        assert_python_allocator_alignment::<OveralignedValue>();
     }
 
     fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}
