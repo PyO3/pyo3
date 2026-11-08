@@ -818,6 +818,7 @@ mod tests {
 
     #[test]
     fn test_maximum_supported_alignment() {
+        assert_python_allocator_alignment::<MaxAlignedClass>();
         Python::attach(|py| {
             Py::new(py, MaxAlignedClass).unwrap();
         });
