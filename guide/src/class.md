@@ -142,6 +142,12 @@ This means that:
 For now, don't worry about these requirements; simple classes will already be thread-safe.
 There is a [detailed discussion on thread-safety](./class/thread-safety.md) later in the guide.
 
+#### Alignment
+
+The alignment of a `#[pyclass]` and its fields must not exceed the alignment guaranteed by
+Python's object allocator (16 bytes on 64-bit platforms and 8 bytes on 32-bit platforms).
+For data that requires greater alignment, store it in a `Box`.
+
 ## Constructor
 
 By default, it is not possible to create an instance of a custom class from Python code.

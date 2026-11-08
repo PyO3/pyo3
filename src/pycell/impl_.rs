@@ -21,6 +21,13 @@ use crate::types::PyTypeMethods;
 
 use super::{PyBorrowError, PyBorrowMutError};
 
+const fn assert_python_allocator_alignment<T>() {
+    assert!(
+        core::mem::align_of::<T>() <= 2 * core::mem::size_of::<usize>(),
+        "PyO3 does not support #[pyclass] types with alignment greater than Python's allocator guarantee; box over-aligned data"
+    );
+}
+
 pub trait PyClassMutability {
     // The storage for this inheritance layer. Only the first mutable class in
     // an inheritance hierarchy needs to store the borrow flag.
@@ -460,6 +467,7 @@ impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyStaticClassObje
     };
 
     const BASIC_SIZE: ffi::Py_ssize_t = {
+        assert_python_allocator_alignment::<Self>();
         let size = core::mem::size_of::<Self>();
         assert!(size <= ffi::Py_ssize_t::MAX as usize);
         size as _
@@ -594,6 +602,7 @@ impl<T: PyClass<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassObject
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Relative(0);
     const BASIC_SIZE: ffi::Py_ssize_t = {
+        assert_python_allocator_alignment::<PyClassObjectContents<T>>();
         let size = core::mem::size_of::<PyClassObjectContents<T>>();
         assert!(size <= ffi::Py_ssize_t::MAX as usize);
         // negative to indicate 'extra' space that cpython will allocate for us
@@ -758,6 +767,16 @@ mod tests {
     #[pyclass(crate = "crate", subclass)]
     struct BaseWithData(#[allow(unused)] u64);
 
+    #[cfg(target_pointer_width = "64")]
+    #[pyclass(crate = "crate")]
+    #[repr(align(16))]
+    struct MaxAlignedClass;
+
+    #[cfg(target_pointer_width = "32")]
+    #[pyclass(crate = "crate")]
+    #[repr(align(8))]
+    struct MaxAlignedClass;
+
     #[pyclass(crate = "crate", extends = BaseWithData)]
     struct ChildWithData(#[allow(unused)] u64);
 
@@ -792,6 +811,13 @@ mod tests {
             assert_eq!(base_with_data_size, child_without_data_size);
             assert!(base_with_data_size < child_with_data_size);
         }
+    }
+
+    #[test]
+    fn test_maximum_supported_alignment() {
+        Python::attach(|py| {
+            Py::new(py, MaxAlignedClass).unwrap();
+        });
     }
 
     fn assert_mutable<T: PyClass<Frozen = False, PyClassMutability = MutableClass>>() {}

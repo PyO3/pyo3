@@ -18,6 +18,23 @@ pub use self::guard::{
 ///
 /// The `#[pyclass]` attribute implements this trait for your Rust struct -
 /// you shouldn't implement this trait directly.
+///
+/// The class and its fields must not require more alignment than Python's object allocator
+/// guarantees. For more highly aligned data, store it in a `Box`:
+///
+/// ```rust,compile_fail
+/// use pyo3::prelude::*;
+///
+/// #[pyclass]
+/// #[repr(align(32))]
+/// struct Overaligned;
+///
+/// fn main() {
+///     Python::attach(|py| {
+///         Py::new(py, Overaligned).unwrap();
+///     });
+/// }
+/// ```
 pub trait PyClass: PyTypeInfo + PyClassImpl {
     /// Name of the class.
     ///
