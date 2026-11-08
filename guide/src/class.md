@@ -144,8 +144,7 @@ There is a [detailed discussion on thread-safety](./class/thread-safety.md) late
 
 #### Alignment
 
-The alignment of a `#[pyclass]` and its fields must not exceed the alignment guaranteed by
-Python's object allocator (16 bytes on 64-bit platforms and 8 bytes on 32-bit platforms).
+The alignment of a `#[pyclass]` and its fields must not exceed the alignment guaranteed by Python's object allocator (16 bytes on 64-bit platforms and 8 bytes on 32-bit platforms).
 For data that requires greater alignment, store it in a `Box`.
 
 ## Constructor
