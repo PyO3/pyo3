@@ -14,6 +14,13 @@ pyo3::pyprotocol! {
 }
 
 pyo3::pyprotocol! {
+    /// Public in the stubs of `pyo3_pytests.annotations`, which exports it
+    pub SupportsClose {
+        fn close(&self);
+    }
+}
+
+pyo3::pyprotocol! {
     /// Not referenced by any annotation, so left out of the stubs
     pub SupportsUnused {
         fn unused(&self);
@@ -38,6 +45,9 @@ pub mod annotations {
     use crate::pyclasses::EmptyClass;
     use pyo3::prelude::*;
     use pyo3::types::{PyDict, PyTuple};
+
+    #[pymodule_export]
+    use super::SupportsClose;
 
     #[pyfunction(signature = (a: "list[int]", *_args: "str", _b: "int | None" = None, **_kwargs: "bool") -> "int")]
     fn with_custom_type_annotations<'py>(

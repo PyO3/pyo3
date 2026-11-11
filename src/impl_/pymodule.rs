@@ -548,6 +548,17 @@ impl<T: PyClass> PyAddToModule for AddClassToModule<T> {
     }
 }
 
+/// For exporting a protocol declared with `pyprotocol!`: it only exists in the stubs.
+#[cfg(feature = "experimental-inspect")]
+pub struct AddProtocolToModule;
+
+#[cfg(feature = "experimental-inspect")]
+impl PyAddToModule for AddProtocolToModule {
+    fn add_to_module(&'static self, _module: &Bound<'_, PyModule>) -> PyResult<()> {
+        Ok(())
+    }
+}
+
 /// For adding a function to a module.
 impl PyAddToModule for PyFunctionDef {
     fn add_to_module(&'static self, module: &Bound<'_, PyModule>) -> PyResult<()> {

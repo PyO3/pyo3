@@ -168,6 +168,11 @@ pub fn build_py_protocol(protocol: PyProtocol) -> Result<TokenStream> {
             pub const _PYO3_INTROSPECTION_ID: &'static str =
                 ::core::concat!(::core::module_path!(), "::", ::core::stringify!(#ident));
 
+            /// Lets `#[pymodule_export]` make the protocol public in the module's stubs
+            #[doc(hidden)]
+            pub const _PYO3_DEF: #pyo3_path::impl_::pymodule::AddProtocolToModule =
+                #pyo3_path::impl_::pymodule::AddProtocolToModule;
+
             /// The protocol as a type hint, e.g. for `FromPyObject::INPUT_TYPE`
             pub const TYPE_HINT: #pyo3_path::inspect::PyStaticExpr =
                 #pyo3_path::inspect::PyStaticExpr::PyClass(
