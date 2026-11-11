@@ -13,3 +13,6 @@ name = "decorator"
 path = "decorator/src/lib.rs"
 crate-type = ["cdylib"]
 doc-scrape-examples = true
+
+[lints]
+workspace = true
