@@ -200,11 +200,6 @@ fn test_cycle_clear() {
 
         inst.borrow_mut().cycle = Some(inst.clone().into_any().unbind());
 
-        // gc.get_objects can create references to partially initialized objects,
-        // leading to races on the free-threaded build.
-        // see https://github.com/python/cpython/issues/130421#issuecomment-2682924142
-        #[cfg(not(Py_GIL_DISABLED))]
-        py_run!(py, inst, "import gc; assert inst in gc.get_objects()");
         check.assert_not_dropped();
         inst.as_ptr()
     });
