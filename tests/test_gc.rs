@@ -12,8 +12,6 @@ use pyo3::class::PyTraverseError;
 use pyo3::class::PyVisit;
 use pyo3::ffi;
 use pyo3::prelude::*;
-#[cfg(all(wip_feature_std, not(Py_GIL_DISABLED)))]
-use pyo3::py_run;
 #[cfg(not(target_arch = "wasm32"))]
 use std::cell::Cell;
 use std::collections::HashMap;
