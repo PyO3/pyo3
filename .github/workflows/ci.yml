@@ -425,6 +425,15 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
+          # ubuntu 26.04 runner does not support Python 3.9
+          - rust: stable
+            python-version: "3.9"
+            platform:
+              {
+                os: "ubuntu-24.04",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
           # test latest Python on arm64 linux & windows runners
           - rust: stable
             python-version: "3.14"
@@ -467,6 +476,15 @@ jobs:
                 os: "macos-latest",
                 python-architecture: "arm64",
                 rust-target: "aarch64-apple-darwin",
+              }
+          # ubuntu 26.04 runner does not support Python 3.9
+          - rust: stable
+            python-version: "3.9"
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
               }
 
   valgrind:

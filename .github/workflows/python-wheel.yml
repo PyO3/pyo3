@@ -17,10 +17,24 @@ permissions:
 
 jobs:
   pypi_linux:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
-        target: [x86_64, x86, aarch64, armv7, s390x, ppc64le]
+        platform:
+          - runner: ubuntu-latest
+            target: x86_64
+          # old runner needed for i686 networking to function inside docker
+          # - see https://github.com/actions/runner-images/issues/14790
+          - runner: ubuntu-24.04
+            target: x86
+          - runner: ubuntu-latest
+            target: aarch64
+          - runner: ubuntu-latest
+            target: armv7
+          - runner: ubuntu-latest
+            target: s390x
+          - runner: ubuntu-latest
+            target: ppc64le
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
