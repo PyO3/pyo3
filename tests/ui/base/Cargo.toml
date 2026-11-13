@@ -9,3 +9,5 @@ pyo3 = { version = "0.30.0", default-features = false, path = "../../../" }
 
 [features]
 macros = ["pyo3/macros"]
+
+[lints]

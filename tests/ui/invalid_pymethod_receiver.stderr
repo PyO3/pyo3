@@ -15,7 +15,6 @@ note: required by a bound in `pyo3::impl_::extract_argument::extract_receiver_tr
  --> src/impl_/extract_argument.rs
   |
   | pub unsafe fn extract_receiver_trusted<'a, 'py, T, R>(
-  |               ------------------------ required by a bound in this function
 ...
   |     R: TryFrom<&'a Bound<'py, T>>,
   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_receiver_trusted`

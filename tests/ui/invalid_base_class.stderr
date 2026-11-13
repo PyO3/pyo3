@@ -39,6 +39,8 @@ error[E0277]: pyclass `PyBool` cannot be subclassed
 note: required by a bound in `pyo3::impl_::pyclass::PyClassImpl::BaseType`
  --> src/impl_/pyclass.rs
   |
+  | pub trait PyClassImpl: Sized + 'static {
+...
   |     type BaseType: PyTypeInfo + PyClassBaseType;
   |                                 ^^^^^^^^^^^^^^^ required by this bound in `PyClassImpl::BaseType`
 

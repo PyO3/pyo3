@@ -25,8 +25,9 @@ help: the trait `IntoPyObject<'_>` is not implemented for `Blah`
 note: required by a bound in `pyo3::impl_::wrap::UnknownReturnType::<T>::wrap_into_ptr`
  --> src/impl_/wrap.rs
   |
+  | impl<T> UnknownReturnType<T> {
+...
   |     pub fn wrap_into_ptr<'py>(&self, _: Python<'py>, _: T) -> PyResult<*mut ffi::PyObject>
-  |            ------------- required by a bound in this associated function
   |     where
   |         T: IntoPyObject<'py>,
   |            ^^^^^^^^^^^^^^^^^ required by this bound in `UnknownReturnType::<T>::wrap_into_ptr`
