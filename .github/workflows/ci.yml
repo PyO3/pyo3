@@ -28,6 +28,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.UV_PYTHON }}
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -169,6 +172,9 @@ jobs:
         run: |
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --no-self-update --component clippy,rust-src --target "$RUST_TARGET"
           rustup default "$RUST_TOOLCHAIN"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.UV_PYTHON }}
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -196,6 +202,9 @@ jobs:
         run: |
           rustup toolchain install nightly --profile minimal --no-self-update --component clippy,rust-src --target "$RUST_TARGET" --allow-downgrade
           rustup default nightly
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.UV_PYTHON }}
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           save-cache: ${{ github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'CI-save-pr-cache') }}
@@ -416,6 +425,15 @@ jobs:
                 python-architecture: "x64",
                 rust-target: "x86_64-apple-darwin",
               }
+          # ubuntu 26.04 runner does not support Python 3.9
+          - rust: stable
+            python-version: "3.9"
+            platform:
+              {
+                os: "ubuntu-24.04",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
+              }
           # test latest Python on arm64 linux & windows runners
           - rust: stable
             python-version: "3.14"
@@ -458,6 +476,15 @@ jobs:
                 os: "macos-latest",
                 python-architecture: "arm64",
                 rust-target: "aarch64-apple-darwin",
+              }
+          # ubuntu 26.04 runner does not support Python 3.9
+          - rust: stable
+            python-version: "3.9"
+            platform:
+              {
+                os: "ubuntu-latest",
+                python-architecture: "x64",
+                rust-target: "x86_64-unknown-linux-gnu",
               }
 
   valgrind:
@@ -584,6 +611,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.UV_PYTHON }}
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
@@ -650,6 +680,9 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ needs.resolve.outputs.coverage-sha }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.UV_PYTHON }}
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}
@@ -794,6 +827,9 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ needs.resolve.outputs.coverage-sha }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.UV_PYTHON }}
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           save-cache: ${{ needs.resolve.outputs.save-cache }}

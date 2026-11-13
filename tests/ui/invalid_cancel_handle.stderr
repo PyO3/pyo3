@@ -92,7 +92,6 @@ note: required by a bound in `pyo3::impl_::extract_argument::extract_required_ar
  --> src/impl_/extract_argument.rs
   |
   | pub fn extract_required_argument<'a, 'holder, 'py, T, const IMPLEMENTS_FROMPYOBJECT: bool>(
-  |        ------------------------- required by a bound in this function
 ...
   |     T: PyFunctionArgument<'a, 'holder, 'py, IMPLEMENTS_FROMPYOBJECT>,
   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `extract_required_argument`
