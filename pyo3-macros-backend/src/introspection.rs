@@ -611,6 +611,7 @@ impl ConcatenationBuilder {
                 const PIECES_LEN: usize = #pyo3_crate_path::impl_::concat::combined_len(PIECES);
                 #[used]
                 #[unsafe(no_mangle)]
+                #[cfg_attr(target_family = "wasm", unsafe(link_section = "PYO3_INTROSPECTION_1"))]
                 static #ident: #pyo3_crate_path::impl_::introspection::SerializedIntrospectionFragment<PIECES_LEN> = #pyo3_crate_path::impl_::introspection::SerializedIntrospectionFragment {
                     length: PIECES_LEN as u32,
                     fragment: #pyo3_crate_path::impl_::concat::combine_to_array::<PIECES_LEN>(PIECES)
