@@ -21,3 +21,6 @@ default = []
 resolve-config = []
 extension-module = []
 generate-import-lib = []
+
+[lints]
+workspace = true
