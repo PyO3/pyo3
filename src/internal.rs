@@ -3,6 +3,7 @@
 #[macro_use]
 pub(crate) mod macros;
 
+pub(crate) mod compat;
 pub(crate) mod get_slot;
 pub(crate) mod pyclass_init;
 pub(crate) mod state;

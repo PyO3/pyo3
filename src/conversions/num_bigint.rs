@@ -133,7 +133,7 @@ fn pylong_from_u32_digits<I>(
     negative: bool,
     bits: usize,
     digits: I,
-) -> Bound<'_, PyInt>
+) -> PyResult<Bound<'_, PyInt>>
 where
     I: ExactSizeIterator<Item = u32>,
 {
@@ -183,12 +183,12 @@ macro_rules! bigint_conversion {
                             .try_into()
                             .expect(concat!(stringify!($rust_ty), " bit length fits in usize"));
 
-                        return Ok(pylong_from_u32_digits(
+                        return pylong_from_u32_digits(
                             py,
                             $negative(self),
                             bits,
                             $iter_u32_digits(self),
-                        ));
+                        );
                     }
                 }
 

@@ -337,6 +337,15 @@ impl PyErr {
         PyErr::take(py).unwrap_or_else(failed_to_fetch)
     }
 
+    /// Internal variant of the above which is marked `#[cold]` and `#[inline(never)]` to minimize
+    /// code size of branches where the error is never expected to be set.
+    #[cold]
+    #[inline(never)]
+    #[cfg_attr(debug_assertions, track_caller)]
+    pub(crate) fn cold_fetch(py: Python<'_>) -> PyErr {
+        Self::fetch(py)
+    }
+
     /// Creates a new exception type with the given name and docstring.
     ///
     /// - `base` can be an existing exception type to subclass, or a tuple of classes.

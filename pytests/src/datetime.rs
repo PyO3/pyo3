@@ -127,35 +127,31 @@ fn make_datetime<'py>(
 
 #[pyfunction]
 fn get_datetime_tuple<'py>(dt: &Bound<'py, PyDateTime>) -> PyResult<Bound<'py, PyTuple>> {
-    PyTuple::new(
-        dt.py(),
-        [
-            dt.get_year(),
-            dt.get_month() as i32,
-            dt.get_day() as i32,
-            dt.get_hour() as i32,
-            dt.get_minute() as i32,
-            dt.get_second() as i32,
-            dt.get_microsecond() as i32,
-        ],
+    (
+        dt.get_year(),
+        dt.get_month(),
+        dt.get_day(),
+        dt.get_hour(),
+        dt.get_minute(),
+        dt.get_second(),
+        dt.get_microsecond(),
     )
+        .into_pyobject(dt.py())
 }
 
 #[pyfunction]
 fn get_datetime_tuple_fold<'py>(dt: &Bound<'py, PyDateTime>) -> PyResult<Bound<'py, PyTuple>> {
-    PyTuple::new(
-        dt.py(),
-        [
-            dt.get_year(),
-            dt.get_month() as i32,
-            dt.get_day() as i32,
-            dt.get_hour() as i32,
-            dt.get_minute() as i32,
-            dt.get_second() as i32,
-            dt.get_microsecond() as i32,
-            dt.get_fold() as i32,
-        ],
+    (
+        dt.get_year(),
+        dt.get_month(),
+        dt.get_day(),
+        dt.get_hour(),
+        dt.get_minute(),
+        dt.get_second(),
+        dt.get_microsecond(),
+        dt.get_fold(),
     )
+        .into_pyobject(dt.py())
 }
 
 #[pyfunction]

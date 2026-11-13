@@ -1,5 +1,5 @@
 use crate::pyport::Py_ssize_t;
-use core::sync::atomic::{AtomicIsize, Ordering};
+use core::sync::atomic::{AtomicIsize, AtomicU32, Ordering};
 
 // skipped _Py_atomic_add_int
 // skipped _Py_atomic_add_int8
@@ -87,7 +87,12 @@ use core::sync::atomic::{AtomicIsize, Ordering};
 // skipped _Py_atomic_load_intptr_relaxed
 // skipped _Py_atomic_load_uint8_relaxed
 // skipped _Py_atomic_load_uint16_relaxed
-// skipped _Py_atomic_load_uint32_relaxed
+
+#[inline]
+pub(crate) unsafe fn _Py_atomic_load_uint32_relaxed(value: *const u32) -> u32 {
+    AtomicU32::from_ptr(value.cast_mut()).load(Ordering::Relaxed)
+}
+
 // skipped _Py_atomic_load_uint64_relaxed
 // skipped _Py_atomic_load_uintptr_relaxed
 // skipped _Py_atomic_load_uint_relaxed

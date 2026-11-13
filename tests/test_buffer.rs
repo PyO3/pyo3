@@ -2,6 +2,8 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg(feature = "macros")]
 #![cfg(any(not(Py_LIMITED_API), Py_3_11))]
+// TODO: just use `.cast_signed()` instead of `as isize` on MSRV >= 1.87.0
+#![allow(clippy::cast_possible_wrap)]
 
 use pyo3::{buffer::PyBuffer, exceptions::PyBufferError, ffi, prelude::*};
 use std::{

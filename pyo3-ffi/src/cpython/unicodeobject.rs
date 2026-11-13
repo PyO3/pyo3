@@ -183,8 +183,8 @@ impl PyASCIIObjectState {
     }
 
     #[inline]
-    unsafe fn set_kind(&mut self, val: c_uint) {
-        let val: u32 = core::mem::transmute(val);
+    unsafe fn set_kind(&mut self, val: c_int) {
+        let val: u32 = val as _;
         self.bitfield
             .set(STATE_KIND_INDEX, STATE_KIND_WIDTH, val as u64)
     }
@@ -331,8 +331,8 @@ impl PyASCIIObject {
     #[cfg_attr(not(Py_3_12), doc = "[`PyUnicode_WCHAR_KIND`], ")]
     /// [`PyUnicode_1BYTE_KIND`], [`PyUnicode_2BYTE_KIND`], or [`PyUnicode_4BYTE_KIND`].
     #[inline]
-    pub unsafe fn kind(&self) -> c_uint {
-        PyASCIIObjectState::from(self.state).kind()
+    pub unsafe fn kind(&self) -> c_int {
+        PyASCIIObjectState::from(self.state).kind() as _
     }
 
     /// Set the `kind` field of the [`PyASCIIObject`] state bitfield.
@@ -341,7 +341,7 @@ impl PyASCIIObject {
     #[cfg_attr(not(Py_3_12), doc = "[`PyUnicode_WCHAR_KIND`], ")]
     /// [`PyUnicode_1BYTE_KIND`], [`PyUnicode_2BYTE_KIND`], or [`PyUnicode_4BYTE_KIND`] is invalid.
     #[inline]
-    pub unsafe fn set_kind(&mut self, val: c_uint) {
+    pub unsafe fn set_kind(&mut self, val: c_int) {
         let mut state = PyASCIIObjectState::from(self.state);
         state.set_kind(val);
         self.state = u32::from(state);
@@ -504,21 +504,21 @@ pub unsafe fn PyUnicode_IS_COMPACT_ASCII(op: *mut PyObject) -> c_uint {
 
 #[cfg(not(Py_3_12))]
 #[deprecated(note = "Removed in Python 3.12")]
-pub const PyUnicode_WCHAR_KIND: c_uint = 0;
+pub const PyUnicode_WCHAR_KIND: c_int = 0;
 
-pub const PyUnicode_1BYTE_KIND: c_uint = 1;
-pub const PyUnicode_2BYTE_KIND: c_uint = 2;
-pub const PyUnicode_4BYTE_KIND: c_uint = 4;
+pub const PyUnicode_1BYTE_KIND: c_int = 1;
+pub const PyUnicode_2BYTE_KIND: c_int = 2;
+pub const PyUnicode_4BYTE_KIND: c_int = 4;
 
 #[cfg(all(not(GraalPy), Py_3_14))]
 extern_libpython! {
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_KIND")]
-    pub fn PyUnicode_KIND(op: *mut PyObject) -> c_uint;
+    pub fn PyUnicode_KIND(op: *mut PyObject) -> c_int;
 }
 
 #[cfg(all(not(GraalPy), not(Py_3_14)))]
 #[inline]
-pub unsafe fn PyUnicode_KIND(op: *mut PyObject) -> c_uint {
+pub unsafe fn PyUnicode_KIND(op: *mut PyObject) -> c_int {
     debug_assert!(crate::PyUnicode_Check(op) != 0);
     #[cfg(not(Py_3_12))]
     debug_assert!(PyUnicode_IS_READY(op) != 0);

@@ -21,6 +21,7 @@ use crate::{
         },
     },
     ffi_ptr_ext::FfiPtrExt,
+    internal::compat::cast_signed,
     py_result_ext::PyResultExt,
 };
 #[cfg(not(Py_LIMITED_API))]
@@ -37,11 +38,15 @@ pub struct PyBytesWriter<'py> {
 
 impl<'py> PyBytesWriter<'py> {
     /// Create a new `PyBytesWriter` with the specified initial capacity.
+    ///
+    /// Will return an error if the writer cannot be allocated.
+    ///
+    /// Will either panic or return an error if the capacity is greater than `isize::MAX`.
     #[inline]
     #[cfg_attr(Py_LIMITED_API, allow(clippy::unnecessary_wraps))]
     pub(super) fn with_capacity(py: Python<'py>, capacity: usize) -> PyResult<Self> {
         cfg_select! {
-            not(Py_LIMITED_API) => NonNull::new(unsafe { PyBytesWriter_Create(capacity as _) }).map_or_else(
+            not(Py_LIMITED_API) => NonNull::new(unsafe { PyBytesWriter_Create(cast_signed(capacity)) }).map_or_else(
                 || Err(PyErr::fetch(py)),
                 |writer| {
                     let mut writer = PyBytesWriter { python: py, writer };
@@ -84,19 +89,24 @@ impl<'py> PyBytesWriter<'py> {
 
     /// Set the length of the internal buffer to `new_len`. The new bytes are uninitialized.
     ///
+    /// Will return an error on lengths greater than `isize::MAX`
+    /// (they will be interpreted as a negative length).
+    ///
     /// # Safety
+    ///
     /// The caller must ensure the new bytes are initialized. This will also make all pointers
     /// returned by `as_mut_ptr` invalid, so the caller must not hold any references to the buffer
     /// across this call.
     #[inline]
     #[cfg(not(Py_LIMITED_API))]
     unsafe fn set_len(&mut self, new_len: usize) -> PyResult<()> {
-        unsafe {
-            err::error_on_negative(
-                self.python,
-                PyBytesWriter_Resize(self.writer.as_ptr(), new_len as _),
-            )
-        }
+        // The signed cast is ok because values wrapped to negative will be rejected by `PyBytesWriter_Resize`.
+        let new_len = cast_signed(new_len);
+        err::error_on_negative(
+            self.python,
+            // SAFETY: `self.writer` is a valid pointer to a `PyBytesWriter`
+            unsafe { PyBytesWriter_Resize(self.writer.as_ptr(), new_len) },
+        )
     }
 
     /// Writes the `bytes` into `self`.
@@ -310,6 +320,25 @@ mod tests {
             writer.write_all(&large_data).unwrap();
             let bytes: Bound<'_, PyBytes> = writer.try_into().unwrap();
             assert_eq!(bytes.as_bytes(), large_data.as_slice());
+        })
+    }
+
+    #[test]
+    #[cfg_attr(Py_LIMITED_API, should_panic = "capacity overflow")]
+    fn test_with_capacity_overflow() {
+        Python::attach(|py| {
+            let result = PyBytesWriter::with_capacity(py, isize::MAX as usize + 1);
+            assert!(result.is_err());
+        })
+    }
+
+    #[test]
+    #[cfg(not(Py_LIMITED_API))]
+    fn test_set_invalid_len() {
+        Python::attach(|py| {
+            let mut writer = PyBytesWriter::with_capacity(py, 0).unwrap();
+            let result = unsafe { writer.set_len(isize::MAX as usize + 1) };
+            assert!(result.is_err());
         })
     }
 }

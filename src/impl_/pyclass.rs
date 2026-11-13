@@ -1315,7 +1315,9 @@ impl<ClassT: PyClass, U: PyTypeCheck, const OFFSET: usize, const IMPLEMENTS_INTO
             PyMethodDefType::StructMember(ffi::PyMemberDef {
                 name: name.as_ptr(),
                 type_code: ffi::Py_T_OBJECT_EX,
-                offset: offset + OFFSET as ffi::Py_ssize_t,
+                offset: offset
+                    .checked_add_unsigned(OFFSET)
+                    .expect("offset overflows Py_ssize_t"),
                 flags,
                 doc: if let Some(doc) = doc {
                     doc.as_ptr()
@@ -1503,9 +1505,9 @@ impl ConvertField<false> {
 #[cfg(test)]
 #[cfg(feature = "macros")]
 mod tests {
-    use crate::impl_::pymethods::Getter;
     #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
     use crate::pycell::impl_::PyClassObjectContents;
+    use crate::{impl_::pymethods::Getter, internal::compat::cast_unsigned};
 
     use super::*;
     use core::mem::offset_of;
@@ -1541,9 +1543,8 @@ mod tests {
                 }
                 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
                 assert_eq!(
-                    member.offset,
-                    (offset_of!(ExpectedLayout, contents) + offset_of!(FrozenClass, value))
-                        as ffi::Py_ssize_t
+                    cast_unsigned(member.offset),
+                    offset_of!(ExpectedLayout, contents) + offset_of!(FrozenClass, value)
                 );
                 #[cfg(not(all(Py_LIMITED_API, Py_GIL_DISABLED)))]
                 assert_eq!(member.flags, ffi::Py_READONLY);
@@ -1657,7 +1658,7 @@ mod tests {
         };
         assert_eq!(
             def.offset,
-            contents_offset + FIELD_OFFSET as ffi::Py_ssize_t
+            contents_offset.checked_add_unsigned(FIELD_OFFSET).unwrap()
         );
         assert_eq!(def.flags & ffi::Py_READONLY, ffi::Py_READONLY);
     }
