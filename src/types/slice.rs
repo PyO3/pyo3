@@ -96,9 +96,10 @@ impl PySlice {
 
     /// Constructs a new full slice that is equivalent to `::`.
     pub fn full(py: Python<'_>) -> Bound<'_, PySlice> {
+        // the interpreter accepts NULL as a substitute for None
+        let null = core::ptr::null_mut();
         unsafe {
-            let none = ffi::Py_None();
-            ffi::PySlice_New(none, none, none)
+            ffi::PySlice_New(null, null, null)
                 .assume_owned(py)
                 .cast_into_unchecked()
         }
