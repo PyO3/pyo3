@@ -10,7 +10,7 @@ mod osstr;
 #[cfg(wip_feature_std)]
 mod path;
 mod set;
-mod slice;
+pub(crate) mod slice;
 mod string;
 mod time;
 mod vec;

@@ -3,7 +3,7 @@
 use crate::err::{self, PyResult};
 use crate::ffi::{self, Py_ssize_t};
 use crate::ffi_ptr_ext::FfiPtrExt;
-use crate::internal_tricks::get_ssize_index;
+use crate::internal::compat::{cast_signed, saturating_cast_signed};
 #[allow(unused_imports, reason = "used to build docs")]
 use crate::platform::prelude::*;
 use crate::types::sequence::PySequenceMethods;
@@ -288,13 +288,17 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// });
     /// ```
     fn get_item(&self, index: usize) -> PyResult<Bound<'py, PyAny>> {
+        // PyList_GetItemRef returns an error on negative index, so casting to signed is fine
+        // in the case where the index wraps.
+        let index = cast_signed(index);
         unsafe {
-            ffi::compat::PyList_GetItemRef(self.as_ptr(), index as Py_ssize_t)
-                .assume_owned_or_err(self.py())
+            ffi::compat::PyList_GetItemRef(self.as_ptr(), index).assume_owned_or_err(self.py())
         }
     }
 
     unsafe fn get_item_unchecked(&self, index: usize) -> Bound<'py, PyAny> {
+        // Caller has promised that index is in bounds so casting to signed will not wrap.
+        let index = cast_signed(index);
         cfg_select! {
             // SAFETY:
             // - thread is attached to the interpreter
@@ -302,8 +306,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
             // - caller has guaranteed index is in bounds
             // - PyLIST_GET_ITEM is known to always return a borrowed pointer
             not(Py_LIMITED_API) => unsafe {
-                ffi::PyList_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
-                    .assume_borrowed_unchecked(self.py())
+                ffi::PyList_GET_ITEM(self.as_ptr(), index).assume_borrowed_unchecked(self.py())
             }.to_owned(),
             // SAFETY:
             // - thread is attached to the interpreter
@@ -311,8 +314,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
             // - caller has guaranteed index is in bounds
             // - PyList_GetItemRef is known to return an owned pointer in these conditions
             Py_LIMITED_API => unsafe {
-                ffi::compat::PyList_GetItemRef(self.as_ptr(), index as Py_ssize_t)
-                    .assume_owned_unchecked(self.py())
+                ffi::compat::PyList_GetItemRef(self.as_ptr(), index).assume_owned_unchecked(self.py())
             }
         }
     }
@@ -323,9 +325,13 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
     /// `self.len()`.
     fn get_slice(&self, low: usize, high: usize) -> Bound<'py, PyList> {
         unsafe {
-            ffi::PyList_GetSlice(self.as_ptr(), get_ssize_index(low), get_ssize_index(high))
-                .assume_owned(self.py())
-                .cast_into_unchecked()
+            ffi::PyList_GetSlice(
+                self.as_ptr(),
+                saturating_cast_signed(low),
+                saturating_cast_signed(high),
+            )
+            .assume_owned(self.py())
+            .cast_into_unchecked()
         }
     }
 
@@ -339,7 +345,11 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         let py = self.py();
         let item = item.into_bound_py_any(py)?;
         err::error_on_negative(py, unsafe {
-            ffi::PyList_SetItem(self.as_ptr(), get_ssize_index(index), item.into_ptr())
+            ffi::PyList_SetItem(
+                self.as_ptr(),
+                saturating_cast_signed(index),
+                item.into_ptr(),
+            )
         })
     }
 
@@ -359,8 +369,8 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         err::error_on_negative(self.py(), unsafe {
             ffi::PyList_SetSlice(
                 self.as_ptr(),
-                get_ssize_index(low),
-                get_ssize_index(high),
+                saturating_cast_signed(low),
+                saturating_cast_signed(high),
                 seq.as_ptr(),
             )
         })
@@ -396,7 +406,7 @@ impl<'py> PyListMethods<'py> for Bound<'py, PyList> {
         let py = self.py();
         let item = item.into_pyobject_or_pyerr(py)?;
         err::error_on_negative(py, unsafe {
-            ffi::PyList_Insert(self.as_ptr(), get_ssize_index(index), item.as_ptr())
+            ffi::PyList_Insert(self.as_ptr(), saturating_cast_signed(index), item.as_ptr())
         })
     }
 
@@ -1222,7 +1232,7 @@ mod tests {
         Python::attach(|py| {
             let list = PyList::new(py, [1, 2, 3, 4]).unwrap();
             for (i, item) in list.iter().enumerate() {
-                assert_eq!((i + 1) as i32, item.extract::<i32>().unwrap());
+                assert_eq!((i + 1), item.extract::<usize>().unwrap());
             }
         });
     }

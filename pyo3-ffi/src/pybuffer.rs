@@ -81,13 +81,13 @@ extern_libpython! {
     ) -> c_int;
     pub fn PyObject_CopyData(dest: *mut PyObject, src: *mut PyObject) -> c_int;
     #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBuffer_IsContiguous")]
-    pub fn PyBuffer_IsContiguous(view: *const Py_buffer, fort: c_char) -> c_int;
+    pub fn PyBuffer_IsContiguous(view: *const Py_buffer, order: c_char) -> c_int;
     pub fn PyBuffer_FillContiguousStrides(
         ndims: c_int,
         shape: *mut Py_ssize_t,
         strides: *mut Py_ssize_t,
         itemsize: c_int,
-        fort: c_char,
+        order: c_char,
     );
     #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyBuffer_FillInfo")]
     pub fn PyBuffer_FillInfo(

@@ -1,6 +1,5 @@
 use core::ptr::NonNull;
 
-use crate::ffi::{PY_SSIZE_T_MAX, Py_ssize_t};
 use crate::platform::prelude::*;
 
 #[cfg(wip_feature_std)]
@@ -14,12 +13,6 @@ macro_rules! pyo3_exception {
 
         $crate::create_exception_type_object!(pyo3_runtime, $name, $base, Some($doc));
     };
-}
-
-/// Convert an usize index into a Py_ssize_t index, clamping overflow to
-/// PY_SSIZE_T_MAX.
-pub(crate) fn get_ssize_index(index: usize) -> Py_ssize_t {
-    index.min(PY_SSIZE_T_MAX as usize) as Py_ssize_t
 }
 
 // TODO: use Box::into_non_null when stabilized

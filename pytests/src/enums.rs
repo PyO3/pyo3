@@ -72,7 +72,9 @@ pub fn do_complex_stuff(thing: &ComplexEnum) -> ComplexEnum {
     match thing {
         ComplexEnum::Int { i } => ComplexEnum::Str { s: i.to_string() },
         ComplexEnum::Float { f } => ComplexEnum::Float { f: f * f },
-        ComplexEnum::Str { s } => ComplexEnum::Int { i: s.len() as i32 },
+        ComplexEnum::Str { s } => ComplexEnum::Int {
+            i: s.len().try_into().unwrap_or(i32::MAX),
+        },
         ComplexEnum::EmptyStruct {} => ComplexEnum::EmptyStruct {},
         ComplexEnum::MultiFieldStruct { a, b, c } => ComplexEnum::MultiFieldStruct {
             a: *a,

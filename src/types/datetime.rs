@@ -18,6 +18,7 @@ use crate::ffi::{
 };
 #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
 use crate::ffi::{Py_IsNone, PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO};
+use crate::internal::compat::u32_cast_signed;
 #[cfg(Py_LIMITED_API)]
 use crate::type_object::PyTypeInfo;
 #[cfg(Py_LIMITED_API)]
@@ -346,6 +347,13 @@ pyobject_native_type_core!(
 
 impl PyDateTime {
     /// Creates a new `datetime.datetime` object.
+    ///
+    /// Valid ranges for `year`, `month`, `day`, `hour`, `minute`, `second` and `microsecond` are the same
+    /// as in the Python standard library, see e.g.
+    /// [datetime.datetime.microsecond](https://docs.python.org/3/library/datetime.html#datetime.datetime.microsecond).
+    ///
+    /// `microsecond` values above `i32::MAX` (all of which are out of range)
+    /// will be observed as wrapped to negative in error messages.
     #[allow(clippy::too_many_arguments)]
     pub fn new<'py>(
         py: Python<'py>,
@@ -358,6 +366,10 @@ impl PyDateTime {
         microsecond: u32,
         tzinfo: Option<&Bound<'py, PyTzInfo>>,
     ) -> PyResult<Bound<'py, PyDateTime>> {
+        // Casting microsecond to signed here means that the limited API path also observes
+        // negative values for out-of-range microseconds for consistency.
+        let microsecond = u32_cast_signed(microsecond);
+
         #[cfg(not(Py_LIMITED_API))]
         {
             let api = ensure_datetime_api(py)?;
@@ -369,7 +381,7 @@ impl PyDateTime {
                     c_int::from(hour),
                     c_int::from(minute),
                     c_int::from(second),
-                    microsecond as c_int,
+                    microsecond,
                     opt_to_pyobj(tzinfo),
                     api.DateTimeType,
                 )
@@ -407,6 +419,10 @@ impl PyDateTime {
         tzinfo: Option<&Bound<'py, PyTzInfo>>,
         fold: bool,
     ) -> PyResult<Bound<'py, PyDateTime>> {
+        // Casting microsecond to signed here means that the limited API path also observes
+        // negative values for out-of-range microseconds for consistency.
+        let microsecond = u32_cast_signed(microsecond);
+
         #[cfg(not(Py_LIMITED_API))]
         {
             let api = ensure_datetime_api(py)?;
@@ -418,7 +434,7 @@ impl PyDateTime {
                     c_int::from(hour),
                     c_int::from(minute),
                     c_int::from(second),
-                    microsecond as c_int,
+                    microsecond,
                     opt_to_pyobj(tzinfo),
                     c_int::from(fold),
                     api.DateTimeType,
@@ -635,6 +651,13 @@ pyobject_native_type_core!(
 
 impl PyTime {
     /// Creates a new `datetime.time` object.
+    ///
+    /// Valid ranges for `hour`, `minute`, `second` and `microsecond` are the same
+    /// as in the Python standard library, see e.g.
+    /// [datetime.time.microsecond](https://docs.python.org/3/library/datetime.html#datetime.time.microsecond).
+    ///
+    /// `microsecond` values above `i32::MAX` (all of which are out of range)
+    /// will be observed as wrapped to negative in error messages.
     pub fn new<'py>(
         py: Python<'py>,
         hour: u8,
@@ -643,6 +666,10 @@ impl PyTime {
         microsecond: u32,
         tzinfo: Option<&Bound<'py, PyTzInfo>>,
     ) -> PyResult<Bound<'py, PyTime>> {
+        // Casting microsecond to signed here means that the limited API path also observes
+        // negative values for out-of-range microseconds for consistency.
+        let microsecond = u32_cast_signed(microsecond);
+
         #[cfg(not(Py_LIMITED_API))]
         {
             let api = ensure_datetime_api(py)?;
@@ -651,7 +678,7 @@ impl PyTime {
                     c_int::from(hour),
                     c_int::from(minute),
                     c_int::from(second),
-                    microsecond as c_int,
+                    microsecond,
                     opt_to_pyobj(tzinfo),
                     api.TimeType,
                 )
@@ -676,6 +703,10 @@ impl PyTime {
         tzinfo: Option<&Bound<'py, PyTzInfo>>,
         fold: bool,
     ) -> PyResult<Bound<'py, PyTime>> {
+        // Casting microsecond to signed here means that the limited API path also observes
+        // negative values for out-of-range microseconds for consistency.
+        let microsecond = u32_cast_signed(microsecond);
+
         #[cfg(not(Py_LIMITED_API))]
         {
             let api = ensure_datetime_api(py)?;
@@ -684,7 +715,7 @@ impl PyTime {
                     c_int::from(hour),
                     c_int::from(minute),
                     c_int::from(second),
-                    microsecond as c_int,
+                    microsecond,
                     opt_to_pyobj(tzinfo),
                     fold as c_int,
                     api.TimeType,

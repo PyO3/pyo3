@@ -10,6 +10,8 @@ use crate::types::any::PyAnyMethods;
 #[cfg(all(not(Py_LIMITED_API), any(not(any(PyPy, GraalPy)), feature = "macros")))]
 use crate::types::PyString;
 
+#[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
+use crate::internal::compat::cast_unsigned;
 #[cfg(not(Py_LIMITED_API))]
 use crate::{Bound, PyAny, types::PyDict};
 #[cfg(not(any(Py_3_12, Py_LIMITED_API, GraalPy)))]
@@ -205,7 +207,7 @@ fn ascii() {
 
             assert!(!PyUnicode_DATA(ptr).is_null());
 
-            assert_eq!(PyUnicode_GET_LENGTH(ptr), s.len().unwrap() as Py_ssize_t);
+            assert_eq!(cast_unsigned(PyUnicode_GET_LENGTH(ptr)), s.len().unwrap());
             #[cfg(not(Py_3_12))]
             assert_eq!(PyUnicode_IS_READY(ptr), 1);
 
@@ -248,8 +250,8 @@ fn ucs4() {
             assert!(!PyUnicode_DATA(ptr).is_null());
 
             assert_eq!(
-                PyUnicode_GET_LENGTH(ptr),
-                py_string.len().unwrap() as Py_ssize_t
+                cast_unsigned(PyUnicode_GET_LENGTH(ptr)),
+                py_string.len().unwrap()
             );
             #[cfg(not(Py_3_12))]
             assert_eq!(PyUnicode_IS_READY(ptr), 1);

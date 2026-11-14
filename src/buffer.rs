@@ -395,7 +395,7 @@ impl<T: Element> PyBuffer<T> {
     /// you can use `<T as buffer::Element>::is_compatible_format(buf.format())`.
     /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
     pub fn copy_to_slice(&self, py: Python<'_>, target: &mut [T]) -> PyResult<()> {
-        self._copy_to_slice(py, target, b'C')
+        self._copy_to_slice(py, target, ORDER_C)
     }
 
     /// Copies the buffer elements to the specified slice.
@@ -408,10 +408,10 @@ impl<T: Element> PyBuffer<T> {
     /// you can use `<T as buffer::Element>::is_compatible_format(buf.format())`.
     /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
     pub fn copy_to_fortran_slice(&self, py: Python<'_>, target: &mut [T]) -> PyResult<()> {
-        self._copy_to_slice(py, target, b'F')
+        self._copy_to_slice(py, target, ORDER_FORTRAN)
     }
 
-    fn _copy_to_slice(&self, py: Python<'_>, target: &mut [T], fort: u8) -> PyResult<()> {
+    fn _copy_to_slice(&self, py: Python<'_>, target: &mut [T], order: c_char) -> PyResult<()> {
         if mem::size_of_val(target) != self.len_bytes() {
             return Err(PyBufferError::new_err(format!(
                 "slice to copy to (of length {}) does not match buffer length of {}",
@@ -428,7 +428,7 @@ impl<T: Element> PyBuffer<T> {
                 #[cfg(not(Py_3_11))]
                 ptr::from_ref(self.raw()).cast_mut(),
                 self.raw().len,
-                fort as core::ffi::c_char,
+                order,
             )
         })
     }
@@ -438,7 +438,7 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// Fails if the buffer format is not compatible with type `T`.
     pub fn to_vec(&self, py: Python<'_>) -> PyResult<Vec<T>> {
-        self._to_vec(py, b'C')
+        self._to_vec(py, ORDER_C)
     }
 
     /// Copies the buffer elements to a newly allocated vector.
@@ -446,10 +446,10 @@ impl<T: Element> PyBuffer<T> {
     ///
     /// Fails if the buffer format is not compatible with type `T`.
     pub fn to_fortran_vec(&self, py: Python<'_>) -> PyResult<Vec<T>> {
-        self._to_vec(py, b'F')
+        self._to_vec(py, ORDER_FORTRAN)
     }
 
-    fn _to_vec(&self, py: Python<'_>, fort: u8) -> PyResult<Vec<T>> {
+    fn _to_vec(&self, py: Python<'_>, order: c_char) -> PyResult<Vec<T>> {
         let item_count = self.item_count();
         let mut vec: Vec<T> = Vec::with_capacity(item_count);
 
@@ -463,7 +463,7 @@ impl<T: Element> PyBuffer<T> {
                 #[cfg(not(Py_3_11))]
                 ptr::from_ref(self.raw()).cast_mut(),
                 self.raw().len,
-                fort as core::ffi::c_char,
+                order,
             )
         })?;
         // set vector length to mark the now-initialized space as usable
@@ -482,7 +482,7 @@ impl<T: Element> PyBuffer<T> {
     /// use `<T as buffer::Element>::is_compatible_format(buf.format())`.
     /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
     pub fn copy_from_slice(&self, py: Python<'_>, source: &[T]) -> PyResult<()> {
-        self._copy_from_slice(py, source, b'C')
+        self._copy_from_slice(py, source, ORDER_C)
     }
 
     /// Copies the specified slice into the buffer.
@@ -496,10 +496,10 @@ impl<T: Element> PyBuffer<T> {
     /// use `<T as buffer::Element>::is_compatible_format(buf.format())`.
     /// Alternatively, `match buffer::ElementType::from_format(buf.format())`.
     pub fn copy_from_fortran_slice(&self, py: Python<'_>, source: &[T]) -> PyResult<()> {
-        self._copy_from_slice(py, source, b'F')
+        self._copy_from_slice(py, source, ORDER_FORTRAN)
     }
 
-    fn _copy_from_slice(&self, py: Python<'_>, source: &[T], fort: u8) -> PyResult<()> {
+    fn _copy_from_slice(&self, py: Python<'_>, source: &[T], order: c_char) -> PyResult<()> {
         if self.readonly() {
             return Err(PyBufferError::new_err("cannot write to read-only buffer"));
         } else if mem::size_of_val(source) != self.len_bytes() {
@@ -525,11 +525,16 @@ impl<T: Element> PyBuffer<T> {
                     source.as_ptr().cast::<c_void>().cast_mut()
                 },
                 self.raw().len,
-                fort as core::ffi::c_char,
+                order,
             )
         })
     }
 }
+
+#[allow(clippy::cast_possible_wrap, reason = "false positive")]
+const ORDER_C: c_char = b'C' as c_char;
+#[allow(clippy::cast_possible_wrap, reason = "false positive")]
+const ORDER_FORTRAN: c_char = b'F' as c_char;
 
 impl<T> core::ops::Deref for PyBuffer<T> {
     type Target = PyUntypedBuffer;
@@ -753,13 +758,13 @@ impl PyUntypedBuffer {
     /// Gets whether the buffer is contiguous in C-style order (last index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_c_contiguous(&self) -> bool {
-        unsafe { ffi::PyBuffer_IsContiguous(self.raw(), b'C' as core::ffi::c_char) != 0 }
+        unsafe { ffi::PyBuffer_IsContiguous(self.raw(), ORDER_C) != 0 }
     }
 
     /// Gets whether the buffer is contiguous in Fortran-style order (first index varies fastest when visiting items in order of memory address).
     #[inline]
     pub fn is_fortran_contiguous(&self) -> bool {
-        unsafe { ffi::PyBuffer_IsContiguous(self.raw(), b'F' as core::ffi::c_char) != 0 }
+        unsafe { ffi::PyBuffer_IsContiguous(self.raw(), ORDER_FORTRAN) != 0 }
     }
 
     fn raw(&self) -> &ffi::Py_buffer {
@@ -1099,14 +1104,14 @@ impl<Flag: PyBufferRequestType> PyUntypedBufferView<Flag> {
     #[inline]
     pub fn is_c_contiguous(&self) -> bool {
         Flag::CONTIGUITY == PyBufferContiguity::C
-            || unsafe { ffi::PyBuffer_IsContiguous(&self.raw, b'C' as core::ffi::c_char) != 0 }
+            || unsafe { ffi::PyBuffer_IsContiguous(&self.raw, ORDER_C) } != 0
     }
 
     /// Gets whether the buffer is contiguous in Fortran-style order.
     #[inline]
     pub fn is_fortran_contiguous(&self) -> bool {
         Flag::CONTIGUITY == PyBufferContiguity::F
-            || unsafe { ffi::PyBuffer_IsContiguous(&self.raw, b'F' as core::ffi::c_char) != 0 }
+            || unsafe { ffi::PyBuffer_IsContiguous(&self.raw, ORDER_FORTRAN) } != 0
     }
 }
 

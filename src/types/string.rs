@@ -4,6 +4,7 @@
 use crate::exceptions::PyUnicodeDecodeError;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::Borrowed;
+use crate::internal::compat::cast_signed;
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::types::PyBytes;
@@ -15,7 +16,7 @@ use crate::{
     types::{PyType, PyTypeMethods},
 };
 use alloc::borrow::Cow;
-use core::ffi::CStr;
+use core::ffi::{CStr, c_char};
 use core::{fmt, str};
 
 /// Represents raw data backing a Python `str`.
@@ -180,8 +181,7 @@ impl PyString {
     ///
     /// Panics if out of memory.
     pub fn new<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
-        let ptr = s.as_ptr().cast();
-        let len = s.len() as ffi::Py_ssize_t;
+        let (ptr, len) = str_as_ffi_parts(s);
         unsafe {
             ffi::PyUnicode_FromStringAndSize(ptr, len)
                 .assume_owned(py)
@@ -195,7 +195,7 @@ impl PyString {
     /// Returns [PyUnicodeDecodeError] if the slice is not a valid UTF-8 string.
     pub fn from_bytes<'py>(py: Python<'py>, s: &[u8]) -> PyResult<Bound<'py, PyString>> {
         let ptr = s.as_ptr().cast();
-        let len = s.len() as ffi::Py_ssize_t;
+        let len = cast_signed(s.len());
         unsafe {
             ffi::PyUnicode_FromStringAndSize(ptr, len)
                 .assume_owned_or_err(py)
@@ -212,8 +212,7 @@ impl PyString {
     ///
     /// Panics if out of memory.
     pub fn intern<'py>(py: Python<'py>, s: &str) -> Bound<'py, PyString> {
-        let ptr = s.as_ptr().cast();
-        let len = s.len() as ffi::Py_ssize_t;
+        let (ptr, len) = str_as_ffi_parts(s);
         unsafe {
             let mut ob = ffi::PyUnicode_FromStringAndSize(ptr, len);
             if !ob.is_null() {
@@ -570,18 +569,14 @@ impl PartialEq<str> for &'_ Bound<'_, PyString> {
 impl PartialEq<str> for Borrowed<'_, '_, PyString> {
     #[inline]
     fn eq(&self, other: &str) -> bool {
-        #[cfg(not(Py_3_13))]
-        {
-            self.to_cow().is_ok_and(|s| s == other)
-        }
-
-        #[cfg(Py_3_13)]
-        unsafe {
-            ffi::PyUnicode_EqualToUTF8AndSize(
-                self.as_ptr(),
-                other.as_ptr().cast(),
-                other.len() as _,
-            ) == 1
+        cfg_select! {
+            Py_3_13 => {
+                let (ptr, len) = str_as_ffi_parts(other);
+                unsafe { ffi::PyUnicode_EqualToUTF8AndSize(self.as_ptr(), ptr, len) == 1 }
+            }
+            not(Py_3_13) => {
+                self.to_cow().is_ok_and(|s| s == other)
+            }
         }
     }
 }
@@ -614,6 +609,15 @@ impl PartialEq<Borrowed<'_, '_, PyString>> for &'_ str {
     fn eq(&self, other: &Borrowed<'_, '_, PyString>) -> bool {
         other == self
     }
+}
+
+/// Splits a Rust UTF-8 string slice into a pointer and length suitable for passing to Python C APIs.
+#[inline]
+pub(crate) fn str_as_ffi_parts(s: &str) -> (*const c_char, ffi::Py_ssize_t) {
+    let ptr = s.as_ptr().cast();
+    // Valid allocations never exceed isize::MAX, so this cast will not wrap.
+    let len = cast_signed(s.len());
+    (ptr, len)
 }
 
 #[cfg(test)]

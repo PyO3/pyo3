@@ -2,6 +2,7 @@
 
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
+use crate::internal::compat::cast_signed;
 #[allow(unused_imports, reason = "used to build docs")]
 use crate::platform::prelude::*;
 use crate::{Py, PyAny, PyResult, Python, ffi};
@@ -80,22 +81,22 @@ impl PyBytes {
     /// The bytestring is initialized by copying the data from the `&[u8]`.
     ///
     /// Panics if out of memory.
+    #[inline]
     pub fn new<'p>(py: Python<'p>, s: &[u8]) -> Bound<'p, PyBytes> {
-        let ptr = s.as_ptr().cast();
-        let len = s.len() as ffi::Py_ssize_t;
-        unsafe {
-            ffi::PyBytes_FromStringAndSize(ptr, len)
-                .assume_owned(py)
-                .cast_into_unchecked()
-        }
+        // SAFETY: `s` is a valid pointer and length for a byte slice for this function call
+        unsafe { Self::from_ptr(py, s.as_ptr(), s.len()) }
     }
 
     /// Creates a new Python `bytes` object with an `init` closure to write its contents.
+    ///
     /// Before calling `init` the bytes' contents are zero-initialised.
     /// * If Python raises a MemoryError on the allocation, `new_with` will return
     ///   it inside `Err`.
     /// * If `init` returns `Err(e)`, `new_with` will return `Err(e)`.
     /// * If `init` returns `Ok(())`, `new_with` will return `Ok(&PyBytes)`.
+    ///
+    /// Returns an error for values of `len` greater than `isize::MAX` (they will be
+    /// interpreted as a negative length).
     ///
     /// # Examples
     ///
@@ -120,7 +121,9 @@ impl PyBytes {
         F: FnOnce(&mut [u8]) -> PyResult<()>,
     {
         unsafe {
-            let pyptr = ffi::PyBytes_FromStringAndSize(core::ptr::null(), len as ffi::Py_ssize_t);
+            // Signed cast is ok: the interpreter will raise an error if the length exceeds
+            // isize::MAX and wraps.
+            let pyptr = ffi::PyBytes_FromStringAndSize(core::ptr::null(), cast_signed(len));
             // Check for an allocation error and return it
             let pybytes = pyptr.assume_owned_or_err(py)?.cast_into_unchecked();
             let buffer: *mut u8 = ffi::PyBytes_AsString(pyptr).cast();
@@ -183,9 +186,11 @@ impl PyBytes {
     /// leading pointer of a slice of length `len`. [As with
     /// `core::slice::from_raw_parts`, this is
     /// unsafe](https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html#safety).
+    ///
+    /// Similar to `slice::from_raw_parts`, the maximum valid length is `isize::MAX`.
     pub unsafe fn from_ptr(py: Python<'_>, ptr: *const u8, len: usize) -> Bound<'_, PyBytes> {
         unsafe {
-            ffi::PyBytes_FromStringAndSize(ptr.cast(), len as isize)
+            ffi::PyBytes_FromStringAndSize(ptr.cast(), cast_signed(len))
                 .assume_owned(py)
                 .cast_into_unchecked()
         }
@@ -424,6 +429,20 @@ mod tests {
                     .err()
                     .unwrap()
                     .is_instance_of::<PyValueError>(py)
+            );
+        });
+    }
+
+    #[test]
+    fn test_bytes_new_with_invalid_length() {
+        Python::attach(|py| {
+            let py_bytes_result = PyBytes::new_with(py, isize::MAX as usize + 1, |_| Ok(()));
+            assert!(py_bytes_result.is_err());
+            assert!(
+                py_bytes_result
+                    .err()
+                    .unwrap()
+                    .is_instance_of::<crate::exceptions::PySystemError>(py)
             );
         });
     }

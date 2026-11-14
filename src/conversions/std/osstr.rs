@@ -46,14 +46,15 @@ impl<'py> IntoPyObject<'py> for &OsStr {
 
         #[cfg(any(unix, target_os = "emscripten"))]
         {
+            use crate::conversions::std::slice::slice_as_ffi_parts;
+
             let bytes = self.as_bytes();
-            let ptr = bytes.as_ptr().cast();
-            let len = bytes.len() as ffi::Py_ssize_t;
+            let (ptr, len) = slice_as_ffi_parts(bytes);
             // SAFETY: passing valid pointer to python API
             unsafe {
                 // DecodeFSDefault automatically chooses an appropriate decoding mechanism to
                 // parse os strings losslessly (i.e. surrogateescape most of the time)
-                Ok(ffi::PyUnicode_DecodeFSDefaultAndSize(ptr, len)
+                Ok(ffi::PyUnicode_DecodeFSDefaultAndSize(ptr.cast(), len)
                     .assume_owned(py)
                     .cast_into_unchecked())
             }

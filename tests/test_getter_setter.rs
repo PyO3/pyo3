@@ -59,7 +59,7 @@ impl ClassWithProperties {
 }
 
 fn extract_len(any: &Bound<'_, PyAny>) -> PyResult<i32> {
-    any.len().map(|len| len as i32)
+    Ok(any.len()?.try_into()?)
 }
 
 #[test]
