@@ -244,6 +244,8 @@ mod inner {
                 .call((), Some(&kwargs))?;
             let list = catch_warnings.call_method0("__enter__")?.cast_into()?;
             let _guard = Self { catch_warnings };
+            // override default filter to avoid e.g. `PYTHONWARNINGS=error` changing behavior
+            warnings.call_method1("simplefilter", ("always",))?;
             f(&list)
         }
     }
