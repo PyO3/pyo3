@@ -442,6 +442,7 @@ mod tests {
 
         let interpreter_config =
             InterpreterConfigBuilder::new(PythonImplementation::CPython, PythonVersion::PY313)
+                .soabi_filename(".cpython-313-x86_64-linux-gnu.so".to_owned())
                 .finalize()
                 .unwrap();
         let mut buf = Vec::new();
