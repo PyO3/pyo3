@@ -76,7 +76,7 @@ fn main() -> PyResult<()> {
     // Log some messages from Python
     Python::attach(|py| {
         py.run(
-            "
+            c"
 import logging
 logging.error('Something bad happened')
 ",
