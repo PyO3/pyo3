@@ -776,9 +776,23 @@ mod rwlock_ext_sealed {
 mod mutex_trait_sealed {
     use core::ops::Deref;
 
-    pub trait Sealed<'a, T: ?Sized + 'a> {}
+    // Prevent callers outside PyO3 from invoking the internal poison hook.
+    #[cfg(all(Py_3_14, Py_GIL_DISABLED, wip_feature_std))]
+    pub struct Token;
+
+    pub trait Sealed<'a, T: ?Sized + 'a> {
+        #[cfg(all(Py_3_14, Py_GIL_DISABLED, wip_feature_std))]
+        fn poison_guard(&'a self, _: Token) -> Option<super::mutex::PoisonGuard<'a>> {
+            None
+        }
+    }
     #[cfg(wip_feature_std)]
-    impl<'a, T: ?Sized + 'a> Sealed<'a, T> for super::mutex::PyMutex<T> {}
+    impl<'a, T: ?Sized + 'a> Sealed<'a, T> for super::mutex::PyMutex<T> {
+        #[cfg(all(Py_3_14, Py_GIL_DISABLED))]
+        fn poison_guard(&'a self, _: Token) -> Option<super::mutex::PoisonGuard<'a>> {
+            Some(self.poison_guard())
+        }
+    }
     impl<'a, T: ?Sized + 'a> Sealed<'a, T> for super::nonpoison::PyMutex<T> {}
     impl<'a, T: 'a, U: 'a, D> Sealed<'a, T> for D
     where
@@ -786,6 +800,10 @@ mod mutex_trait_sealed {
         U: ?Sized + super::PyMutexTrait<'a, T>,
         D: ?Sized + Deref<Target = U>,
     {
+        #[cfg(all(Py_3_14, Py_GIL_DISABLED, wip_feature_std))]
+        fn poison_guard(&'a self, token: Token) -> Option<super::mutex::PoisonGuard<'a>> {
+            Sealed::poison_guard(self.deref(), token)
+        }
     }
 }
 
