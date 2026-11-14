@@ -342,7 +342,31 @@ pub fn build_py_class(
         }
     }
 
-    impl_class(&class.ident, &args, doc, field_options, methods_type, ctx)
+    let packed = is_packed(&class.attrs);
+
+    impl_class(
+        &class.ident,
+        &args,
+        doc,
+        field_options,
+        packed,
+        methods_type,
+        ctx,
+    )
+}
+
+/// Whether the attributes contain a `#[repr(packed)]` or `#[repr(packed(N))]`, in which case the
+/// fields may not be aligned and must not be read through references.
+fn is_packed(attrs: &[syn::Attribute]) -> bool {
+    attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("repr"))
+        .filter_map(|attr| attr.meta.require_list().ok())
+        .any(|list| {
+            list.tokens.clone().into_iter().any(
+                |token| matches!(token, proc_macro2::TokenTree::Ident(ident) if ident == "packed"),
+            )
+        })
 }
 
 enum Annotated<X, Y> {
@@ -461,6 +485,7 @@ fn impl_class(
     args: &PyClassArgs,
     doc: Option<PythonDoc>,
     field_options: Vec<(&syn::Field, FieldPyO3Options)>,
+    packed: bool,
     methods_type: PyClassMethodsType,
     ctx: &Ctx,
 ) -> Result<TokenStream> {
@@ -489,6 +514,7 @@ fn impl_class(
         args.options.rename_all.as_ref(),
         args.options.frozen,
         field_options,
+        packed,
         ctx,
     )?;
 
@@ -2177,6 +2203,7 @@ fn descriptors_to_items(
     rename_all: Option<&RenameAllAttribute>,
     frozen: Option<frozen>,
     field_options: Vec<(&syn::Field, FieldPyO3Options)>,
+    packed: bool,
     ctx: &Ctx,
 ) -> Result<Vec<MethodAndMethodDef>> {
     let ty = syn::parse_quote!(#cls);
@@ -2201,6 +2228,7 @@ fn descriptors_to_items(
                     field,
                     python_name: options.name.as_ref(),
                     renaming_rule,
+                    unaligned: packed,
                 },
                 ctx,
             )?;
@@ -2237,6 +2265,7 @@ fn descriptors_to_items(
                     field,
                     python_name: options.name.as_ref(),
                     renaming_rule,
+                    unaligned: packed,
                 },
                 ctx,
             )?;
