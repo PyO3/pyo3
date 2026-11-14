@@ -8,7 +8,7 @@
 | `eq` | Implements `__eq__` using the `PartialEq` implementation of the underlying Rust datatype. |
 | `eq_int` | Implements `__eq__` using `__int__` for simple enums. |
 | <span style="white-space: pre">`extends = BaseType`</span>  | Use a custom baseclass. Defaults to [`PyAny`][params-1] |
-| <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][params-2] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you.  |
+| <span style="white-space: pre">`freelist = N`</span> |  Implements a [free list][params-2] of size N. This can improve performance for types that are often created and deleted in quick succession. Profile your code to see whether `freelist` is right for you. Allocation caching is disabled in Windows `abi3` builds with a minimum Python version of 3.9, even when running on newer Python versions.  |
 | `from_py_object` | Implement `FromPyObject` for this pyclass. Requires the pyclass to be `Clone`. |
 | <span style="white-space: pre">`frozen`</span> | Declares that your pyclass is immutable. It removes the borrow checker overhead when retrieving a shared reference to the Rust struct, but disables the ability to get a mutable reference. |
 | `generic` | Implements runtime parametrization for the class following [PEP 560](https://peps.python.org/pep-0560/). |
