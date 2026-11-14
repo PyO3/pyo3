@@ -143,10 +143,14 @@ fn dunder_all_stubs(module: &Module, imports: &Imports) -> Option<String> {
         // The introspection data carries an explicit `__all__`, it is more accurate than ours
         return None;
     }
-    let member_count = module.attributes.len()
-        + module.classes.len()
-        + module.functions.len()
-        + module.modules.len();
+    // `@typing.type_check_only` classes only exist in the stubs, so they are not in it at runtime
+    let classes = module
+        .classes
+        .iter()
+        .filter(|c| !is_type_check_only(c))
+        .collect::<Vec<_>>();
+    let member_count =
+        module.attributes.len() + classes.len() + module.functions.len() + module.modules.len();
     if member_count == 0 {
         // Nothing was ever added to the module, so it has no `__all__` at runtime either
         return None;
@@ -160,7 +164,7 @@ fn dunder_all_stubs(module: &Module, imports: &Imports) -> Option<String> {
             .attributes
             .iter()
             .map(|a| &a.name)
-            .chain(module.classes.iter().map(|c| &c.name))
+            .chain(classes.iter().map(|c| &c.name))
             .chain(module.functions.iter().map(|f| &f.name))
             .chain(module.modules.iter().map(|m| &m.name))
             .map(|name| Expr::Constant {
@@ -171,6 +175,17 @@ fn dunder_all_stubs(module: &Module, imports: &Imports) -> Option<String> {
     let mut buffer = "__all__ = ".to_string();
     imports.serialize_expr(&Expr::List { elts }, &mut buffer);
     Some(buffer)
+}
+
+fn is_type_check_only(class: &Class) -> bool {
+    class.decorators.iter().any(|decorator| {
+        matches!(
+            decorator,
+            Expr::Attribute { value, attr }
+                if attr == "type_check_only"
+                    && matches!(&**value, Expr::Name { id } if id == "typing")
+        )
+    })
 }
 
 fn class_stubs(class: &Class, imports: &Imports) -> String {
@@ -1122,6 +1137,39 @@ mod tests {
         );
         // Nothing was added to an empty module, so it has no `__all__` at runtime either
         assert_eq!(module_stubs(&empty_module("bar"), &["foo"]), "");
+    }
+
+    /// A `@typing.type_check_only` class only exists in the stubs, so it is not exported at runtime
+    #[test]
+    fn test_dunder_all_skips_type_check_only_classes() {
+        let protocol = Class {
+            name: "Proto".into(),
+            bases: Vec::new(),
+            methods: Vec::new(),
+            attributes: Vec::new(),
+            decorators: vec![Expr::Attribute {
+                value: Box::new(Expr::Name {
+                    id: "typing".into(),
+                }),
+                attr: "type_check_only".into(),
+            }],
+            inner_classes: Vec::new(),
+            docstring: None,
+        };
+        let mut module = populated_module();
+        module.classes.insert(0, protocol.clone());
+        assert!(
+            module_stubs(&module, &["foo"])
+                .contains("__all__ = [\"CONST\", \"Zulu\", \"func\", \"sub\"]\n")
+        );
+        let module = Module {
+            classes: vec![protocol],
+            ..empty_module("bar")
+        };
+        assert_eq!(
+            module_stubs(&module, &["foo"]),
+            "from typing import type_check_only\n\n@type_check_only\nclass Proto: ...\n"
+        );
     }
 
     /// A `#[pymodule_init]` that is handed the module can add anything to it, so the module is

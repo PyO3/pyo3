@@ -13,7 +13,7 @@ use goblin::pe::PE;
 use serde::Deserialize;
 use std::borrow::Cow;
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 use std::{fs, str};
 
@@ -27,53 +27,294 @@ pub fn introspect_cdylib(library_path: impl AsRef<Path>, main_module_name: &str)
 
 /// Parses the introspection chunks found in the binary
 fn parse_chunks(chunks: &[Chunk], main_module_name: &str) -> Result<Module> {
-    let mut chunks_by_id = HashMap::<&str, &Chunk>::new();
-    let mut chunks_by_parent = HashMap::<&str, Vec<&Chunk>>::new();
-    for chunk in chunks {
-        let (id, parent) = match chunk {
-            Chunk::Module { id, .. } => (Some(id.as_str()), None),
-            Chunk::Class { id, parent, .. } => (Some(id.as_str()), parent.as_deref()),
-            Chunk::Function { id, parent, .. } | Chunk::Attribute { id, parent, .. } => {
-                (id.as_deref(), parent.as_deref())
-            }
-        };
-        if let Some(id) = id {
-            chunks_by_id.insert(id, chunk);
-        }
-        if let Some(parent) = parent {
-            chunks_by_parent.entry(parent).or_default().push(chunk);
-        }
-    }
+    let (mut chunks_by_id, mut chunks_by_parent) = index_chunks(chunks);
     // We look for the root chunk
+    let Some(root) = chunks
+        .iter()
+        .find(|chunk| matches!(chunk, Chunk::Module { name, .. } if name == main_module_name))
+    else {
+        bail!("No module named {main_module_name} found")
+    };
+    // Protocols become plain classes of modules, with the same id to keep their body
+    let protocols = place_protocols(root, &chunks_by_id, &chunks_by_parent)?;
+    for class in &protocols {
+        index_chunk(class, &mut chunks_by_id, &mut chunks_by_parent);
+    }
+    let Chunk::Module {
+        id,
+        name,
+        members,
+        doc,
+        incomplete,
+    } = root
+    else {
+        unreachable!("the root is a module")
+    };
+    let type_hint_for_annotation_id =
+        introspection_id_to_type_hint_for_root_module(root, &chunks_by_id, &chunks_by_parent);
+    convert_module(
+        id,
+        name,
+        members,
+        *incomplete,
+        doc.as_deref(),
+        &chunks_by_id,
+        &chunks_by_parent,
+        &type_hint_for_annotation_id,
+    )
+}
+
+type ChunksById<'a> = HashMap<&'a str, &'a Chunk>;
+type ChunksByParent<'a> = HashMap<&'a str, Vec<&'a Chunk>>;
+
+fn index_chunks<'a>(
+    chunks: impl IntoIterator<Item = &'a Chunk>,
+) -> (ChunksById<'a>, ChunksByParent<'a>) {
+    let mut chunks_by_id = HashMap::new();
+    let mut chunks_by_parent = HashMap::new();
     for chunk in chunks {
-        if let Chunk::Module {
-            id,
-            name,
-            members,
-            doc,
-            incomplete,
-        } = chunk
+        index_chunk(chunk, &mut chunks_by_id, &mut chunks_by_parent);
+    }
+    (chunks_by_id, chunks_by_parent)
+}
+
+fn index_chunk<'a>(
+    chunk: &'a Chunk,
+    chunks_by_id: &mut ChunksById<'a>,
+    chunks_by_parent: &mut ChunksByParent<'a>,
+) {
+    let (id, parent) = match chunk {
+        Chunk::Module { id, .. } => (Some(id.as_str()), None),
+        Chunk::Protocol { id, body, .. } => {
+            // The body is inside the protocol chunk, so it doesn't set its parent
+            chunks_by_parent.entry(id).or_default().extend(body);
+            for member in body {
+                if let Some(member_id) = chunk_id(member) {
+                    chunks_by_id.insert(member_id, member);
+                }
+            }
+            (Some(id.as_str()), None)
+        }
+        Chunk::Class { id, parent, .. } => (Some(id.as_str()), parent.as_deref()),
+        Chunk::Function { id, parent, .. } | Chunk::Attribute { id, parent, .. } => {
+            (id.as_deref(), parent.as_deref())
+        }
+    };
+    if let Some(id) = id {
+        chunks_by_id.insert(id, chunk);
+    }
+    if let Some(parent) = parent {
+        chunks_by_parent.entry(parent).or_default().push(chunk);
+    }
+}
+
+/// Turns the protocols into classes of the modules.
+///
+/// A protocol only exists in the stubs and may be declared by a library crate that cannot know
+/// which modules use it.
+///
+/// - It is public if a module exports it (`#[pymodule_export] use ...`): it is declared in that
+///   module under its own name, even if no annotation refers to it.
+/// - Otherwise it is private and only declared if an annotation refers to it, as `_Name` in the
+///   deepest module containing all the modules that use it.
+///
+/// A name clash with another member of the module is an error.
+fn place_protocols(
+    root: &Chunk,
+    chunks_by_id: &ChunksById<'_>,
+    chunks_by_parent: &ChunksByParent<'_>,
+) -> Result<Vec<Chunk>> {
+    // For each private protocol, the path of module ids from the root to where it is placed
+    let mut private_paths = BTreeMap::<&str, Vec<&str>>::new();
+    // For each exported protocol, the module exporting it
+    let mut exports = BTreeMap::<&str, &str>::new();
+    let mut module_names = HashMap::<&str, HashSet<String>>::new();
+    let mut modules_to_visit = vec![(root, Vec::new())];
+    while let Some((module, mut path)) = modules_to_visit.pop() {
+        let Chunk::Module { id, members, .. } = module else {
+            unreachable!("only modules are visited")
+        };
+        path.push(id.as_str());
+        let names = module_names.entry(id).or_default();
+        let mut to_visit = Vec::new();
+        for member in chunks_by_parent
+            .get(id.as_str())
+            .into_iter()
+            .flatten()
+            .chain(
+                members
+                    .iter()
+                    .filter_map(|id| chunks_by_id.get(id.as_str())),
+            )
+            .copied()
         {
-            if name == main_module_name {
-                let type_hint_for_annotation_id = introspection_id_to_type_hint_for_root_module(
-                    chunk,
-                    &chunks_by_id,
-                    &chunks_by_parent,
-                );
-                return convert_module(
-                    id,
-                    name,
-                    members,
-                    *incomplete,
-                    doc.as_deref(),
-                    &chunks_by_id,
-                    &chunks_by_parent,
-                    &type_hint_for_annotation_id,
-                );
+            match member {
+                Chunk::Protocol { id: protocol, .. } => {
+                    if let Some(other) = exports.insert(protocol, id) {
+                        let (first, second) = (other.min(id), other.max(id));
+                        bail!(
+                            "Protocol {protocol} is exported by both module {first} and {second}"
+                        );
+                    }
+                    // Its body is used by the module
+                    to_visit.push(member);
+                }
+                Chunk::Module { .. } => {
+                    names.insert(chunk_name(member).into());
+                    modules_to_visit.push((member, path.clone()));
+                }
+                _ => {
+                    names.insert(chunk_name(member).into());
+                    to_visit.push(member);
+                }
             }
         }
+        // The protocols used by the module, including by the protocols it uses
+        let mut used = HashSet::new();
+        while let Some(chunk) = to_visit.pop() {
+            to_visit.extend(
+                chunk_id(chunk)
+                    .and_then(|id| chunks_by_parent.get(id))
+                    .into_iter()
+                    .flatten(),
+            );
+            for id in referenced_ids(chunk) {
+                if let Some(&protocol @ Chunk::Protocol { .. }) = chunks_by_id.get(id) {
+                    if used.insert(id) {
+                        to_visit.push(protocol);
+                    }
+                }
+            }
+        }
+        for id in used {
+            private_paths
+                .entry(id)
+                .and_modify(|placement| {
+                    let common = placement
+                        .iter()
+                        .zip(&path)
+                        .take_while(|(l, r)| l == r)
+                        .count();
+                    placement.truncate(common);
+                })
+                .or_insert_with(|| path.clone());
+        }
     }
-    bail!("No module named {main_module_name} found")
+
+    let typing = |attr: &str| ChunkExpr::Attribute {
+        value: Box::new(ChunkExpr::Name {
+            id: "typing".into(),
+        }),
+        attr: attr.into(),
+    };
+    let mut place = |id: &str, name: String, module_id: &str, is_member: bool| {
+        ensure!(
+            module_names
+                .get_mut(module_id)
+                .expect("the module is visited")
+                .insert(name.clone()),
+            "Protocol {id} can't be added to module {module_id} as {name}, which is already a member"
+        );
+        let Chunk::Protocol { doc, .. } = chunks_by_id[id] else {
+            unreachable!("only protocols are placed")
+        };
+        Ok(Chunk::Class {
+            id: id.into(),
+            name,
+            bases: vec![typing("Protocol")],
+            // It is not defined at runtime
+            decorators: vec![typing("type_check_only")],
+            // A module member is already found through the module
+            parent: (!is_member).then(|| module_id.into()),
+            doc: doc.clone(),
+        })
+    };
+    let mut classes = Vec::new();
+    for (id, module_id) in exports {
+        private_paths.remove(id);
+        classes.push(place(
+            id,
+            chunk_name(chunks_by_id[id]).into(),
+            module_id,
+            true,
+        )?);
+    }
+    for (id, path) in private_paths {
+        let module_id = path.last().expect("the root module is always in the path");
+        let name = format!("_{}", chunk_name(chunks_by_id[id]));
+        classes.push(place(id, name, module_id, false)?);
+    }
+    Ok(classes)
+}
+
+fn chunk_id(chunk: &Chunk) -> Option<&str> {
+    match chunk {
+        Chunk::Module { id, .. } | Chunk::Class { id, .. } | Chunk::Protocol { id, .. } => Some(id),
+        Chunk::Function { id, .. } | Chunk::Attribute { id, .. } => id.as_deref(),
+    }
+}
+
+fn chunk_name(chunk: &Chunk) -> &str {
+    match chunk {
+        Chunk::Module { name, .. }
+        | Chunk::Class { name, .. }
+        | Chunk::Protocol { name, .. }
+        | Chunk::Function { name, .. }
+        | Chunk::Attribute { name, .. } => name,
+    }
+}
+
+/// The introspection ids the expressions of a chunk refer to
+fn referenced_ids(chunk: &Chunk) -> Vec<&str> {
+    fn visit<'a>(expr: &'a ChunkExpr, output: &mut Vec<&'a str>) {
+        match expr {
+            ChunkExpr::Id { id } => output.push(id),
+            ChunkExpr::Attribute { value, .. } => visit(value, output),
+            ChunkExpr::BinOp { left, right, .. }
+            | ChunkExpr::Subscript {
+                value: left,
+                slice: right,
+            } => {
+                visit(left, output);
+                visit(right, output);
+            }
+            ChunkExpr::Tuple { elts } | ChunkExpr::List { elts } => {
+                elts.iter().for_each(|e| visit(e, output))
+            }
+            ChunkExpr::Name { .. } | ChunkExpr::Constant { .. } => (),
+        }
+    }
+
+    let exprs: Vec<&ChunkExpr> = match chunk {
+        Chunk::Module { .. } | Chunk::Protocol { .. } => Vec::new(),
+        Chunk::Class {
+            bases, decorators, ..
+        } => bases.iter().chain(decorators).collect(),
+        Chunk::Function {
+            arguments,
+            decorators,
+            returns,
+            ..
+        } => arguments
+            .posonlyargs
+            .iter()
+            .chain(&arguments.args)
+            .chain(&arguments.vararg)
+            .chain(&arguments.kwonlyargs)
+            .chain(&arguments.kwarg)
+            .flat_map(|a| a.annotation.iter().chain(&a.default))
+            .chain(decorators)
+            .chain(returns)
+            .collect(),
+        Chunk::Attribute {
+            value, annotation, ..
+        } => value.iter().chain(annotation).collect(),
+    };
+    let mut output = Vec::new();
+    for expr in exprs {
+        visit(expr, &mut output);
+    }
+    output
 }
 
 #[expect(clippy::too_many_arguments)]
@@ -200,6 +441,9 @@ fn convert_members<'a>(
                 doc.as_deref(),
                 type_hint_for_annotation_id,
             )),
+            Chunk::Protocol { id, .. } => {
+                bail!("Protocol {id} cannot be the member of a module or a class")
+            }
         }
     }
     // We sort elements to get a stable output
@@ -754,6 +998,16 @@ enum Chunk {
         #[serde(default)]
         doc: Option<String>,
     },
+    /// A `typing.Protocol` that only exists in the stubs, placed by [`place_protocols`]
+    Protocol {
+        id: String,
+        name: String,
+        /// The members of the class, e.g. methods, like `ast.ClassDef.body`
+        #[serde(default)]
+        body: Vec<Chunk>,
+        #[serde(default)]
+        doc: Option<String>,
+    },
     Function {
         #[serde(default)]
         id: Option<String>,
@@ -851,4 +1105,125 @@ pub enum ChunkConstant {
 #[serde(rename_all = "lowercase")]
 pub enum ChunkOperator {
     BitOr,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A function `name` with an argument annotated with the class `annotation_id`
+    fn function(id: &str, parent: Option<&str>, annotation_id: &str) -> String {
+        let parent = parent.map_or(String::new(), |p| format!(r#""parent": "{p}","#));
+        format!(
+            r#"{{"type": "function", "id": "{id}", "name": "{id}", {parent} "arguments": {{"args": [{{"name": "a", "annotation": {{"type": "id", "id": "{annotation_id}"}}}}]}}}}"#
+        )
+    }
+
+    fn class_names(module: &Module) -> Vec<&str> {
+        module.classes.iter().map(|c| c.name.as_str()).collect()
+    }
+
+    fn parse(chunks: &[&str]) -> Result<Module> {
+        let chunks = chunks
+            .iter()
+            .map(|chunk| serde_json::from_str(chunk).unwrap())
+            .collect::<Vec<_>>();
+        parse_chunks(&chunks, "m")
+    }
+
+    fn attribute(module: &str, attr: &str) -> Expr {
+        Expr::Attribute {
+            value: Box::new(Expr::Name { id: module.into() }),
+            attr: attr.into(),
+        }
+    }
+
+    #[test]
+    fn private_protocols_are_placed_where_they_are_used() {
+        let module = parse(&[
+            r#"{"type": "module", "id": "m", "name": "m", "members": ["a", "b"]}"#,
+            r#"{"type": "module", "id": "a", "name": "a", "members": ["fa"]}"#,
+            r#"{"type": "module", "id": "b", "name": "b", "members": ["fb"]}"#,
+            &function("fa", None, "lib::OnlyA"),
+            &function("fb", None, "lib::Shared"),
+            // Also used by `a`, so it goes to the common parent `m`
+            &function("ga", Some("a"), "lib::Shared"),
+            // Only used by `lib::OnlyA`, so it goes where `lib::OnlyA` is used
+            &format!(
+                r#"{{"type": "protocol", "id": "lib::OnlyA", "name": "OnlyA", "body": [{}]}}"#,
+                function("method", None, "lib::Nested")
+            ),
+            r#"{"type": "protocol", "id": "lib::Shared", "name": "Shared"}"#,
+            r#"{"type": "protocol", "id": "lib::Nested", "name": "Nested"}"#,
+            r#"{"type": "protocol", "id": "lib::Unused", "name": "Unused"}"#,
+        ])
+        .unwrap();
+        assert_eq!(class_names(&module), ["_Shared"]);
+        let [a, b] = &module.modules[..] else {
+            panic!("expected two submodules")
+        };
+        assert_eq!(class_names(a), ["_Nested", "_OnlyA"]);
+        assert_eq!(class_names(b), [] as [&str; 0]);
+        let protocol = &a.classes[1];
+        assert_eq!(protocol.methods[0].name, "method");
+        assert_eq!(protocol.bases, [attribute("typing", "Protocol")]);
+        assert_eq!(
+            protocol.decorators,
+            [attribute("typing", "type_check_only")]
+        );
+        assert_eq!(
+            b.functions[0].arguments.arguments[0].annotation,
+            Some(attribute("m", "_Shared"))
+        );
+    }
+
+    #[test]
+    fn exported_protocols_are_public() {
+        let module = parse(&[
+            r#"{"type": "module", "id": "m", "name": "m", "members": ["a", "lib::Used"]}"#,
+            r#"{"type": "module", "id": "a", "name": "a", "members": ["fa", "lib::Unused"]}"#,
+            &function("fa", None, "lib::Used"),
+            r#"{"type": "protocol", "id": "lib::Used", "name": "Used"}"#,
+            // Exported, so declared even if no annotation refers to it
+            r#"{"type": "protocol", "id": "lib::Unused", "name": "Unused"}"#,
+        ])
+        .unwrap();
+        assert_eq!(class_names(&module), ["Used"]);
+        assert_eq!(class_names(&module.modules[0]), ["Unused"]);
+        assert_eq!(
+            module.modules[0].functions[0].arguments.arguments[0].annotation,
+            Some(attribute("m", "Used"))
+        );
+    }
+
+    #[test]
+    fn invalid_protocol_placements_are_errors() {
+        let error = |chunks: &[&str]| parse(chunks).unwrap_err().to_string();
+        assert_eq!(
+            error(&[
+                r#"{"type": "module", "id": "m", "name": "m", "members": ["c", "lib::C"]}"#,
+                r#"{"type": "class", "id": "c", "name": "C"}"#,
+                r#"{"type": "protocol", "id": "lib::C", "name": "C"}"#,
+            ]),
+            "Protocol lib::C can't be added to module m as C, which is already a member"
+        );
+        assert_eq!(
+            error(&[
+                r#"{"type": "module", "id": "m", "name": "m", "members": ["f", "g"]}"#,
+                &function("f", None, "a::P"),
+                &function("g", None, "b::P"),
+                r#"{"type": "protocol", "id": "a::P", "name": "P"}"#,
+                r#"{"type": "protocol", "id": "b::P", "name": "P"}"#,
+            ]),
+            "Protocol b::P can't be added to module m as _P, which is already a member"
+        );
+        assert_eq!(
+            error(&[
+                r#"{"type": "module", "id": "m", "name": "m", "members": ["a", "lib::P"]}"#,
+                r#"{"type": "module", "id": "a", "name": "a", "members": ["lib::P"]}"#,
+                r#"{"type": "protocol", "id": "lib::P", "name": "P"}"#,
+            ]),
+            "Protocol lib::P is exported by both module a and m"
+        );
+    }
 }

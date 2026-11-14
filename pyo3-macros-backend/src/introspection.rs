@@ -112,6 +112,63 @@ pub fn class_introspection_code(
     IntrospectionNode::Map(desc).emit(pyo3_crate_path)
 }
 
+/// A method of a protocol declared with `pyprotocol!`
+pub struct ProtocolMethod<'a> {
+    pub name: String,
+    pub signature: FunctionSignature<'a>,
+    pub returns: PyExpr,
+    pub doc: Option<PythonDoc>,
+}
+
+/// A `typing.Protocol` class declared with `pyprotocol!`, with its methods
+///
+/// It only exists in the stubs, and the stub generator picks the module it goes in, since the
+/// protocol may be declared in a library crate that can't know the modules.
+pub fn protocol_introspection_code(
+    pyo3_crate_path: &PyO3CratePath,
+    ident: &Ident,
+    name: &str,
+    doc: Option<&PythonDoc>,
+    methods: &[ProtocolMethod<'_>],
+) -> TokenStream {
+    let mut desc = BTreeMap::from([
+        ("type", IntrospectionNode::String("protocol".into())),
+        (
+            "id",
+            IntrospectionNode::IntrospectionId(Some(ident_to_type(ident))),
+        ),
+        ("name", IntrospectionNode::String(name.into())),
+        (
+            "body",
+            IntrospectionNode::List(
+                methods
+                    .iter()
+                    .map(|method| {
+                        function_introspection_data(
+                            None,
+                            &method.name,
+                            &method.signature,
+                            Some("self"),
+                            method.returns.clone(),
+                            std::iter::empty(),
+                            false,
+                            false,
+                            method.doc.as_ref(),
+                            // The protocol chunk contains its methods
+                            None,
+                        )
+                        .into()
+                    })
+                    .collect(),
+            ),
+        ),
+    ]);
+    if let Some(doc) = doc {
+        desc.insert("doc", IntrospectionNode::Doc(doc));
+    }
+    IntrospectionNode::Map(desc).emit(pyo3_crate_path)
+}
+
 #[expect(clippy::too_many_arguments)]
 pub fn function_introspection_code(
     pyo3_crate_path: &PyO3CratePath,
@@ -126,6 +183,34 @@ pub fn function_introspection_code(
     doc: Option<&PythonDoc>,
     parent: Option<&Type>,
 ) -> TokenStream {
+    function_introspection_data(
+        ident,
+        name,
+        signature,
+        first_argument,
+        returns,
+        decorators,
+        is_async,
+        is_returning_not_implemented_on_extraction_error,
+        doc,
+        parent,
+    )
+    .emit(pyo3_crate_path)
+}
+
+#[expect(clippy::too_many_arguments)]
+fn function_introspection_data<'a>(
+    ident: Option<&Ident>,
+    name: &'a str,
+    signature: &'a FunctionSignature<'a>,
+    first_argument: Option<&'static str>,
+    returns: PyExpr,
+    decorators: impl IntoIterator<Item = PyExpr>,
+    is_async: bool,
+    is_returning_not_implemented_on_extraction_error: bool,
+    doc: Option<&'a PythonDoc>,
+    parent: Option<&'a Type>,
+) -> IntrospectionNode<'a> {
     let mut desc = BTreeMap::from([
         ("type", IntrospectionNode::String("function".into())),
         ("name", IntrospectionNode::String(name.into())),
@@ -173,7 +258,7 @@ pub fn function_introspection_code(
             IntrospectionNode::IntrospectionId(Some(Cow::Borrowed(parent))),
         );
     }
-    IntrospectionNode::Map(desc).emit(pyo3_crate_path)
+    IntrospectionNode::Map(desc)
 }
 
 pub fn attribute_introspection_code(
