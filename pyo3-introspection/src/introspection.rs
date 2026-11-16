@@ -4,16 +4,16 @@ use crate::model::{
 };
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use goblin::Object;
-use goblin::elf::Elf;
-use goblin::elf::section_header::SHN_XINDEX;
-use goblin::mach::load_command::CommandVariant;
+use goblin::elf::program_header::PT_LOAD;
+use goblin::elf::section_header::SHN_UNDEF;
+use goblin::elf::{Elf, Sym};
 use goblin::mach::symbols::{N_SECT, NO_SECT};
 use goblin::mach::{Mach, MachO, SingleArch};
 use goblin::pe::PE;
 use serde::Deserialize;
 use std::borrow::Cow;
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::{fs, str};
 
@@ -541,10 +541,14 @@ fn find_introspection_chunks_in_binary_object(path: &Path) -> Result<Vec<Chunk>>
             find_introspection_chunks_in_macho(&macho, &library_content)
         }
         Object::Mach(Mach::Fat(multi_arch)) => {
-            for arch in &multi_arch {
+            for (arch, fat_arch) in multi_arch.into_iter().zip(multi_arch.iter_arches()) {
                 match arch? {
                     SingleArch::MachO(macho) => {
-                        return find_introspection_chunks_in_macho(&macho, &library_content);
+                        // Mach-O offsets are relative to the beginning of the architecture slice
+                        return find_introspection_chunks_in_macho(
+                            &macho,
+                            fat_arch?.slice(&library_content),
+                        );
                     }
                     SingleArch::Archive(_) => (),
                 }
@@ -562,24 +566,65 @@ fn find_introspection_chunks_in_binary_object(path: &Path) -> Result<Vec<Chunk>>
 }
 
 fn find_introspection_chunks_in_elf(elf: &Elf<'_>, library_content: &[u8]) -> Result<Vec<Chunk>> {
+    // The introspection symbols are exported, so they are in the dynamic symbol table that
+    // survives stripping. We also look at the full symbol table, if present, to support
+    // binaries where they are not exported.
+    let symbols = elf
+        .dynsyms
+        .iter()
+        .map(|sym| (sym, elf.dynstrtab.get_at(sym.st_name)))
+        .chain(
+            elf.syms
+                .iter()
+                .map(|sym| (sym, elf.strtab.get_at(sym.st_name))),
+        );
+    let mut seen_names = HashSet::new();
     let mut chunks = Vec::new();
-    for sym in &elf.syms {
-        let sym_name = elf.strtab.get_at(sym.st_name).unwrap_or_default();
-        if is_introspection_symbol(sym_name) {
-            ensure!(
-                u32::try_from(sym.st_shndx)? != SHN_XINDEX,
-                "Section names length is greater than SHN_LORESERVE in ELF, this is not supported by PyO3 yet"
-            );
-            let section_header = &elf.section_headers[sym.st_shndx];
-            let data_offset = sym.st_value + section_header.sh_offset - section_header.sh_addr;
-            chunks.push(deserialize_chunk(
-                sym_name,
-                &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
-                elf.little_endian,
-            )?);
+    for (sym, sym_name) in symbols {
+        let Some(sym_name) = sym_name else {
+            continue;
+        };
+        if !is_introspection_symbol(sym_name)
+            || sym.st_shndx == SHN_UNDEF as usize
+            || !seen_names.insert(sym_name)
+        {
+            continue;
         }
+        let data_offset = elf_symbol_file_offset(elf, &sym).with_context(|| {
+            format!("Failed to locate the introspection symbol {sym_name} in the ELF file")
+        })?;
+        chunks.push(deserialize_chunk(
+            sym_name,
+            library_content
+                .get(data_offset..)
+                .context("The introspection symbol is outside of the ELF file")?,
+            elf.little_endian,
+        )?);
     }
     Ok(chunks)
+}
+
+/// Maps the virtual address of a symbol to its offset in the file using the loadable segments.
+///
+/// We use program headers and not section headers because the latter are optional.
+fn elf_symbol_file_offset(elf: &Elf<'_>, sym: &Sym) -> Result<usize> {
+    let address = sym.st_value;
+    let segment = elf
+        .program_headers
+        .iter()
+        .find(|header| {
+            header.p_type == PT_LOAD
+                && header.p_vaddr <= address
+                && address - header.p_vaddr < header.p_filesz
+        })
+        .with_context(|| {
+            format!("No loadable segment with file content contains the address {address:#x}")
+        })?;
+    segment
+        .p_offset
+        .checked_add(address - segment.p_vaddr)
+        .and_then(|offset| usize::try_from(offset).ok())
+        .context("File offset overflow")
 }
 
 fn find_introspection_chunks_in_macho(
@@ -589,13 +634,6 @@ fn find_introspection_chunks_in_macho(
     if !macho.little_endian {
         bail!("Only little endian Mach-o binaries are supported");
     }
-    ensure!(
-        !macho
-            .load_commands
-            .iter()
-            .any(|command| { matches!(command.command, CommandVariant::DyldChainedFixups(_)) }),
-        "Mach-O binaries with fixup chains are not supported yet, to avoid using fixup chains, use `--codegen=link-arg=-no_fixup_chains` option."
-    );
 
     let sections = macho
         .segments
@@ -611,11 +649,19 @@ fn find_introspection_chunks_in_macho(
             && nlist.n_sect != NO_SECT as usize
             && is_introspection_symbol(name)
         {
-            let section = &sections[nlist.n_sect - 1]; // Sections are counted from 1
-            let data_offset = nlist.n_value + u64::from(section.offset) - section.addr;
+            let section = sections
+                .get(nlist.n_sect - 1) // Sections are counted from 1
+                .context("The introspection symbol section does not exist")?;
+            let data_offset = nlist
+                .n_value
+                .checked_sub(section.addr)
+                .and_then(|offset| offset.checked_add(section.offset.into()))
+                .context("The introspection symbol is outside of its section")?;
             chunks.push(deserialize_chunk(
                 name,
-                &library_content[usize::try_from(data_offset).context("File offset overflow")?..],
+                library_content
+                    .get(usize::try_from(data_offset).context("File offset overflow")?..)
+                    .context("The introspection symbol is outside of the Mach-O file")?,
                 macho.little_endian,
             )?);
         }
@@ -629,7 +675,9 @@ fn find_introspection_chunks_in_pe(pe: &PE<'_>, library_content: &[u8]) -> Resul
         if is_introspection_symbol(export.name.unwrap_or_default()) {
             chunks.push(deserialize_chunk(
                 export.name.unwrap_or_default(),
-                &library_content[export.offset.context("No symbol offset")?..],
+                library_content
+                    .get(export.offset.context("No symbol offset")?..)
+                    .context("The introspection symbol is outside of the PE file")?,
                 true,
             )?);
         }
@@ -649,9 +697,8 @@ fn deserialize_chunk(
     );
 
     let length = content_with_chunk_at_the_beginning
-        .split_at(4)
-        .0
-        .try_into()
+        .get(..4)
+        .and_then(|length| length.try_into().ok())
         .context("The introspection chunk must contain a length")?;
     let length = if is_little_endian {
         u32::from_le_bytes(length)

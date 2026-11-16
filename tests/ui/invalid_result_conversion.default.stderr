@@ -5,20 +5,21 @@ error[E0277]: the trait bound `PyErr: From<MyError>` is not satisfied
     |                         ^^^^^^ the trait `From<MyError>` is not implemented for `PyErr`
     |
     = help: `PyErr` implements trait `From<T>`:
+              From<!>
               From<AddrParseError>
               From<CastError<'_, '_>>
               From<CastIntoError<'_>>
               From<CharTryFromError>
               From<FromUtf8Error>
-              From<Infallible>
               From<IntoInnerError<W>>
               From<IntoStringError>
             and $N others
 note: required by a bound in `pyo3::impl_::wrap::IntoPyObjectConverter::<Result<T, E>>::wrap_into_ptr`
  --> src/impl_/wrap.rs
   |
+  | impl<'py, T: IntoPyObject<'py>, E> IntoPyObjectConverter<Result<T, E>> {
+...
   |     pub fn wrap_into_ptr(&self, py: Python<'py>, obj: Result<T, E>) -> PyResult<*mut ffi::PyObject>
-  |            ------------- required by a bound in this associated function
   |     where
   |         PyErr: From<E>,
   |                ^^^^^^^ required by this bound in `IntoPyObjectConverter::<Result<T, E>>::wrap_into_ptr`

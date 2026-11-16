@@ -197,9 +197,10 @@ about this topic.
 - [cellular_raza](https://cellular-raza.com) _A cellular agent-based simulation framework for building complex models from a clean slate._
 - [connector-x](https://github.com/sfu-db/connector-x/tree/main/connectorx-python) _Fastest library to load data from DB to DataFrames in Rust and Python._
 - [cryptography](https://github.com/pyca/cryptography/tree/main/src/rust) _Python cryptography library with some functionality in Rust._
-- [css-inline](https://github.com/Stranger6667/css-inline/tree/master/bindings/python) _CSS inlining for Python implemented in Rust._
+- [css-inline](https://github.com/Stranger6667/css-inline/tree/master/crates/css-inline-python) _CSS inlining for Python implemented in Rust._
 - [datafusion-python](https://github.com/apache/arrow-datafusion-python) _A Python library that binds to Apache Arrow in-memory query engine DataFusion._
 - [deltalake-python](https://github.com/delta-io/delta-rs/tree/main/python) _Native Delta Lake Python binding based on delta-rs with Pandas integration._
+- [epyxid](https://github.com/shpaker/epyxid) _Fast, globally unique and sortable XID generator, a Python binding to [xid-rs](https://github.com/kazk/xid-rs)._
 - [fastbloom](https://github.com/yankun1992/fastbloom) _A fast [bloom filter](https://github.com/yankun1992/fastbloom#BloomFilter) | [counting bloom filter](https://github.com/yankun1992/fastbloom#countingbloomfilter) implemented by Rust for Rust and Python!_
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
 - [fast-paseto](https://github.com/CodingCogs-OSS/Fast-Paseto) _High-performance PASETO (Platform-Agnostic Security Tokens) implementation with Python bindings._
@@ -228,6 +229,7 @@ about this topic.
 - [primp](https://github.com/deedy5/primp) _The fastest python HTTP client that can impersonate web browsers by mimicking their headers and TLS/JA3/JA4/HTTP2 fingerprints._
 - [pyro-mysql](https://github.com/elbaro/pyro-mysql) _A high-performance MySQL driver for Python._
 - [pyro-postgres](https://github.com/elbaro/pyro-postgres) _A high-performance PostgreSQL driver for Python._
+- [pyromark](https://github.com/monosans/pyromark) _Blazingly fast CommonMark-compliant Markdown pull parser for Python, built on [pulldown-cmark](https://github.com/pulldown-cmark/pulldown-cmark)._
 - [quebec](https://github.com/ratazzi/quebec) _A database-backed background job queue for Python, inspired by Rails' Solid Queue._
 - [radiate](https://github.com/pkalivas/radiate): _A high-performance evolution engine for genetic programming and evolutionary algorithms._
 - [rateslib](https://github.com/attack68/rateslib) _A fixed income library for Python using Rust extensions._

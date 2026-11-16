@@ -36,8 +36,9 @@ note: expected this to be `pyo3::pyclass::boolean_struct::False`
 note: required by a bound in `pyo3::Bound::<'py, T>::borrow_mut`
  --> src/instance.rs
   |
+  | impl<'py, T> Bound<'py, T>
+...
   |     pub fn borrow_mut(&self) -> PyRefMut<'py, T>
-  |            ---------- required by a bound in this associated function
   |     where
   |         T: PyClass<Frozen = False>,
   |                    ^^^^^^^^^^^^^^ required by this bound in `Bound::<'py, T>::borrow_mut`
@@ -57,8 +58,9 @@ note: expected this to be `pyo3::pyclass::boolean_struct::False`
 note: required by a bound in `pyo3::Bound::<'py, T>::borrow_mut`
  --> src/instance.rs
   |
+  | impl<'py, T> Bound<'py, T>
+...
   |     pub fn borrow_mut(&self) -> PyRefMut<'py, T>
-  |            ---------- required by a bound in this associated function
   |     where
   |         T: PyClass<Frozen = False>,
   |                    ^^^^^^^^^^^^^^ required by this bound in `Bound::<'py, T>::borrow_mut`
@@ -78,8 +80,9 @@ note: expected this to be `pyo3::pyclass::boolean_struct::True`
 note: required by a bound in `pyo3::Py::<T>::get`
  --> src/instance.rs
   |
+  | impl<T> Py<T>
+...
   |     pub fn get(&self) -> &T
-  |            --- required by a bound in this associated function
   |     where
   |         T: PyClass<Frozen = True> + Sync,
   |                    ^^^^^^^^^^^^^ required by this bound in `Py::<T>::get`
@@ -99,8 +102,9 @@ note: expected this to be `pyo3::pyclass::boolean_struct::True`
 note: required by a bound in `pyo3::Bound::<'py, T>::get`
  --> src/instance.rs
   |
+  | impl<'py, T> Bound<'py, T>
+...
   |     pub fn get(&self) -> &T
-  |            --- required by a bound in this associated function
   |     where
   |         T: PyClass<Frozen = True> + Sync,
   |                    ^^^^^^^^^^^^^ required by this bound in `Bound::<'py, T>::get`

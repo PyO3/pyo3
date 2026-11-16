@@ -9,7 +9,6 @@ extern_libpython! {
 }
 
 #[inline]
-#[cfg(not(RustPython))]
 pub unsafe fn PyDict_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_DICT_SUBCLASS)
 }
@@ -21,8 +20,6 @@ pub unsafe fn PyDict_CheckExact(op: *mut PyObject) -> c_int {
 }
 
 extern_libpython! {
-    #[cfg(RustPython)]
-    pub fn PyDict_Check(op: *mut PyObject) -> c_int;
     #[cfg(RustPython)]
     pub fn PyDict_CheckExact(op: *mut PyObject) -> c_int;
     #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyDict_New")]

@@ -3,7 +3,7 @@
 #![cfg(feature = "macros")]
 #![cfg(any(not(Py_LIMITED_API), Py_3_11))]
 
-use pyo3::buffer::PyBuffer;
+use pyo3::buffer::{PyBuffer, PyBufferRequest, PyBufferView, PyUntypedBufferView};
 use pyo3::exceptions::PyBufferError;
 use pyo3::ffi;
 use pyo3::prelude::*;
@@ -134,6 +134,111 @@ fn test_releasebuffer_unraisable_error() {
 
         assert_eq!(err.to_string(), "ValueError: oh dear");
         assert!(object.is(&instance));
+    });
+}
+
+#[pyclass]
+#[derive(Default)]
+struct SelfReferentialBuffer {
+    releases: usize,
+    moved_on_release: bool,
+}
+
+#[pymethods]
+impl SelfReferentialBuffer {
+    unsafe fn __getbuffer__(
+        slf: Bound<'_, Self>,
+        view: *mut ffi::Py_buffer,
+        flags: c_int,
+    ) -> PyResult<()> {
+        // This helper sets shape and strides to point into the Py_buffer itself.
+        unsafe { fill_view_from_readonly_data(view, flags, b"abc", slf.into_any()) }?;
+        // Remember the address passed to __getbuffer__ for comparison on release.
+        unsafe { (*view).internal = view.cast() };
+        Ok(())
+    }
+
+    unsafe fn __releasebuffer__(&mut self, view: *mut ffi::Py_buffer) {
+        self.releases += 1;
+        self.moved_on_release |= unsafe { (*view).internal != view.cast() };
+        if !unsafe { (*view).format.is_null() } {
+            drop(unsafe { CString::from_raw((*view).format) });
+        }
+    }
+}
+
+fn assert_view_released(instance: &Bound<'_, SelfReferentialBuffer>, releases: usize) {
+    let exporter = instance.borrow();
+    assert_eq!(exporter.releases, releases);
+    assert!(!exporter.moved_on_release);
+    drop(exporter);
+    // SAFETY: The bound instance is a live Python object on this attached thread.
+    assert_eq!(unsafe { ffi::Py_REFCNT(instance.as_ptr()) }, 1);
+}
+
+#[test]
+fn test_buffer_views_keep_export_in_place() {
+    Python::attach(|py| {
+        let instance = Bound::new(py, SelfReferentialBuffer::default()).unwrap();
+
+        PyUntypedBufferView::with_flags(&instance, PyBufferRequest::full_ro(), |view| {
+            assert_eq!(view.shape(), [3]);
+            assert_eq!(view.strides(), [1]);
+        })
+        .unwrap();
+        assert_view_released(&instance, 1);
+
+        PyBufferView::<u8>::with(&instance, |_| {}).unwrap();
+        assert_view_released(&instance, 2);
+
+        PyBufferView::<u8>::with_flags(
+            &instance,
+            PyBufferRequest::simple().strides().format(),
+            |_| {},
+        )
+        .unwrap();
+        assert_view_released(&instance, 3);
+    });
+}
+
+#[test]
+fn test_buffer_views_release_after_errors() {
+    Python::attach(|py| {
+        let instance = Bound::new(py, SelfReferentialBuffer::default()).unwrap();
+
+        let result = PyBufferView::<u32>::with_flags(
+            &instance,
+            PyBufferRequest::simple().strides().format(),
+            |_| panic!("incompatible buffer"),
+        );
+        assert!(result.unwrap_err().is_instance_of::<PyBufferError>(py));
+        assert_view_released(&instance, 1);
+
+        let result = PyUntypedBufferView::with_flags(
+            &instance,
+            PyBufferRequest::simple().writable(),
+            |_| panic!("read-only buffer"),
+        );
+        assert!(result.unwrap_err().is_instance_of::<PyBufferError>(py));
+        assert_view_released(&instance, 1);
+    });
+}
+
+#[test]
+#[cfg(panic = "unwind")]
+fn test_buffer_views_release_on_panic() {
+    use std::panic::{AssertUnwindSafe, catch_unwind};
+
+    Python::attach(|py| {
+        let instance = Bound::new(py, SelfReferentialBuffer::default()).unwrap();
+
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            PyUntypedBufferView::with_flags(&instance, PyBufferRequest::full_ro(), |_| {
+                panic!("buffer callback panicked")
+            })
+        }));
+        assert!(result.is_err());
+        assert_view_released(&instance, 1);
     });
 }
 

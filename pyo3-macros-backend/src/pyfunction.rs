@@ -355,7 +355,7 @@ pub fn impl_wrap_pyfunction(
 
     let python_name = name
         .as_ref()
-        .map_or_else(|| &func.sig.ident, |name| &name.value.0)
+        .map_or(&func.sig.ident, |name| &name.value.0)
         .unraw();
 
     let tp = if pass_module.is_some() {

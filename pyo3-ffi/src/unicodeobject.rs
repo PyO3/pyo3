@@ -14,7 +14,7 @@ extern_libpython! {
     #[cfg(not(RustPython))]
     pub static mut PyUnicodeIter_Type: PyTypeObject;
 
-    #[cfg(any(PyPy, RustPython))]
+    #[cfg(PyPy)]
     #[cfg_attr(PyPy, link_name = "PyPyUnicode_Check")]
     pub fn PyUnicode_Check(op: *mut PyObject) -> c_int;
 
@@ -24,7 +24,7 @@ extern_libpython! {
 }
 
 #[inline]
-#[cfg(not(any(PyPy, RustPython)))]
+#[cfg(not(PyPy))]
 pub unsafe fn PyUnicode_Check(op: *mut PyObject) -> c_int {
     PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_UNICODE_SUBCLASS)
 }

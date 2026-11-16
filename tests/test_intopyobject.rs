@@ -329,3 +329,29 @@ fn test_into_py_object_interns_keys() {
         assert_interned(py, py_zap.keys());
     });
 }
+
+#[cfg(feature = "experimental-inspect")]
+#[test]
+fn test_generic_output_type() {
+    #[derive(IntoPyObject, IntoPyObjectRef)]
+    struct Newtype<T>(T);
+
+    #[derive(IntoPyObject)]
+    #[pyo3(transparent)]
+    struct NamedNewtype<T> {
+        inner: T,
+    }
+
+    assert_eq!(
+        <Newtype<String> as IntoPyObject<'_>>::OUTPUT_TYPE.to_string(),
+        "builtins.str"
+    );
+    assert_eq!(
+        <&Newtype<String> as IntoPyObject<'_>>::OUTPUT_TYPE.to_string(),
+        "builtins.str"
+    );
+    assert_eq!(
+        <NamedNewtype<String> as IntoPyObject<'_>>::OUTPUT_TYPE.to_string(),
+        "builtins.str"
+    );
+}

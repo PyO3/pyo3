@@ -2829,6 +2829,13 @@ impl<'a> PyClassImplsBuilder<'a> {
         let is_immutable_type =
             is_immutable_type.then(|| quote! { const IS_IMMUTABLE_TYPE: bool = true; });
 
+        let allocators = self.attr.options.freelist.is_some().then(|| {
+            quote! {
+                const TP_ALLOC: #pyo3_path::ffi::allocfunc = #pyo3_path::impl_::pyclass::alloc_with_freelist::<Self> as _;
+                const TP_FREE: #pyo3_path::ffi::freefunc = #pyo3_path::impl_::pyclass::free_with_freelist::<Self> as _;
+            }
+        });
+
         let dict_offset = if self.attr.options.dict.is_some() {
             quote! {
                 fn dict_offset() -> ::core::option::Option<#pyo3_path::impl_::pyclass::PyObjectOffset> {
@@ -2916,14 +2923,10 @@ impl<'a> PyClassImplsBuilder<'a> {
             .iter()
             .map(|slot| &slot.slot_def)
             .collect::<Vec<_>>();
-        let freelist_slots = self.freelist_slots(ctx);
 
         // When there are no intrinsic items, point at a shared empty `PyClassItems` to keep the
         // generated code small.
-        let items_iter = if default_method_defs.is_empty()
-            && default_slot_defs.is_empty()
-            && freelist_slots.is_empty()
-        {
+        let items_iter = if default_method_defs.is_empty() && default_slot_defs.is_empty() {
             quote! {
                 fn items_iter() -> #pyo3_path::impl_::pyclass::PyClassItemsIter {
                     #pyo3_path::impl_::pyclass::PyClassItemsIter::new(
@@ -2937,7 +2940,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 fn items_iter() -> #pyo3_path::impl_::pyclass::PyClassItemsIter {
                     static INTRINSIC_ITEMS: #pyo3_path::impl_::pyclass::PyClassItems = #pyo3_path::impl_::pyclass::PyClassItems {
                         methods: &[#(#default_method_defs),*],
-                        slots: &[#(#default_slot_defs),* #(#freelist_slots),*],
+                        slots: &[#(#default_slot_defs),*],
                     };
                     #pyo3_path::impl_::pyclass::PyClassItemsIter::new(&INTRINSIC_ITEMS, #pymethods_items)
                 }
@@ -3059,6 +3062,8 @@ impl<'a> PyClassImplsBuilder<'a> {
                 #is_sequence
                 #is_immutable_type
 
+                #allocators
+
                 type Layout = <Self::BaseNativeType as #pyo3_path::impl_::pyclass::PyClassBaseType>::Layout<Self>;
                 type BaseType = #base;
                 type ThreadChecker = #thread_checker;
@@ -3134,30 +3139,6 @@ impl<'a> PyClassImplsBuilder<'a> {
                 }
             }
         })
-    }
-
-    fn freelist_slots(&self, ctx: &Ctx) -> Vec<TokenStream> {
-        let Ctx { pyo3_path, .. } = ctx;
-        let cls = self.cls_ident;
-
-        if self.attr.options.freelist.is_some() {
-            vec![
-                quote! {
-                    #pyo3_path::ffi::PyType_Slot {
-                        slot: #pyo3_path::ffi::Py_tp_alloc,
-                        pfunc: #pyo3_path::impl_::pyclass::alloc_with_freelist::<#cls> as *mut _,
-                    }
-                },
-                quote! {
-                    #pyo3_path::ffi::PyType_Slot {
-                        slot: #pyo3_path::ffi::Py_tp_free,
-                        pfunc: #pyo3_path::impl_::pyclass::free_with_freelist::<#cls> as *mut _,
-                    }
-                },
-            ]
-        } else {
-            Vec::new()
-        }
     }
 
     #[cfg(feature = "experimental-inspect")]
