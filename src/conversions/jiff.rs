@@ -1,7 +1,7 @@
-#![cfg(feature = "jiff-02")]
+#![cfg(any(feature = "jiff-02", feature = "jiff"))]
 
 //! Conversions to and from [jiff](https://docs.rs/jiff/)’s `Span`, `SignedDuration`, `TimeZone`,
-//! `Offset`, `Date`, `Time`, `DateTime`, `Zoned`, and `Timestamp`.
+//! `Offset`, `Date`, `Time`, `DateTime`, `ZonedDateTime`, and `Timestamp`.
 //!
 //! # Setup
 //!
@@ -9,20 +9,18 @@
 //!
 //! ```toml
 //! [dependencies]
-//! jiff = "0.2"
-#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"jiff-02\"] }")]
+//! jiff = "1.0"
+#![doc = concat!("pyo3 = { version = \"", env!("CARGO_PKG_VERSION"),  "\", features = [\"jiff\"] }")]
 //! ```
 //!
 //! Note that you must use compatible versions of jiff and PyO3.
 //! The required jiff version may vary based on the version of PyO3.
 //!
-//! # Example: Convert a `datetime.datetime` to jiff `Zoned`
+//! # Example: Convert a `datetime.datetime` to jiff `ZonedDateTime`
 //!
 //! ```rust
 //! # #[cfg(not(windows))]
-//! # use jiff_02 as jiff;
-//! # #[cfg(not(windows))]
-//! use jiff::{Zoned, SignedDuration, ToSpan};
+//! use jiff::{ZonedDateTime, SignedDuration, ToSpan};
 //! # #[cfg(not(windows))]
 //! use pyo3::{Python, PyResult, IntoPyObject, types::PyAnyMethods};
 //!
@@ -33,7 +31,7 @@
 //!     Python::initialize();
 //!     Python::attach(|py| {
 //!         // Build some jiff values
-//!         let jiff_zoned = Zoned::now();
+//!         let jiff_zoned = ZonedDateTime::now();
 //!         let jiff_span = 1.second();
 //!         // Convert them to Python
 //!         let py_datetime = jiff_zoned.into_pyobject(py)?;
@@ -41,8 +39,8 @@
 //!         // Do an operation in Python
 //!         let py_sum = py_datetime.call_method1("__add__", (py_timedelta,))?;
 //!         // Convert back to Rust
-//!         let jiff_sum: Zoned = py_sum.extract()?;
-//!         println!("Zoned: {}", jiff_sum);
+//!         let jiff_sum: ZonedDateTime = py_sum.extract()?;
+//!         println!("ZonedDateTime: {}", jiff_sum);
 //!         Ok(())
 //!     })
 //! }
@@ -58,11 +56,13 @@ use crate::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult,
 #[cfg(feature = "experimental-inspect")]
 use crate::{PyTypeInfo, type_hint_identifier};
 use alloc::borrow::Cow;
+#[cfg(feature = "jiff")]
+use jiff::ZonedDateTime;
 use jiff::civil::{Date, DateTime, ISOWeekDate, Time};
 use jiff::tz::{AmbiguousOffset, Offset, TimeZone};
-use jiff::{SignedDuration, Span, Timestamp, Zoned};
-#[cfg(feature = "jiff-02")]
-use jiff_02 as jiff;
+use jiff::{SignedDuration, Span, Timestamp};
+#[cfg(all(not(feature = "jiff"), feature = "jiff-02"))]
+use jiff_02::{self as jiff, Zoned as ZonedDateTime};
 
 fn datetime_to_pydatetime<'py>(
     py: Python<'py>,
@@ -102,10 +102,14 @@ impl<'py> IntoPyObject<'py> for Timestamp {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
-    const OUTPUT_TYPE: PyStaticExpr = Zoned::OUTPUT_TYPE;
+    const OUTPUT_TYPE: PyStaticExpr = ZonedDateTime::OUTPUT_TYPE;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        self.to_zoned(TimeZone::UTC).into_pyobject(py)
+        cfg_select! {
+            feature = "jiff" => self.to_zoned_datetime(TimeZone::UTC),
+            feature = "jiff-02" => self.to_zoned(TimeZone::UTC),
+        }
+        .into_pyobject(py)
     }
 }
 
@@ -123,13 +127,13 @@ impl<'py> IntoPyObject<'py> for &Timestamp {
 }
 
 impl<'a, 'py> FromPyObject<'a, 'py> for Timestamp {
-    type Error = <Zoned as FromPyObject<'a, 'py>>::Error;
+    type Error = <ZonedDateTime as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = Zoned::INPUT_TYPE;
+    const INPUT_TYPE: PyStaticExpr = ZonedDateTime::INPUT_TYPE;
 
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
-        let zoned = ob.extract::<Zoned>()?;
+        let zoned = ob.extract::<ZonedDateTime>()?;
         Ok(zoned.timestamp())
     }
 }
@@ -273,7 +277,7 @@ impl<'py> FromPyObject<'_, 'py> for DateTime {
     }
 }
 
-impl<'py> IntoPyObject<'py> for Zoned {
+impl<'py> IntoPyObject<'py> for ZonedDateTime {
     type Target = PyDateTime;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -285,7 +289,8 @@ impl<'py> IntoPyObject<'py> for Zoned {
         (&self).into_pyobject(py)
     }
 }
-impl<'py> IntoPyObject<'py> for &Zoned {
+
+impl<'py> IntoPyObject<'py> for &ZonedDateTime {
     type Target = PyDateTime;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -294,7 +299,7 @@ impl<'py> IntoPyObject<'py> for &Zoned {
     const OUTPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        fn fold(zoned: &Zoned) -> Option<bool> {
+        fn fold(zoned: &ZonedDateTime) -> Option<bool> {
             let prev = zoned.time_zone().preceding(zoned.timestamp()).next()?;
             let next = zoned.time_zone().following(prev.timestamp()).next()?;
             let start_of_current_offset = if next.timestamp() == zoned.timestamp() {
@@ -314,7 +319,7 @@ impl<'py> IntoPyObject<'py> for &Zoned {
     }
 }
 
-impl<'py> FromPyObject<'_, 'py> for Zoned {
+impl<'py> FromPyObject<'_, 'py> for ZonedDateTime {
     type Error = PyErr;
 
     #[cfg(feature = "experimental-inspect")]
@@ -333,7 +338,10 @@ impl<'py> FromPyObject<'_, 'py> for Zoned {
             })?;
         #[allow(clippy::explicit_auto_deref)]
         let datetime = DateTime::from_parts(dt.extract()?, pytime_to_time(&*dt)?);
-        let zoned = tz.into_ambiguous_zoned(datetime);
+        let zoned = cfg_select! {
+            feature = "jiff" => tz.into_ambiguous_zoned_datetime(datetime),
+            feature = "jiff-02" => tz.into_ambiguous_zoned(datetime),
+        };
 
         // Python uses the fold bit to disambiguate both folds and gaps (PEP 495).
         //
@@ -570,9 +578,10 @@ impl From<jiff::Error> for PyErr {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "jiff"))]
 mod tests {
     use super::*;
+    use crate::types::PyTzInfo;
     use crate::{BoundObject, types::PyTuple};
     use core::cmp::Ordering;
     use jiff::tz::Offset;
@@ -611,8 +620,11 @@ mod tests {
         // Test that if a user tries to convert a python's timezone aware datetime into a naive
         // one, the conversion fails.
         Python::attach(|py| {
-            let py_datetime =
-                new_py_datetime_ob(py, "datetime", (2022, 1, 1, 1, 0, 0, 0, python_utc(py)));
+            let py_datetime = new_py_datetime_ob(
+                py,
+                "datetime",
+                (2022, 1, 1, 1, 0, 0, 0, PyTzInfo::utc(py).unwrap()),
+            );
             // Now test that converting a PyDateTime with tzinfo to a NaiveDateTime fails
             let res: PyResult<DateTime> = py_datetime.extract();
             assert_eq!(
@@ -628,7 +640,7 @@ mod tests {
         // one, the conversion fails.
         Python::attach(|py| {
             let py_datetime = new_py_datetime_ob(py, "datetime", (2022, 1, 1, 1, 0, 0, 0));
-            let res: PyResult<Zoned> = py_datetime.extract();
+            let res: PyResult<ZonedDateTime> = py_datetime.extract();
             assert_eq!(
                 res.unwrap_err().value(py).repr().unwrap().to_string(),
                 "TypeError('expected a datetime with non-None tzinfo')"
@@ -665,7 +677,7 @@ mod tests {
                 "TypeError: 'None' is not an instance of 'datetime'"
             );
             assert_eq!(
-                none.extract::<Zoned>().unwrap_err().to_string(),
+                none.extract::<ZonedDateTime>().unwrap_err().to_string(),
                 "TypeError: 'None' is not an instance of 'datetime'"
             );
         });
@@ -718,7 +730,7 @@ mod tests {
                 |name: &'static str, year, month, day, hour, minute, second, ms, py_ms| {
                     let datetime = DateTime::new(year, month, day, hour, minute, second, ms * 1000)
                         .unwrap()
-                        .to_zoned(TimeZone::UTC)
+                        .to_zoned_datetime(TimeZone::UTC)
                         .unwrap();
                     let datetime = datetime.into_pyobject(py).unwrap();
                     let py_datetime = new_py_datetime_ob(
@@ -732,7 +744,7 @@ mod tests {
                             minute,
                             second,
                             py_ms,
-                            python_utc(py),
+                            PyTzInfo::utc(py).unwrap(),
                         ),
                     );
                     assert_eq!(
@@ -754,7 +766,7 @@ mod tests {
                     let offset = Offset::from_seconds(3600).unwrap();
                     let datetime = DateTime::new(year, month, day, hour, minute, second, ms * 1000)
                         .unwrap()
-                        .to_zoned(offset.to_time_zone())
+                        .to_zoned_datetime(offset.to_time_zone())
                         .unwrap();
                     let datetime = datetime.into_pyobject(py).unwrap();
                     let py_tz = offset.into_pyobject(py).unwrap();
@@ -780,7 +792,7 @@ mod tests {
         Python::attach(|py| {
             let datetime = DateTime::new(2024, 12, 11, 23, 3, 13, 0)
                 .unwrap()
-                .to_zoned(TimeZone::get("Europe/London").unwrap())
+                .to_zoned_datetime(TimeZone::get("Europe/London").unwrap())
                 .unwrap();
             let datetime = datetime.into_pyobject(py).unwrap();
             let py_datetime = new_py_datetime_ob(
@@ -794,7 +806,7 @@ mod tests {
                     3,
                     13,
                     0,
-                    python_zoneinfo(py, "Europe/London"),
+                    PyTzInfo::timezone(py, "Europe/London").unwrap(),
                 ),
             );
             assert_eq!(datetime.compare(&py_datetime).unwrap(), Ordering::Equal);
@@ -817,10 +829,10 @@ mod tests {
                 "datetime",
                 (year, month, day, hour, minute, second, micro, tz_utc),
             );
-            let py_datetime: Zoned = py_datetime.extract().unwrap();
+            let py_datetime: ZonedDateTime = py_datetime.extract().unwrap();
             let datetime = DateTime::new(year, month, day, hour, minute, second, micro * 1000)
                 .unwrap()
-                .to_zoned(TimeZone::UTC)
+                .to_zoned_datetime(TimeZone::UTC)
                 .unwrap();
             assert_eq!(py_datetime, datetime,);
         })
@@ -831,10 +843,10 @@ mod tests {
     fn test_ambiguous_datetime_to_pyobject() {
         use core::str::FromStr;
         let dates = [
-            Zoned::from_str("2020-10-24 23:00:00[UTC]").unwrap(),
-            Zoned::from_str("2020-10-25 00:00:00[UTC]").unwrap(),
-            Zoned::from_str("2020-10-25 01:00:00[UTC]").unwrap(),
-            Zoned::from_str("2020-10-25 02:00:00[UTC]").unwrap(),
+            ZonedDateTime::from_str("2020-10-24 23:00:00[UTC]").unwrap(),
+            ZonedDateTime::from_str("2020-10-25 00:00:00[UTC]").unwrap(),
+            ZonedDateTime::from_str("2020-10-25 01:00:00[UTC]").unwrap(),
+            ZonedDateTime::from_str("2020-10-25 02:00:00[UTC]").unwrap(),
         ];
 
         let tz = TimeZone::get("Europe/London").unwrap();
@@ -866,7 +878,7 @@ mod tests {
                 [false, false, true, false]
             );
 
-            pydates.map(|dt| dt.extract::<Zoned>().unwrap())
+            pydates.map(|dt| dt.extract::<ZonedDateTime>().unwrap())
         });
 
         assert_eq!(
@@ -895,7 +907,7 @@ mod tests {
                     30,
                     0,
                     0,
-                    python_zoneinfo(py, "America/Los_Angeles"),
+                    PyTzInfo::timezone(py, "America/Los_Angeles").unwrap(),
                 ),
             );
             let python_timestamp = py_datetime
@@ -903,7 +915,7 @@ mod tests {
                 .unwrap()
                 .extract::<f64>()
                 .unwrap() as i64;
-            let datetime_from_py: Zoned = py_datetime.extract().unwrap();
+            let datetime_from_py: ZonedDateTime = py_datetime.extract().unwrap();
 
             assert_eq!(datetime_from_py.timestamp().as_second(), python_timestamp);
         })
@@ -926,10 +938,10 @@ mod tests {
                 "datetime",
                 (year, month, day, hour, minute, second, micro, py_tz),
             );
-            let datetime_from_py: Zoned = py_datetime.extract().unwrap();
+            let datetime_from_py: ZonedDateTime = py_datetime.extract().unwrap();
             let datetime =
                 DateTime::new(year, month, day, hour, minute, second, micro * 1000).unwrap();
-            let datetime = datetime.to_zoned(offset.to_time_zone()).unwrap();
+            let datetime = datetime.to_zoned_datetime(offset.to_time_zone()).unwrap();
 
             assert_eq!(datetime_from_py, datetime);
         })
@@ -974,15 +986,15 @@ mod tests {
     fn test_pyo3_offset_utc_into_pyobject() {
         Python::attach(|py| {
             let utc = Offset::UTC.into_pyobject(py).unwrap();
-            let py_utc = python_utc(py);
-            assert!(utc.is(&py_utc));
+            let py_utc = PyTzInfo::utc(py).unwrap();
+            assert!(utc.is(py_utc));
         })
     }
 
     #[test]
     fn test_pyo3_offset_utc_frompyobject() {
         Python::attach(|py| {
-            let py_utc = python_utc(py);
+            let py_utc = PyTzInfo::utc(py).unwrap();
             let py_utc: Offset = py_utc.extract().unwrap();
             assert_eq!(Offset::UTC, py_utc);
 
@@ -1044,50 +1056,17 @@ mod tests {
             .unwrap()
     }
 
-    fn python_utc(py: Python<'_>) -> Bound<'_, PyAny> {
-        py.import("datetime")
-            .unwrap()
-            .getattr("timezone")
-            .unwrap()
-            .getattr("utc")
-            .unwrap()
-    }
-
-    #[cfg(not(windows))]
-    fn python_zoneinfo<'py>(py: Python<'py>, timezone: &str) -> Bound<'py, PyAny> {
-        py.import("zoneinfo")
-            .unwrap()
-            .getattr("ZoneInfo")
-            .unwrap()
-            .call1((timezone,))
-            .unwrap()
-    }
-
     #[cfg(not(any(target_arch = "wasm32", Py_GIL_DISABLED)))]
     mod proptests {
         use super::*;
         use crate::types::IntoPyDict;
         use alloc::ffi::CString;
-        use jiff::SpanRelativeTo;
         use jiff::tz::TimeZoneTransition;
+        use jiff::{SpanRelativeTo, ZonedDateTime};
         use proptest::prelude::*;
 
-        // This is to skip the test if we are creating an invalid date, like February 31.
-        #[track_caller]
-        fn try_date(year: i16, month: i8, day: i8) -> Result<Date, TestCaseError> {
-            let location = core::panic::Location::caller();
-            Date::new(year, month, day)
-                .map_err(|err| TestCaseError::reject(format!("{location}: {err:?}")))
-        }
-
-        #[track_caller]
-        fn try_time(hour: i8, min: i8, sec: i8, micro: i32) -> Result<Time, TestCaseError> {
-            let location = core::panic::Location::caller();
-            Time::new(hour, min, sec, micro * 1000)
-                .map_err(|err| TestCaseError::reject(format!("{location}: {err:?}")))
-        }
-
         #[expect(clippy::too_many_arguments)]
+        #[track_caller]
         fn try_zoned(
             year: i16,
             month: i8,
@@ -1097,13 +1076,12 @@ mod tests {
             sec: i8,
             micro: i32,
             tz: TimeZone,
-        ) -> Result<Zoned, TestCaseError> {
-            let date = try_date(year, month, day)?;
-            let time = try_time(hour, min, sec, micro)?;
-            let location = core::panic::Location::caller();
+        ) -> Result<ZonedDateTime, TestCaseError> {
+            let date = Date::new(year, month, day).prop_assume_ok()?;
+            let time = Time::new(hour, min, sec, micro * 1000).prop_assume_ok()?;
             DateTime::from_parts(date, time)
-                .to_zoned(tz)
-                .map_err(|err| TestCaseError::reject(format!("{location}: {err:?}")))
+                .to_zoned_datetime(tz)
+                .prop_assume_ok()
         }
 
         prop_compose! {
@@ -1111,7 +1089,7 @@ mod tests {
                             (year in 1900i16..=2100i16, month in 1i8..=12i8)
                             -> TimeZoneTransition<'_> {
                 let datetime = DateTime::new(year, month, 1, 0, 0, 0, 0).unwrap();
-                let timestamp= timezone.to_zoned(datetime).unwrap().timestamp();
+                let timestamp= timezone.to_zoned_datetime(datetime).unwrap().timestamp();
                 timezone.following(timestamp).next().unwrap()
             }
         }
@@ -1130,7 +1108,7 @@ mod tests {
                     let py_iso_str = t.call_method0("isoformat").unwrap();
 
                     // Get ISO 8601 string from rust
-                    let rust_iso_str = t.extract::<Zoned>().unwrap().strftime("%Y-%m-%dT%H:%M:%S%:z").to_string();
+                    let rust_iso_str = t.extract::<ZonedDateTime>().unwrap().strftime("%Y-%m-%dT%H:%M:%S%:z").to_string();
 
                     // They should be equal
                     prop_assert_eq!(py_iso_str.to_string(), rust_iso_str);
@@ -1187,7 +1165,7 @@ mod tests {
                 // Test roundtrip conversion rust->python->rust for all allowed
                 // python dates (from year 1 to year 9999)
                 Python::attach(|py| {
-                    let date = try_date(year, month, day)?;
+                    let date = Date::new(year, month, day).prop_assume_ok()?;
                     let py_date = date.into_pyobject(py).unwrap();
                     let roundtripped: Date = py_date.extract().expect("Round trip");
                     prop_assert_eq!(date, roundtripped);
@@ -1204,7 +1182,7 @@ mod tests {
                 // Test roundtrip conversion rust->python->rust for all allowed
                 // python dates (from year 1 to year 9999)
                 Python::attach(|py| {
-                    let weekdate = try_date(year, month, day)?.iso_week_date();
+                    let weekdate = Date::new(year, month, day).prop_assume_ok()?.iso_week_date();
                     let py_date = weekdate.into_pyobject(py).unwrap();
                     let roundtripped = py_date.extract::<ISOWeekDate>().expect("Round trip");
                     prop_assert_eq!(weekdate, roundtripped);
@@ -1220,7 +1198,7 @@ mod tests {
                 micro in 0i32..=999_999i32
             ) {
                 Python::attach(|py| {
-                    let time = try_time(hour, min, sec, micro)?;
+                    let time = Time::new(hour, min, sec, micro * 1000).prop_assume_ok()?;
                     let py_time = time.into_pyobject(py).unwrap();
                     let roundtripped: Time = py_time.extract().expect("Round trip");
                     prop_assert_eq!(time, roundtripped);
@@ -1239,8 +1217,8 @@ mod tests {
                 micro in 0i32..=999_999i32
             ) {
                 Python::attach(|py| {
-                    let date = try_date(year, month, day)?;
-                    let time = try_time(hour, min, sec, micro)?;
+                    let date = Date::new(year, month, day).prop_assume_ok()?;
+                    let time = Time::new(hour, min, sec, micro * 1000).prop_assume_ok()?;
                     let dt = DateTime::from_parts(date, time);
                     let pydt = dt.into_pyobject(py).unwrap();
                     let roundtripped: DateTime = pydt.extract().expect("Round trip");
@@ -1260,9 +1238,9 @@ mod tests {
                 micro in 0i32..=999_999i32
             ) {
                 Python::attach(|py| {
-                    let dt: Zoned = try_zoned(year, month, day, hour, min, sec, micro, TimeZone::UTC)?;
+                    let dt: ZonedDateTime = try_zoned(year, month, day, hour, min, sec, micro, TimeZone::UTC)?;
                     let py_dt = (&dt).into_pyobject(py).unwrap();
-                    let roundtripped: Zoned = py_dt.extract().expect("Round trip");
+                    let roundtripped: ZonedDateTime = py_dt.extract().expect("Round trip");
                     prop_assert_eq!(dt, roundtripped);
                     Ok(())
                 })?;
@@ -1283,7 +1261,7 @@ mod tests {
                     let offset = Offset::from_seconds(offset_secs).unwrap();
                     let dt = try_zoned(year, month, day, hour, min, sec, micro, offset.to_time_zone())?;
                     let py_dt = (&dt).into_pyobject(py).unwrap();
-                    let roundtripped: Zoned = py_dt.extract().expect("Round trip");
+                    let roundtripped: ZonedDateTime = py_dt.extract().expect("Round trip");
                     prop_assert_eq!(dt, roundtripped);
                     Ok(())
                 })?;
@@ -1303,10 +1281,10 @@ mod tests {
                 Python::attach(|py| {
                     let transition_moment = transition.timestamp();
                     let zoned = (transition_moment - Span::new().hours(hour).minutes(min))
-                        .to_zoned(timezone.clone());
+                        .to_zoned_datetime(timezone.clone());
 
                     let py_dt = (&zoned).into_pyobject(py).unwrap();
-                    let roundtripped: Zoned = py_dt.extract().expect("Round trip");
+                    let roundtripped: ZonedDateTime = py_dt.extract().expect("Round trip");
                     prop_assert_eq!(zoned, roundtripped);
                     Ok(())
                 })?;

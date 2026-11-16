@@ -876,9 +876,8 @@ impl PyTzInfo {
     {
         static ZONE_INFO: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
-        let zoneinfo = ZONE_INFO.import(py, "zoneinfo", "ZoneInfo");
-
-        zoneinfo?
+        ZONE_INFO
+            .import(py, "zoneinfo", "ZoneInfo")?
             .call1((iana_name,))?
             .cast_into()
             .map_err(Into::into)
