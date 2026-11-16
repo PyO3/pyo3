@@ -1,4 +1,4 @@
-use crate::platform::prelude::*;
+use crate::{ffi, internal::compat::cast_signed, platform::prelude::*};
 use alloc::borrow::Cow;
 
 #[cfg(feature = "experimental-inspect")]
@@ -81,6 +81,15 @@ where
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         <&T>::borrowed_sequence_into_pyobject(self.as_ref(), py, crate::conversion::private::Token)
     }
+}
+
+/// Splits a slice into a pointer and length suitable for passing to Python C APIs.
+#[inline]
+pub(crate) fn slice_as_ffi_parts<T>(s: &[T]) -> (*const T, ffi::Py_ssize_t) {
+    let ptr = s.as_ptr().cast();
+    // Valid allocations never exceed isize::MAX, so this cast will not wrap.
+    let len = cast_signed(s.len());
+    (ptr, len)
 }
 
 #[cfg(test)]

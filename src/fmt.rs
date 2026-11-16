@@ -3,6 +3,8 @@
 
 #[allow(unused_imports, reason = "used to build docs")]
 use crate::platform::prelude::*;
+#[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
+use crate::types::string::str_as_ffi_parts;
 #[cfg(any(doc, all(Py_3_14, not(Py_LIMITED_API))))]
 use crate::{Python, types::PyString};
 #[cfg(all(Py_3_14, not(Py_LIMITED_API)))]
@@ -119,9 +121,8 @@ impl<'py> PyUnicodeWriter<'py> {
 impl fmt::Write for PyUnicodeWriter<'_> {
     #[inline]
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        let result = unsafe {
-            PyUnicodeWriter_WriteUTF8(self.as_ptr(), s.as_ptr().cast(), s.len() as isize)
-        };
+        let (ptr, len) = str_as_ffi_parts(s);
+        let result = unsafe { PyUnicodeWriter_WriteUTF8(self.as_ptr(), ptr, len) };
         if result < 0 {
             self.set_error();
             Err(fmt::Error)

@@ -146,7 +146,9 @@ unsafe fn _PyBytesWriter_Resize_impl(
     assert!(size >= 0);
 
     let allocated = if (*writer).obj.is_null() {
-        core::mem::size_of_val(&(*writer).small_buffer) as _
+        core::mem::size_of_val(&(*writer).small_buffer)
+            .try_into()
+            .expect("small buffer size fits in Py_ssize_t")
     } else {
         crate::PyBytes_Size((*writer).obj)
     };

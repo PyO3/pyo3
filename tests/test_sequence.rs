@@ -49,17 +49,19 @@ impl ByteSequence {
         self.elements[idx as usize] = value;
     }
 
-    fn __delitem__(&mut self, mut idx: isize) -> PyResult<()> {
-        let self_len = self.elements.len() as isize;
-        if idx < 0 {
-            idx += self_len;
-        }
-        if (idx < self_len) && (idx >= 0) {
-            self.elements.remove(idx as usize);
-            Ok(())
-        } else {
-            Err(PyIndexError::new_err("list index out of range"))
-        }
+    fn __delitem__(&mut self, idx: isize) -> PyResult<()> {
+        let self_len = self.elements.len();
+        let Some(index) = idx.try_into().map_or_else(
+            // negative index - add to the length, underflowing to None if out of bounds
+            |_| self_len.checked_add_signed(idx),
+            // positive index - check if it is in bounds
+            |positive_index| (positive_index < self_len).then_some(positive_index),
+        ) else {
+            return Err(PyIndexError::new_err("list index out of range"));
+        };
+
+        self.elements.remove(index);
+        Ok(())
     }
 
     fn __contains__(&self, other: &Bound<'_, PyAny>) -> bool {

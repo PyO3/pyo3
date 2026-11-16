@@ -1,9 +1,10 @@
-use crate::err::{self, PyErr, PyResult};
+use crate::err::{self, PyErr, PyResult, error_on_negative_with_result};
+use crate::exceptions::{PyIndexError, PyOverflowError};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::instance::Bound;
-use crate::internal_tricks::get_ssize_index;
+use crate::internal::compat::{cast_unsigned, checked_cast_signed, saturating_cast_signed};
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
@@ -83,6 +84,8 @@ pub trait PySequenceMethods<'py>: crate::sealed::Sealed {
     /// Returns the result of repeating a sequence object `count` times.
     ///
     /// This is equivalent to the Python expression `self * count`.
+    ///
+    /// Returns an error if `count` exceeds `isize::MAX`.
     fn repeat(&self, count: usize) -> PyResult<Bound<'py, PySequence>>;
 
     /// Concatenates `self` and `other`, in place if possible.
@@ -101,6 +104,8 @@ pub trait PySequenceMethods<'py>: crate::sealed::Sealed {
     /// The Python statement `self *= other` is syntactic sugar for `self =
     /// self.__imul__(other)`.  `__imul__` should modify and return `self` if
     /// possible, but create and return a new object if not.
+    ///
+    /// Returns an error if `count` exceeds `isize::MAX`.
     fn in_place_repeat(&self, count: usize) -> PyResult<Bound<'py, PySequence>>;
 
     /// Returns the `index`th element of the Sequence.
@@ -167,8 +172,7 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     #[inline]
     fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PySequence_Size(self.as_ptr()) };
-        err::error_on_negative(self.py(), v)?;
-        Ok(v as usize)
+        error_on_negative_with_result(self.py(), v).map(cast_unsigned)
     }
 
     #[inline]
@@ -187,8 +191,9 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
 
     #[inline]
     fn repeat(&self, count: usize) -> PyResult<Bound<'py, PySequence>> {
+        let count = repeat_count(count)?;
         unsafe {
-            ffi::PySequence_Repeat(self.as_ptr(), get_ssize_index(count))
+            ffi::PySequence_Repeat(self.as_ptr(), count)
                 .assume_owned_or_err(self.py())
                 .cast_into_unchecked()
         }
@@ -205,8 +210,9 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
 
     #[inline]
     fn in_place_repeat(&self, count: usize) -> PyResult<Bound<'py, PySequence>> {
+        let count = repeat_count(count)?;
         unsafe {
-            ffi::PySequence_InPlaceRepeat(self.as_ptr(), get_ssize_index(count))
+            ffi::PySequence_InPlaceRepeat(self.as_ptr(), count)
                 .assume_owned_or_err(self.py())
                 .cast_into_unchecked()
         }
@@ -214,18 +220,20 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
 
     #[inline]
     fn get_item(&self, index: usize) -> PyResult<Bound<'py, PyAny>> {
-        unsafe {
-            ffi::PySequence_GetItem(self.as_ptr(), get_ssize_index(index))
-                .assume_owned_or_err(self.py())
-        }
+        let index = sequence_index(index)?;
+        unsafe { ffi::PySequence_GetItem(self.as_ptr(), index).assume_owned_or_err(self.py()) }
     }
 
     #[inline]
     fn get_slice(&self, begin: usize, end: usize) -> PyResult<Bound<'py, PySequence>> {
         unsafe {
-            ffi::PySequence_GetSlice(self.as_ptr(), get_ssize_index(begin), get_ssize_index(end))
-                .assume_owned_or_err(self.py())
-                .cast_into_unchecked()
+            ffi::PySequence_GetSlice(
+                self.as_ptr(),
+                saturating_cast_signed(begin),
+                saturating_cast_signed(end),
+            )
+            .assume_owned_or_err(self.py())
+            .cast_into_unchecked()
         }
     }
 
@@ -236,15 +244,17 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     {
         let py = self.py();
         let item = item.into_pyobject_or_pyerr(py)?;
+        let index = sequence_index(i)?;
         err::error_on_negative(py, unsafe {
-            ffi::PySequence_SetItem(self.as_ptr(), get_ssize_index(i), item.as_ptr())
+            ffi::PySequence_SetItem(self.as_ptr(), index, item.as_ptr())
         })
     }
 
     #[inline]
     fn del_item(&self, i: usize) -> PyResult<()> {
+        let index = sequence_index(i)?;
         err::error_on_negative(self.py(), unsafe {
-            ffi::PySequence_DelItem(self.as_ptr(), get_ssize_index(i))
+            ffi::PySequence_DelItem(self.as_ptr(), index)
         })
     }
 
@@ -253,8 +263,8 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
         err::error_on_negative(self.py(), unsafe {
             ffi::PySequence_SetSlice(
                 self.as_ptr(),
-                get_ssize_index(i1),
-                get_ssize_index(i2),
+                saturating_cast_signed(i1),
+                saturating_cast_signed(i2),
                 v.as_ptr(),
             )
         })
@@ -263,7 +273,11 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     #[inline]
     fn del_slice(&self, i1: usize, i2: usize) -> PyResult<()> {
         err::error_on_negative(self.py(), unsafe {
-            ffi::PySequence_DelSlice(self.as_ptr(), get_ssize_index(i1), get_ssize_index(i2))
+            ffi::PySequence_DelSlice(
+                self.as_ptr(),
+                saturating_cast_signed(i1),
+                saturating_cast_signed(i2),
+            )
         })
     }
 
@@ -273,11 +287,14 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     where
         V: IntoPyObject<'py>,
     {
+        use crate::internal::compat::cast_unsigned;
+
         let py = self.py();
         let value = value.into_pyobject_or_pyerr(py)?;
-        let r = unsafe { ffi::PySequence_Count(self.as_ptr(), value.as_ptr()) };
-        err::error_on_negative(py, r)?;
-        Ok(r as usize)
+        error_on_negative_with_result(self.py(), unsafe {
+            ffi::PySequence_Count(self.as_ptr(), value.as_ptr())
+        })
+        .map(cast_unsigned)
     }
 
     #[inline]
@@ -302,9 +319,10 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
     {
         let py = self.py();
         let value = value.into_pyobject_or_pyerr(py)?;
-        let r = unsafe { ffi::PySequence_Index(self.as_ptr(), value.as_ptr()) };
-        err::error_on_negative(py, r)?;
-        Ok(r as usize)
+        error_on_negative_with_result(self.py(), unsafe {
+            ffi::PySequence_Index(self.as_ptr(), value.as_ptr())
+        })
+        .map(cast_unsigned)
     }
 
     #[inline]
@@ -324,6 +342,33 @@ impl<'py> PySequenceMethods<'py> for Bound<'py, PySequence> {
                 .cast_into_unchecked()
         }
     }
+}
+
+/// Used to convert individual indices into signed values for the Python C API.
+///
+/// Slice indices should not use this and should instead use saturating casts, as
+/// slicing operations in Python allow for indices to be out of bounds (will clip).
+#[inline]
+fn sequence_index(index: usize) -> PyResult<isize> {
+    checked_cast_signed(index).ok_or_else(index_error)
+}
+
+#[cold]
+#[inline(never)]
+fn index_error() -> PyErr {
+    PyIndexError::new_err("sequence index out of range")
+}
+
+/// Used to convert repeat counts into signed values for the Python C API.
+#[inline]
+fn repeat_count(count: usize) -> PyResult<isize> {
+    checked_cast_signed(count).ok_or_else(repeat_count_too_large)
+}
+
+#[cold]
+#[inline(never)]
+fn repeat_count_too_large() -> PyErr {
+    PyOverflowError::new_err("repeat count exceeds isize::MAX")
 }
 
 #[cfg(test)]

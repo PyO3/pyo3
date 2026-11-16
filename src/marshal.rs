@@ -2,6 +2,7 @@
 
 //! Support for the Python `marshal` format.
 
+use crate::conversions::std::slice::slice_as_ffi_parts;
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::py_result_ext::PyResultExt;
 use crate::types::{PyAny, PyBytes};
@@ -49,13 +50,11 @@ where
     B: AsRef<[u8]> + ?Sized,
 {
     let data = data.as_ref();
+    let (ptr, len) = slice_as_ffi_parts(data);
     // SAFETY: `data` and `len` come from the same byte slice, so `data` points
     // to `len` readable bytes, and `PyMarshal_ReadObjectFromString` returns a
     // new owned reference on success, or NULL with an exception set on error.
-    unsafe {
-        ffi::PyMarshal_ReadObjectFromString(data.as_ptr().cast(), data.len() as isize)
-            .assume_owned_or_err(py)
-    }
+    unsafe { ffi::PyMarshal_ReadObjectFromString(ptr.cast(), len).assume_owned_or_err(py) }
 }
 
 #[cfg(test)]

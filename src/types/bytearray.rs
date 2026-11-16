@@ -1,6 +1,8 @@
-use crate::err::{PyErr, PyResult};
+use crate::conversions::std::slice::slice_as_ffi_parts;
+use crate::err::{PyResult, error_on_negative};
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::instance::{Borrowed, Bound};
+use crate::internal::compat::cast_signed;
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::critical_section::with_critical_section;
@@ -43,10 +45,9 @@ impl PyByteArray {
     ///
     /// The byte string is initialized by copying the data from the `&[u8]`.
     pub fn new<'py>(py: Python<'py>, src: &[u8]) -> Bound<'py, PyByteArray> {
-        let ptr = src.as_ptr().cast();
-        let len = src.len() as ffi::Py_ssize_t;
+        let (ptr, len) = slice_as_ffi_parts(src);
         unsafe {
-            ffi::PyByteArray_FromStringAndSize(ptr, len)
+            ffi::PyByteArray_FromStringAndSize(ptr.cast(), len)
                 .assume_owned(py)
                 .cast_into_unchecked()
         }
@@ -60,6 +61,9 @@ impl PyByteArray {
     /// * If `init` returns `Ok(())`, `new_with` will return `Ok(&PyByteArray)`.
     ///
     /// # Examples
+    ///
+    /// Returns an error for values of `len` greater than `isize::MAX` (they will be
+    /// interpreted as a negative length).
     ///
     /// ```
     /// use pyo3::{prelude::*, types::PyByteArray};
@@ -82,8 +86,11 @@ impl PyByteArray {
     {
         unsafe {
             // Allocate buffer and check for an error
+            //
+            // The signed cast is ok; values exceeding isize::MAX will be interpreted as negative length
+            // and be rejected by the interpreter.
             let pybytearray: Bound<'_, Self> =
-                ffi::PyByteArray_FromStringAndSize(core::ptr::null(), len as ffi::Py_ssize_t)
+                ffi::PyByteArray_FromStringAndSize(core::ptr::null(), cast_signed(len))
                     .assume_owned_or_err(py)?
                     .cast_into_unchecked();
 
@@ -260,6 +267,9 @@ pub trait PyByteArrayMethods<'py>: crate::sealed::Sealed {
 
     /// Resizes the bytearray object to the new length `len`.
     ///
+    /// Returns an error if the new array cannot be allocated or if the new length is
+    /// greater than `isize::MAX` (it will be interpreted as a negative length).
+    ///
     /// Note that this will invalidate any pointers obtained by [PyByteArrayMethods::data], as well as
     /// any (unsafe) slices obtained from [PyByteArrayMethods::as_bytes] and [PyByteArrayMethods::as_bytes_mut].
     fn resize(&self, len: usize) -> PyResult<()>;
@@ -300,14 +310,22 @@ impl<'py> PyByteArrayMethods<'py> for Bound<'py, PyByteArray> {
     }
 
     fn resize(&self, len: usize) -> PyResult<()> {
-        unsafe {
-            let result = ffi::PyByteArray_Resize(self.as_ptr(), len as ffi::Py_ssize_t);
-            if result == 0 {
-                Ok(())
-            } else {
-                Err(PyErr::fetch(self.py()))
-            }
+        let new_len = cast_signed(len);
+
+        // Python versions before 3.14 do not check for negative lengths here
+        #[cfg(not(Py_3_14))]
+        if new_len < 0 {
+            use crate::exceptions::PyValueError;
+            return Err(PyValueError::new_err(format!(
+                "Can only resize to positive sizes, got {new_len}"
+            )));
         }
+
+        error_on_negative(
+            self.py(),
+            // SAFETY: `self` is a valid bytearray object & the thread is attached
+            unsafe { ffi::PyByteArray_Resize(self.as_ptr(), new_len) },
+        )
     }
 }
 
@@ -340,6 +358,7 @@ impl<'py> TryFrom<&Bound<'py, PyAny>> for Bound<'py, PyByteArray> {
 mod tests {
     extern crate std;
 
+    use crate::exceptions::{PySystemError, PyValueError};
     use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods};
     use crate::{Bound, Py, PyAny, Python, exceptions};
 
@@ -474,6 +493,30 @@ mod tests {
                     .unwrap()
                     .is_instance_of::<PyValueError>(py)
             );
+        })
+    }
+
+    #[test]
+    fn test_byte_array_new_with_invalid_length() {
+        Python::attach(|py| {
+            let py_bytearray_result =
+                PyByteArray::new_with(py, isize::MAX as usize + 1, |_| Ok(()));
+            assert!(py_bytearray_result.is_err());
+            assert!(
+                py_bytearray_result
+                    .err()
+                    .unwrap()
+                    .is_instance_of::<PySystemError>(py)
+            );
+        })
+    }
+
+    #[test]
+    fn test_byte_array_resize_invalid_length() {
+        Python::attach(|py| {
+            let bytearray = PyByteArray::new(py, b"Hello Crustaceans!");
+            let err = bytearray.resize(-1isize as usize).unwrap_err();
+            assert!(err.is_instance_of::<PyValueError>(py));
         })
     }
 

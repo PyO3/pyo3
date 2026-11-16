@@ -10,6 +10,7 @@ use crate::impl_::pyclass::{
     PyClassBaseType, PyClassDict, PyClassImpl, PyClassThreadChecker, PyClassWeakRef, PyObjectOffset,
 };
 use crate::instance::PyBorrowedUnbound;
+use crate::internal::compat::checked_cast_signed;
 use crate::internal::get_slot::{TP_DEALLOC, TP_FREE};
 #[cfg(RustPython)]
 use crate::sync::PyOnceLock;
@@ -452,37 +453,24 @@ pub struct PyStaticClassObject<T: PyClassImpl> {
 
 impl<T: PyClassImpl<Layout = Self>> PyClassObjectLayout<T> for PyStaticClassObject<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
-    const CONTENTS_OFFSET: PyObjectOffset = {
-        let offset = offset_of!(Self, contents);
-        // Py_ssize_t may not be equal to isize on all platforms
-        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
-        PyObjectOffset::Absolute(offset as ffi::Py_ssize_t)
-    };
+    const CONTENTS_OFFSET: PyObjectOffset =
+        PyObjectOffset::Absolute(cast_offset_signed(offset_of!(Self, contents)));
 
-    const BASIC_SIZE: ffi::Py_ssize_t = {
-        let size = core::mem::size_of::<Self>();
-        assert!(size <= ffi::Py_ssize_t::MAX as usize);
-        size as _
-    };
+    const BASIC_SIZE: ffi::Py_ssize_t = cast_size_signed(core::mem::size_of::<Self>());
 
     // Not just `size_of::<PyClassObjectContents<T>>() > 0`: empty contents aligned more
     // strictly than the base still grow the instance, through `repr(C)` padding.
     const IS_DISJOINT_BASE: bool = core::mem::size_of::<Self>()
         != core::mem::size_of::<<T::BaseType as PyClassBaseType>::LayoutAsBase>();
 
-    const DICT_OFFSET: PyObjectOffset = {
-        let offset = offset_of!(PyStaticClassObject<T>, contents)
-            + offset_of!(PyClassObjectContents<T>, dict);
-        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
-        PyObjectOffset::Absolute(offset as _)
-    };
+    const DICT_OFFSET: PyObjectOffset = PyObjectOffset::Absolute(cast_offset_signed(
+        offset_of!(PyStaticClassObject<T>, contents) + offset_of!(PyClassObjectContents<T>, dict),
+    ));
 
-    const WEAKLIST_OFFSET: PyObjectOffset = {
-        let offset = offset_of!(PyStaticClassObject<T>, contents)
-            + offset_of!(PyClassObjectContents<T>, weakref);
-        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
-        PyObjectOffset::Absolute(offset as _)
-    };
+    const WEAKLIST_OFFSET: PyObjectOffset = PyObjectOffset::Absolute(cast_offset_signed(
+        offset_of!(PyStaticClassObject<T>, contents)
+            + offset_of!(PyClassObjectContents<T>, weakref),
+    ));
 
     unsafe fn contents_uninit(
         obj: *mut ffi::PyObject,
@@ -593,26 +581,23 @@ impl<T: PyClass<Layout = Self>> PyVariableClassObject<T> {
 impl<T: PyClass<Layout = Self>> PyClassObjectLayout<T> for PyVariableClassObject<T> {
     /// Gets the offset of the contents from the start of the struct in bytes.
     const CONTENTS_OFFSET: PyObjectOffset = PyObjectOffset::Relative(0);
-    const BASIC_SIZE: ffi::Py_ssize_t = {
-        let size = core::mem::size_of::<PyClassObjectContents<T>>();
-        assert!(size <= ffi::Py_ssize_t::MAX as usize);
-        // negative to indicate 'extra' space that cpython will allocate for us
-        -(size as ffi::Py_ssize_t)
-    };
+
+    const BASIC_SIZE: ffi::Py_ssize_t =
+        cast_size_signed(core::mem::size_of::<PyClassObjectContents<T>>())
+            // negative to indicate 'extra' space that cpython will allocate for us
+            .checked_neg()
+            .unwrap();
 
     // cpython appends the contents, reusing the base's size when there are none.
     const IS_DISJOINT_BASE: bool = core::mem::size_of::<PyClassObjectContents<T>>() > 0;
 
-    const DICT_OFFSET: PyObjectOffset = {
-        let offset = offset_of!(PyClassObjectContents<T>, dict);
-        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
-        PyObjectOffset::Relative(offset as _)
-    };
-    const WEAKLIST_OFFSET: PyObjectOffset = {
-        let offset = offset_of!(PyClassObjectContents<T>, weakref);
-        assert!(offset <= ffi::Py_ssize_t::MAX as usize);
-        PyObjectOffset::Relative(offset as _)
-    };
+    const DICT_OFFSET: PyObjectOffset = PyObjectOffset::Relative(cast_offset_signed(offset_of!(
+        PyClassObjectContents<T>,
+        dict
+    )));
+    const WEAKLIST_OFFSET: PyObjectOffset = PyObjectOffset::Relative(cast_offset_signed(
+        offset_of!(PyClassObjectContents<T>, weakref),
+    ));
 
     unsafe fn contents_uninit(
         obj: *mut ffi::PyObject,
@@ -696,6 +681,18 @@ where
         unsafe { class_object.contents_mut().dealloc(py, slf) };
         unsafe { <T::BaseType as PyClassBaseType>::LayoutAsBase::tp_dealloc(py, slf) }
     }
+}
+
+/// To be used in const contexts to cast a usize to a signed size or panic on overflow.
+#[track_caller]
+const fn cast_size_signed(offset: usize) -> ffi::Py_ssize_t {
+    checked_cast_signed(offset).expect("static size overflowed Py_ssize_t")
+}
+
+/// To be used in const contexts to cast a usize to a signed offset or panic on overflow.
+#[track_caller]
+const fn cast_offset_signed(offset: usize) -> ffi::Py_ssize_t {
+    checked_cast_signed(offset).expect("static offset overflowed Py_ssize_t")
 }
 
 #[cfg(test)]

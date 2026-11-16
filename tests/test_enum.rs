@@ -1,4 +1,6 @@
 #![cfg(feature = "macros")]
+// TODO: just use `.cast_signed()` instead of `as isize` on MSRV >= 1.87.0
+#![allow(clippy::cast_possible_wrap)]
 
 use pyo3::prelude::*;
 use pyo3::py_run;

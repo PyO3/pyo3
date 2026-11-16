@@ -218,6 +218,7 @@ features = ["full"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [workspace.lints.clippy]
+cast_possible_wrap = "warn"
 checked_conversions = "warn"
 dbg_macro = "warn"
 explicit_into_iter_loop = "warn"

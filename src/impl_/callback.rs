@@ -173,7 +173,10 @@ macro_rules! wrapping_cast {
         impl WrappingCastTo<$to> for $from {
             #[inline]
             fn wrapping_cast(self) -> $to {
-                self as $to
+                #[allow(clippy::cast_possible_wrap, reason = "this is a wrapping cast")]
+                {
+                    self as $to
+                }
             }
         }
         impl wrapping_cast_to::Sealed<$to> for $from {}

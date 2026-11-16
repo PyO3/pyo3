@@ -9,6 +9,10 @@
 //! yourself to import Python classes that are ultimately derived from
 //! `BaseException`.
 
+use crate::conversions::std::slice::slice_as_ffi_parts;
+use crate::ffi_ptr_ext::FfiPtrExt;
+use crate::internal::compat::saturating_cast_signed;
+use crate::py_result_ext::PyResultExt;
 use crate::{Bound, PyResult, Python, ffi};
 use core::ffi::CStr;
 use core::ops;
@@ -720,21 +724,21 @@ impl PyUnicodeDecodeError {
         range: ops::Range<usize>,
         reason: &CStr,
     ) -> PyResult<Bound<'py, PyUnicodeDecodeError>> {
-        use crate::ffi_ptr_ext::FfiPtrExt;
-        use crate::py_result_ext::PyResultExt;
+        let (ptr, len) = slice_as_ffi_parts(input);
+
         // SAFETY: calling python API with correct pointers
         unsafe {
             ffi::PyUnicodeDecodeError_Create(
                 encoding.as_ptr(),
-                input.as_ptr().cast(),
-                input.len() as ffi::Py_ssize_t,
-                range.start as ffi::Py_ssize_t,
-                range.end as ffi::Py_ssize_t,
+                ptr.cast(),
+                len,
+                saturating_cast_signed(range.start),
+                saturating_cast_signed(range.end),
                 reason.as_ptr(),
             )
             .assume_owned_or_err(py)
+            .cast_into_unchecked()
         }
-        .cast_into()
     }
 
     /// Creates a Python `UnicodeDecodeError` from a Rust UTF-8 decoding error.

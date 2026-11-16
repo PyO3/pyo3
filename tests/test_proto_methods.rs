@@ -358,16 +358,12 @@ impl Sequence {
 
 impl Sequence {
     fn usize_index(&self, index: isize) -> PyResult<usize> {
-        if index < 0 {
-            let corrected_index = index + self.values.len() as isize;
-            if corrected_index < 0 {
-                Err(PyIndexError::new_err(index))
-            } else {
-                Ok(corrected_index as usize)
-            }
-        } else {
-            Ok(index as usize)
-        }
+        index.try_into().or_else(|_| {
+            self.values
+                .len()
+                .checked_add_signed(index)
+                .ok_or_else(|| PyIndexError::new_err(index))
+        })
     }
 }
 

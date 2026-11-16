@@ -1,4 +1,6 @@
 use crate::PyObject;
+#[cfg(all(Py_GIL_DISABLED, not(Py_LIMITED_API)))]
+use crate::pyatomic::{_Py_atomic_load_ssize_relaxed, _Py_atomic_load_uint32_relaxed};
 use crate::pyport::Py_ssize_t;
 #[cfg(all(not(Py_LIMITED_API), py_sys_config = "Py_REF_DEBUG"))]
 use core::ffi::c_char;
@@ -9,7 +11,7 @@ use core::ffi::c_char;
 use core::ffi::c_int;
 #[cfg(all(Py_3_14, any(not(Py_GIL_DISABLED), target_pointer_width = "32")))]
 use core::ffi::c_long;
-#[cfg(any(Py_GIL_DISABLED, all(Py_3_12, not(Py_3_14))))]
+#[cfg(all(Py_3_12, not(Py_3_14)))]
 use core::ffi::c_uint;
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
 use core::ffi::c_ulong;
@@ -43,25 +45,16 @@ const _Py_IMMORTAL_INITIAL_REFCNT: Py_ssize_t = {
     }
 };
 
-#[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
-const _Py_STATIC_IMMORTAL_INITIAL_REFCNT: Py_ssize_t = {
-    if cfg!(target_pointer_width = "64") {
-        _Py_IMMORTAL_INITIAL_REFCNT
-            | ((_Py_STATICALLY_ALLOCATED_FLAG as Py_ssize_t) << (32 as Py_ssize_t))
-    } else {
-        ((7 as c_long) << (28 as c_long)) as Py_ssize_t
-    }
-};
+// skipped private _Py_STATIC_IMMORTAL_INITIAL_REFCNT
 
 #[cfg(all(Py_3_14, target_pointer_width = "32"))]
 const _Py_IMMORTAL_MINIMUM_REFCNT: Py_ssize_t = ((1 as c_long) << (30 as c_long)) as Py_ssize_t;
 
-#[cfg(all(Py_3_14, target_pointer_width = "32"))]
-const _Py_STATIC_IMMORTAL_MINIMUM_REFCNT: Py_ssize_t =
-    ((6 as c_long) << (28 as c_long)) as Py_ssize_t;
+// skipped private _Py_STATIC_IMMORTAL_MINIMUM_REFCNT
 
 #[cfg(all(Py_3_14, Py_GIL_DISABLED))]
-const _Py_IMMORTAL_INITIAL_REFCNT: Py_ssize_t = c_uint::MAX as Py_ssize_t;
+#[expect(clippy::cast_possible_wrap)]
+const _Py_IMMORTAL_INITIAL_REFCNT: Py_ssize_t = u32::MAX as Py_ssize_t;
 
 #[cfg(Py_GIL_DISABLED)]
 pub(crate) const _Py_IMMORTAL_REFCNT_LOCAL: u32 = u32::MAX;
@@ -85,45 +78,46 @@ extern_libpython! {
 #[cfg(not(all(Py_3_14, Py_LIMITED_API)))]
 #[inline]
 pub unsafe fn Py_REFCNT(ob: *mut PyObject) -> Py_ssize_t {
+    #[cfg(not(Py_GIL_DISABLED))]
+    {
+        #[cfg(Py_3_12)]
+        {
+            #[cfg(not(PyPy))]
+            {
+                (*ob).ob_refcnt.ob_refcnt
+            }
+
+            #[cfg(PyPy)]
+            {
+                (*ob).ob_refcnt
+            }
+        }
+
+        #[cfg(not(Py_3_12))]
+        {
+            #[cfg(not(GraalPy))]
+            {
+                (*ob).ob_refcnt
+            }
+
+            #[cfg(GraalPy)]
+            {
+                _Py_REFCNT(ob)
+            }
+        }
+    }
+
     #[cfg(Py_GIL_DISABLED)]
     {
-        let local = (*ob).ob_ref_local.load(Relaxed);
+        let local = _Py_atomic_load_uint32_relaxed((*ob).ob_ref_local.as_ptr());
         if local == _Py_IMMORTAL_REFCNT_LOCAL {
-            #[cfg(not(Py_3_14))]
-            return _Py_IMMORTAL_REFCNT;
-            #[cfg(Py_3_14)]
             return _Py_IMMORTAL_INITIAL_REFCNT;
         }
-        let shared = (*ob).ob_ref_shared.load(Relaxed);
-        local as Py_ssize_t + Py_ssize_t::from(shared >> _Py_REF_SHARED_SHIFT)
-    }
-
-    #[cfg(all(Py_LIMITED_API, Py_3_14))]
-    {
-        Py_REFCNT(ob)
-    }
-
-    #[cfg(all(not(Py_GIL_DISABLED), not(all(Py_LIMITED_API, Py_3_14)), Py_3_12))]
-    {
-        #[cfg(not(PyPy))]
+        let shared = _Py_atomic_load_ssize_relaxed((*ob).ob_ref_shared.as_ptr());
+        #[expect(clippy::cast_possible_wrap)]
         {
-            (*ob).ob_refcnt.ob_refcnt
+            local as Py_ssize_t + Py_ssize_t::from(shared >> _Py_REF_SHARED_SHIFT)
         }
-
-        #[cfg(PyPy)]
-        {
-            (*ob).ob_refcnt
-        }
-    }
-
-    #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), not(GraalPy)))]
-    {
-        (*ob).ob_refcnt
-    }
-
-    #[cfg(all(not(Py_GIL_DISABLED), not(Py_3_12), GraalPy))]
-    {
-        _Py_REFCNT(ob)
     }
 }
 

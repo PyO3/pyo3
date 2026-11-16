@@ -404,16 +404,16 @@ pub(crate) fn pylong_from_digits<I: ExactSizeIterator<Item = u32>>(
     py: Python<'_>,
     negative: bool,
     digits: I,
-) -> Bound<'_, PyInt> {
+) -> PyResult<Bound<'_, PyInt>> {
     let digits_len = digits.len();
 
     if digits_len == 0 {
         // Return the constant 0 as a fast path
-        return unsafe {
+        return Ok(unsafe {
             ffi::Py_GetConstant(ffi::Py_CONSTANT_ZERO)
-                .assume_owned(py)
+                .assume_owned_unchecked(py) // guaranteed to succeed with a valid constant ID
                 .cast_into_unchecked()
-        };
+        });
     } else if digits_len == 1 {
         // Using the direct constructors for small integers
         // is lower overhead than the writer API; the writer output
@@ -421,15 +421,18 @@ pub(crate) fn pylong_from_digits<I: ExactSizeIterator<Item = u32>>(
         let digit = digits.into_iter().next().unwrap();
         if negative {
             return unsafe {
+                use crate::internal::compat::{i32_unchecked_neg, u32_cast_signed};
+
                 // NB digit has at most 30 bits so this can't overflow i32
-                ffi::PyLong_FromInt32(-(digit as i32))
-                    .assume_owned(py)
+                // TODO: can use unchecked_neg on MSRV >= 1.93
+                ffi::PyLong_FromInt32(i32_unchecked_neg(u32_cast_signed(digit)))
+                    .assume_owned_or_cold_err(py) // only MemoryError possible
                     .cast_into_unchecked()
             };
         } else {
             return unsafe {
                 ffi::PyLong_FromUInt32(digit)
-                    .assume_owned(py)
+                    .assume_owned_or_cold_err(py) // only MemoryError possible
                     .cast_into_unchecked()
             };
         }
@@ -437,16 +440,20 @@ pub(crate) fn pylong_from_digits<I: ExactSizeIterator<Item = u32>>(
 
     let mut ptr = core::ptr::null_mut();
     let writer = unsafe {
-        ffi::PyLongWriter_Create(negative.into(), digits_len as ffi::Py_ssize_t, &mut ptr)
+        use crate::internal::compat::cast_signed;
+        // on wrap to negative `PyLongWriter_Create` will return null and set an error
+        ffi::PyLongWriter_Create(negative.into(), cast_signed(digits_len), &mut ptr)
     };
-    assert!(!writer.is_null(), "PyLongWriter_Create returned NULL");
+    if writer.is_null() {
+        return Err(PyErr::cold_fetch(py));
+    }
     let digit_ptr = ptr.cast::<u32>();
     for (i, d) in digits.enumerate() {
         unsafe { digit_ptr.add(i).write(d) };
     }
     unsafe {
         ffi::PyLongWriter_Finish(writer)
-            .assume_owned(py)
+            .assume_owned_or_cold_err(py) // No known errors at current time
             .cast_into_unchecked()
     }
 }
@@ -538,19 +545,17 @@ mod fast_128bit_int_conversion {
                     #[cfg(Py_3_14)]
                     {
                         if is_30bit_layout(py) {
-                            let signed = self as i128;
-                            let negative = $is_signed && signed < 0;
-                            let abs = if negative {
-                                signed.unsigned_abs()
-                            } else {
-                                self as u128
-                            };
+                            let negative = self.is_negative();
+                            let abs = self.unsigned_abs();
 
                             return Ok(pylong_from_digits(
                                 py,
                                 negative,
                                 U128DigitIterator { inner: abs },
-                            ));
+                            )
+                            // NB this could happen on out of memory, but we can't deal with that through the
+                            // `Infallible` error type for now.
+                            .expect("failed to convert 128-bit integer to Python int"));
                         }
                     }
 
@@ -591,18 +596,11 @@ mod fast_128bit_int_conversion {
                     #[cfg(Py_3_14)]
                     {
                         if is_30bit_layout(ob.py()) {
-                            let overflow = || {
-                                exceptions::PyOverflowError::new_err(
-                                    "Python int larger than 128 bits",
-                                )
-                            };
                             return pylong_visit_digits(
                                 num.as_any().as_borrowed(),
                                 |negative, compact, digits| {
                                     if !$is_signed && negative {
-                                        return Err(exceptions::PyValueError::new_err(
-                                            "can't convert negative int to unsigned",
-                                        ));
+                                        return Err(negative_int_as_unsigned());
                                     }
                                     let Some(digits) = digits else {
                                         return <$rust_type>::try_from(compact)
@@ -621,21 +619,11 @@ mod fast_128bit_int_conversion {
                                     if overflowed {
                                         return Err(overflow());
                                     }
-                                    if !$is_signed {
-                                        return <$rust_type>::try_from(abs).map_err(|_| overflow());
-                                    }
-                                    let signed = if negative {
-                                        if abs > 1_u128 << 127 {
-                                            return Err(overflow());
-                                        }
-                                        (abs.wrapping_neg()) as i128
-                                    } else {
-                                        if abs > i128::MAX as u128 {
-                                            return Err(overflow());
-                                        }
-                                        abs as i128
-                                    };
-                                    <$rust_type>::try_from(signed).map_err(|_| overflow())
+                                    <$rust_type>::try_from_abs_and_negative(
+                                        abs,
+                                        // if !is_signed, already returned above before processing digits
+                                        $is_signed && negative,
+                                    )
                                 },
                             );
                         }
@@ -688,6 +676,66 @@ mod fast_128bit_int_conversion {
 
     int_convert_128!(i128, true);
     int_convert_128!(u128, false);
+
+    #[cfg(Py_3_14)]
+    trait U128SignedShims {
+        fn is_negative(&self) -> bool;
+        fn unsigned_abs(self) -> u128;
+    }
+
+    #[cfg(Py_3_14)]
+    impl U128SignedShims for u128 {
+        fn is_negative(&self) -> bool {
+            false
+        }
+        fn unsigned_abs(self) -> u128 {
+            self
+        }
+    }
+
+    #[cfg(Py_3_14)]
+    trait FromAbsAndNegative: Sized {
+        fn try_from_abs_and_negative(abs: u128, negative: bool) -> PyResult<Self>;
+    }
+
+    #[cfg(Py_3_14)]
+    impl FromAbsAndNegative for u128 {
+        fn try_from_abs_and_negative(abs: u128, negative: bool) -> PyResult<Self> {
+            if negative {
+                panic!("can't convert negative int to unsigned");
+            } else {
+                Ok(abs)
+            }
+        }
+    }
+
+    #[cfg(Py_3_14)]
+    impl FromAbsAndNegative for i128 {
+        fn try_from_abs_and_negative(abs: u128, negative: bool) -> PyResult<Self> {
+            use crate::internal::compat::u128_cast_signed;
+            if negative {
+                if abs > i128::MIN.unsigned_abs() {
+                    return Err(overflow());
+                }
+                Ok(u128_cast_signed(abs.wrapping_neg()))
+            } else {
+                if abs > i128::MAX as u128 {
+                    return Err(overflow());
+                }
+                Ok(u128_cast_signed(abs))
+            }
+        }
+    }
+
+    #[cfg(Py_3_14)]
+    fn overflow() -> PyErr {
+        exceptions::PyOverflowError::new_err("Python int larger than 128 bits")
+    }
+
+    #[cfg(Py_3_14)]
+    fn negative_int_as_unsigned() -> PyErr {
+        exceptions::PyValueError::new_err("can't convert negative int to unsigned")
+    }
 }
 
 #[cfg(all(not(Py_LIMITED_API), not(Py_3_13)))]
@@ -1100,9 +1148,9 @@ mod test_128bit_integers {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::types::PyAnyMethods;
     use crate::{IntoPyObject, Python};
-    use core::num::*;
 
     #[test]
     fn test_u32_max() {
@@ -1312,6 +1360,18 @@ mod tests {
             let obj = 12f64.into_pyobject(py).unwrap();
             let err = obj.extract::<i64>().unwrap_err();
             assert!(err.is_instance_of::<crate::exceptions::PyTypeError>(py));
+        })
+    }
+
+    #[test]
+    #[cfg(any(all(Py_3_14, not(Py_LIMITED_API)), Py_3_15))]
+    fn test_pylong_from_digits_invalid_length() {
+        Python::attach(|py| {
+            // iterator of length greater than isize::MAX will wrap as a negative size,
+            // which should be rejected safely
+            let iter = core::iter::repeat_n(1, isize::MAX as usize + 1);
+            let err = pylong_from_digits(py, false, iter).unwrap_err();
+            assert!(err.is_instance_of::<crate::exceptions::PyValueError>(py));
         })
     }
 }

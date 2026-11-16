@@ -1,3 +1,4 @@
+use crate::PyErr;
 use crate::sealed::Sealed;
 use crate::{
     PyAny, PyResult, Python, ffi,
@@ -9,6 +10,9 @@ pub(crate) trait FfiPtrExt: Sealed {
     ///
     /// If the pointer is NULL, this function will fetch an error.
     unsafe fn assume_owned_or_err(self, py: Python<'_>) -> PyResult<Bound<'_, PyAny>>;
+
+    /// Variant of the above which makes the fetch cold, for unlikely error cases.
+    unsafe fn assume_owned_or_cold_err(self, py: Python<'_>) -> PyResult<Bound<'_, PyAny>>;
 
     /// Same as `assume_owned_or_err`, but doesn't fetch an error on NULL.
     unsafe fn assume_owned_or_opt(self, py: Python<'_>) -> Option<Bound<'_, PyAny>>;
@@ -44,6 +48,15 @@ impl FfiPtrExt for *mut ffi::PyObject {
     unsafe fn assume_owned_or_err(self, py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         // SAFETY: caller upholds requirements
         unsafe { Bound::from_owned_ptr_or_err(py, self) }
+    }
+
+    /// # Safety
+    ///
+    /// see requirements for [`Bound::from_owned_ptr_or_err`]
+    #[inline]
+    unsafe fn assume_owned_or_cold_err(self, py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+        // SAFETY: caller upholds requirements
+        unsafe { Bound::from_owned_ptr_or_opt(py, self).ok_or_else(|| PyErr::cold_fetch(py)) }
     }
 
     /// # Safety

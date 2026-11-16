@@ -7,7 +7,7 @@ use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::{PyStaticExpr, type_hint_subscript};
 use crate::instance::Borrowed;
-use crate::internal_tricks::get_ssize_index;
+use crate::internal::compat::{cast_signed, saturating_cast_signed};
 #[allow(unused_imports, reason = "used to build docs")]
 use crate::platform::prelude::*;
 #[cfg(feature = "experimental-inspect")]
@@ -286,9 +286,13 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
 
     fn get_slice(&self, low: usize, high: usize) -> Bound<'py, PyTuple> {
         unsafe {
-            ffi::PyTuple_GetSlice(self.as_ptr(), get_ssize_index(low), get_ssize_index(high))
-                .assume_owned(self.py())
-                .cast_into_unchecked()
+            ffi::PyTuple_GetSlice(
+                self.as_ptr(),
+                saturating_cast_signed(low),
+                saturating_cast_signed(high),
+            )
+            .assume_owned(self.py())
+            .cast_into_unchecked()
         }
     }
 
@@ -349,26 +353,26 @@ impl<'py> PyTupleMethods<'py> for Bound<'py, PyTuple> {
 
 impl<'a, 'py> Borrowed<'a, 'py, PyTuple> {
     fn get_borrowed_item(self, index: usize) -> PyResult<Borrowed<'a, 'py, PyAny>> {
-        unsafe {
-            ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t)
-                .assume_borrowed_or_err(self.py())
-        }
+        // PyTuple_GetItem will raise an IndexError if the index wraps to negative
+        let index = cast_signed(index);
+        unsafe { ffi::PyTuple_GetItem(self.as_ptr(), index).assume_borrowed_or_err(self.py()) }
     }
 
     /// # Safety
     ///
     /// See `get_item_unchecked` in `PyTupleMethods`.
     unsafe fn get_borrowed_item_unchecked(self, index: usize) -> Borrowed<'a, 'py, PyAny> {
+        // The `index` cannot exceed `isize::MAX` while meeting the safety requirements because
+        // that is the maximum possible size of a tuple. Casting signed will therefore not wrap.
+        let index = cast_signed(index);
         cfg_select! {
             // SAFETY: caller has upheld the safety contract
             not(any(Py_LIMITED_API, PyPy, GraalPy)) => unsafe {
-                ffi::PyTuple_GET_ITEM(self.as_ptr(), index as Py_ssize_t)
-                    .assume_borrowed_unchecked(self.py())
+                ffi::PyTuple_GET_ITEM(self.as_ptr(), index).assume_borrowed_unchecked(self.py())
             },
             // SAFETY: `PyTuple_GetItem` is known to always succeed under these conditions
             any(Py_LIMITED_API, PyPy, GraalPy) => unsafe {
-                ffi::PyTuple_GetItem(self.as_ptr(), index as Py_ssize_t)
-                    .assume_borrowed_unchecked(self.py())
+                ffi::PyTuple_GetItem(self.as_ptr(), index).assume_borrowed_unchecked(self.py())
             }
         }
     }
@@ -960,10 +964,11 @@ fn array_into_tuple<'py, const N: usize>(
         let ptr = ffi::PyTuple_New(N.try_into().expect("0 < N <= 12"));
         let tup = ptr.assume_owned(py).cast_into_unchecked();
         for (index, obj) in array.into_iter().enumerate() {
+            let index = index.try_into().expect("0 < N <= 12");
             #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy)))]
-            ffi::PyTuple_SET_ITEM(ptr, index as ffi::Py_ssize_t, obj.into_ptr());
+            ffi::PyTuple_SET_ITEM(ptr, index, obj.into_ptr());
             #[cfg(any(Py_LIMITED_API, PyPy, GraalPy))]
-            ffi::PyTuple_SetItem(ptr, index as ffi::Py_ssize_t, obj.into_ptr());
+            ffi::PyTuple_SetItem(ptr, index, obj.into_ptr());
         }
         tup
     }
