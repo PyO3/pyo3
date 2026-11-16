@@ -1,6 +1,5 @@
 //! Example of custom annotations.
 
-use pyo3::inspect::PyStaticExpr;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
@@ -27,21 +26,9 @@ pyo3::pyprotocol! {
     }
 }
 
-/// Any object with `read()` and `write()` methods, typed as the `SupportsReadWrite` protocol
-pub struct ReadWriteFile<'py>(Bound<'py, PyAny>);
-
-impl<'py> FromPyObject<'_, 'py> for ReadWriteFile<'py> {
-    type Error = PyErr;
-
-    const INPUT_TYPE: PyStaticExpr = SupportsReadWrite::TYPE_HINT;
-
-    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
-        Ok(Self(obj.to_owned()))
-    }
-}
-
 #[pymodule]
 pub mod annotations {
+    use super::SupportsReadWrite;
     use crate::pyclasses::EmptyClass;
     use pyo3::prelude::*;
     use pyo3::types::{PyDict, PyTuple};
@@ -49,21 +36,29 @@ pub mod annotations {
     #[pymodule_export]
     use super::SupportsClose;
 
-    #[pyfunction(signature = (a: "list[int]", *_args: "str", _b: "int | None" = None, **_kwargs: "bool") -> "int")]
+    #[pyfunction(signature = (
+        a: collections.abc.Iterable[int | None],
+        b: typing.Literal["foo", 1, -2, True] | None = None,
+        c: collections.abc.Callable[[str, tuple[int, ...]], tuple[()]] | None = None,
+        *_args: { <pyo3::types::PyInt as pyo3::type_object::PyTypeInfo>::TYPE_HINT },
+        **_kwargs: (bool | str)
+    ) -> collections.abc.Iterable[int | None])]
     fn with_custom_type_annotations<'py>(
         a: Bound<'py, PyAny>,
+        b: Option<Bound<'py, PyAny>>,
+        c: Option<Bound<'py, PyAny>>,
         _args: Bound<'py, PyTuple>,
-        _b: Option<Bound<'py, PyAny>>,
         _kwargs: Option<Bound<'py, PyDict>>,
     ) -> Bound<'py, PyAny> {
+        let _ = (b, c);
         a
     }
 
     #[pyfunction]
     fn cross_module_imports(_a: &EmptyClass) {}
 
-    #[pyfunction]
-    fn write_to(f: super::ReadWriteFile<'_>, data: &[u8]) -> PyResult<usize> {
-        f.0.call_method1("write", (data,))?.extract()
+    #[pyfunction(signature = (f: { SupportsReadWrite::TYPE_HINT }, data))]
+    fn write_to(f: Bound<'_, PyAny>, data: &[u8]) -> PyResult<usize> {
+        f.call_method1("write", (data,))?.extract()
     }
 }

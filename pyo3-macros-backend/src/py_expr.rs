@@ -2,7 +2,7 @@
 
 use crate::utils::{PyO3CratePath, StaticIdent};
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
+use quote::{ToTokens, format_ident, quote};
 use std::borrow::Cow;
 use syn::visit_mut::{VisitMut, visit_type_mut};
 use syn::{Expr, ExprLit, ExprPath, Lit, Type};
@@ -43,12 +43,16 @@ pub enum PyExpr {
     },
     /// A tuple
     Tuple { elts: Vec<Self> },
+    /// A list
+    List { elts: Vec<Self> },
     /// A subscript `value[slice]`
     Subscript { value: Box<Self>, slice: Box<Self> },
     /// A constant
     Constant(PyConstant),
     /// The `typing` module, or `typing_extensions` when targeting a Python older than `3.{version_3_x}`
     TypingOrExtensionsIfLess { version_3_x: u8 },
+    /// A Rust expression returning a `PyStaticExpr`
+    RustExpr { expr: Expr },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -171,6 +175,13 @@ impl PyExpr {
     /// Build a tuple
     pub fn tuple(elts: impl IntoIterator<Item = Self>) -> Self {
         Self::Tuple {
+            elts: elts.into_iter().collect(),
+        }
+    }
+
+    /// Build a list
+    pub fn list(elts: impl IntoIterator<Item = Self>) -> Self {
+        Self::List {
             elts: elts.into_iter().collect(),
         }
     }
@@ -302,6 +313,12 @@ impl PyExpr {
                     .map(|e| e.to_introspection_token_stream(pyo3_crate_path));
                 quote! { #pyo3_crate_path::inspect::PyStaticExpr::Tuple { elts: &[#(#elts),*] } }
             }
+            Self::List { elts } => {
+                let elts = elts
+                    .iter()
+                    .map(|e| e.to_introspection_token_stream(pyo3_crate_path));
+                quote! { #pyo3_crate_path::inspect::PyStaticExpr::List { elts: &[#(#elts),*] } }
+            }
             Self::Constant(c) => match c {
                 PyConstant::None => {
                     quote! { #pyo3_crate_path::inspect::PyStaticExpr::Constant { value: #pyo3_crate_path::inspect::PyStaticConstant::None } }
@@ -326,6 +343,7 @@ impl PyExpr {
                 let ident = format_ident!("typing_or_extensions_if_not_3_{version_3_x}");
                 quote! { #pyo3_crate_path::impl_::introspection::#ident() }
             }
+            Self::RustExpr { expr } => expr.into_token_stream(),
         }
     }
 }

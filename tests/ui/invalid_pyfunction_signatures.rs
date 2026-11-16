@@ -59,6 +59,54 @@ fn signature_contains_py(py: Python<'_>) {
     let _ = py;
 }
 
+#[pyfunction(signature = (a: list[]))]
+//~^ ERROR: subscripts must not be empty, use `[()]` for an empty tuple
+fn annotation_empty_subscript(a: Bound<'_, PyAny>) {
+    let _ = a;
+}
+
+#[pyfunction(signature = (a: typing.Literal[true]))]
+//~^ ERROR: use the Python spelling `True` for booleans in type annotations
+fn annotation_rust_bool(a: Bound<'_, PyAny>) {
+    let _ = a;
+}
+
+#[pyfunction(signature = (a: typing.Literal[1.5]))]
+//~^ ERROR: float literals are not valid in type annotations
+fn annotation_float(a: Bound<'_, PyAny>) {
+    let _ = a;
+}
+
+#[pyfunction(signature = (a: typing.Literal[1u8]))]
+//~^ ERROR: literal suffixes are not supported in type annotations
+fn annotation_int_suffix(a: Bound<'_, PyAny>) {
+    let _ = a;
+}
+
+#[pyfunction(signature = (a: typing.Literal["foo"bar]))]
+//~^ ERROR: literal suffixes are not supported in type annotations
+fn annotation_str_suffix(a: Bound<'_, PyAny>) {
+    let _ = a;
+}
+
+#[pyfunction(signature = (a: typing.Literal[-"foo"]))]
+//~^ ERROR: only integers can be negated in type annotations
+fn annotation_negated_str(a: Bound<'_, PyAny>) {
+    let _ = a;
+}
+
+#[pyfunction(signature = (a: typing.Literal['c']))]
+//~^ ERROR: unsupported literal in type annotation, only strings and integers are supported
+fn annotation_char(a: Bound<'_, PyAny>) {
+    let _ = a;
+}
+
+#[pyfunction(signature = (a: int +))]
+//~^ ERROR: expected `,`
+fn annotation_unexpected_token(a: Bound<'_, PyAny>) {
+    let _ = a;
+}
+
 #[pyclass]
 struct MyClass;
 

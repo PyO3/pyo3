@@ -277,7 +277,7 @@ pub mod example {
    use pyo3::prelude::*;
 
    #[pyfunction]
-   #[pyo3(signature = (arg: "list[int]") -> "list[int]")]
+   #[pyo3(signature = (arg: list[int]) -> list[int])]
    fn list_of_int_identity(arg: Bound<'_, PyAny>) -> Bound<'_, PyAny> {
       arg
    }
@@ -287,7 +287,7 @@ pub mod example {
 It enables the [work-in-progress capacity of PyO3 to autogenerate type stubs](../type-stub.md) to generate a file with the correct type hints:
 
 ```python
-def list_of_int_identity(arg: "list[int]") -> "list[int]": ...
+def list_of_int_identity(arg: list[int]) -> list[int]: ...
 ```
 
 instead of the generic:
@@ -299,5 +299,5 @@ from typing import Any
 def list_of_int_identity(arg: Any) -> Any: ...
 ```
 
-Note that currently type annotations must be written as strings.
-Future enhancements of PyO3's typing support may include the ability to parse a limited subset of Python's type expression syntax.
+Type annotations are written using a subset of Python's type expression syntax, see the [type stubs documentation](../type-stub.md) for the supported grammar.
+All type paths must be absolute (like `collections.abc.Iterable` or `my_package.my_module.MyClass`): local imports are not taken into account.

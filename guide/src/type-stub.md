@@ -43,7 +43,7 @@ pub mod example {
     }
 
     #[pyfunction]
-    #[pyo3(signature = (arg: "list[int]") -> "list[int]")]
+    #[pyo3(signature = (arg: list[int]) -> list[int])]
     fn list_of_int_identity(arg: Bound<'_, PyAny>) -> Bound<'_, PyAny> {
         arg
     }
@@ -70,16 +70,35 @@ class Class:
     def __ne__(self, value: object, /) -> bool: ...
 
 
-def list_of_int_identity(arg: "list[int]") -> "list[int]": ...
+def list_of_int_identity(arg: list[int]) -> list[int]: ...
 ```
 
-The only piece of new syntax is that the `#[pyo3(signature = ...)]` attribute can contain type annotations like `#[pyo3(signature = (arg: "list[int]") -> "list[int]")]` (note the `""` around type annotations).
+The only piece of new syntax is that the `#[pyo3(signature = ...)]` attribute can contain type annotations like `#[pyo3(signature = (arg: list[int]) -> list[int])]`.
 This is useful when PyO3 is not able to derive proper type annotations by itself.
 
 To generate stubs file with `maturin` you can use `maturin generate-stubs --output stubs` that will build the project then generate the stubs in the `stubs` directory.
 You can also directly integrate the stubs in the built wheels by doing `maturin build --generate-stubs` (works also with `maturin develop`).
 
 PyO3 also provides the smaller `pyo3-introspection` binary that allows to generate stubs from an existing built extension using something like `pyo3-introspection my_module_binary.so my_module_name output` to introspect the `my_module_binary.so` dynamic library for the `my_module_name` Python module and generate its stubs in the `output` directory.
+
+The grammar to write type hints in the `#[pyo3(signature=)]` parameter supports:
+
+- absolute paths like `collections.abc.Iterable`.
+  The last element of the path is considered as the type name and all elements before as the module used to generate imports: in the example, the `from collections.abc import Iterable` import will be generated.
+  A path without a module like `int` always refers to a builtin.
+- subscripts like `list[int]` or `dict[str, int]`.
+- unions like `int | bool`.
+- lists like `[int, str]` (useful for `Callable[[int, str], bool]`) and tuples like `()` (useful for `tuple[()]`).
+- literals: strings, integers, `True`, `False`, `None` and `...`.
+  Floats and Rust literal suffixes like `1u8` are not supported.
+- string literals are kept as strings: `"list[int]"` is emitted as the string annotation `"list[int]"`.
+- embedded Rust expressions inside curly braces like `{ MY_CONSTANT }`.
+  The expression must return a `pyo3::inspect::PyStaticExpr` value.
+
+> [!IMPORTANT]
+> All type paths must be absolute, i.e. start from the root of the Python module hierarchy: write `my_package.my_module.MyClass` and not `MyClass` or `my_module.MyClass`.
+> Imports in scope, whether Rust `use` statements or Python imports in the module, are **not** taken into account: `MyClass` alone would be interpreted as `builtins.MyClass`.
+> If you want to refer to a type created using `#[pyclass] struct MyClass {}`, you can use the `{ MyClass::TYPE_HINT }` expression that will automatically resolve to the type absolute path.
 
 ## Protocols
 
