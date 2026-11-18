@@ -33,7 +33,6 @@ pub use self::dict::{items::PyDictItems, keys::PyDictKeys, values::PyDictValues}
 pub use self::ellipsis::PyEllipsis;
 #[doc(inline)]
 pub use self::float::{PyFloat, PyFloatMethods};
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 #[doc(inline)]
 pub use self::frame::{PyFrame, PyFrameMethods};
 #[cfg(Py_3_15)]
@@ -361,7 +360,6 @@ pub mod datetime;
 pub mod dict;
 mod ellipsis;
 pub(crate) mod float;
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod frame;
 #[cfg(Py_3_15)]
 pub mod frozendict;
