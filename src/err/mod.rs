@@ -17,8 +17,8 @@ use crate::type_object::PyTypeInfo;
 use crate::types::PyString;
 use crate::types::any::PyAnyMethods;
 use crate::types::{
-    PyTraceback, PyType, string::PyStringMethods, traceback::PyTracebackMethods,
-    typeobject::PyTypeMethods,
+    PyFrame, PyFrameMethods, PyTraceback, PyType, string::PyStringMethods,
+    traceback::PyTracebackMethods, typeobject::PyTypeMethods,
 };
 use crate::{BoundObject, Py, PyAny, Python};
 use crate::{exceptions::PyBaseException, ffi};
@@ -124,15 +124,20 @@ impl PyErr {
     /// # });
     /// ```
     #[inline]
+    #[track_caller]
     pub fn new<T, A>(args: A) -> PyErr
     where
         T: PyTypeInfo,
         A: PyErrArguments + Send + Sync + 'static,
     {
+        #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+        let location = core::panic::Location::caller();
         PyErr::from_state(PyErrState::lazy(Box::new(move |py| {
             PyErrStateLazyFnOutput {
                 ptype: T::type_object(py).into(),
                 pvalue: args.arguments(py),
+                #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+                location,
             }
         })))
     }
@@ -147,6 +152,7 @@ impl PyErr {
     /// If `ty` does not inherit from `BaseException`, then a `TypeError` will be returned.
     ///
     /// If calling `ty` with `args` raises an exception, that exception will be returned.
+    #[track_caller]
     pub fn from_type<A>(ty: Bound<'_, PyType>, args: A) -> PyErr
     where
         A: PyErrArguments + Send + Sync + 'static,
@@ -187,6 +193,7 @@ impl PyErr {
     ///     );
     /// });
     /// ```
+    #[track_caller]
     pub fn from_value(obj: Bound<'_, PyAny>) -> PyErr {
         let state = match obj.cast_into::<PyBaseException>() {
             Ok(obj) => PyErrState::normalized(PyErrStateNormalized::new(obj)),
@@ -257,7 +264,8 @@ impl PyErr {
     ///
     /// Python::attach(|py| {
     ///     let err = PyTypeError::new_err(("some type error",));
-    ///     assert!(err.traceback(py).is_none());
+    /// #   #[cfg(not(Py_LIMITED_API))]
+    ///     assert!(err.traceback(py).is_some());
     /// });
     /// ```
     pub fn traceback<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyTraceback>> {
@@ -284,6 +292,7 @@ impl PyErr {
     /// Use this function when it is not known if an error should be present. If the error is
     /// expected to have been set, for example from [`PyErr::occurred`] or by an error return value
     /// from a C FFI function, use [`PyErr::fetch`].
+    #[track_caller]
     pub fn take(py: Python<'_>) -> Option<PyErr> {
         let state = PyErrStateNormalized::take(py)?;
 
@@ -292,7 +301,10 @@ impl PyErr {
             Self::print_panic_and_unwind(py, state)
         }
 
-        Some(PyErr::from_state(PyErrState::normalized(state)))
+        let err = PyErr::from_state(PyErrState::normalized(state));
+        #[cfg(debug_assertions)]
+        err.traceback_here(py);
+        Some(err)
     }
 
     #[cfg(wip_feature_std)]
@@ -654,6 +666,29 @@ impl PyErr {
     fn normalized(&self, py: Python<'_>) -> &PyErrStateNormalized {
         self.state.as_normalized(py)
     }
+
+    /// Add a frame to the top of the traceback stack.
+    pub fn add_frame<T: for<'py> IntoPyObject<'py, Target = PyFrame>>(
+        &self,
+        py: Python<'_>,
+        frame: T,
+    ) -> PyResult<()> {
+        let frame = frame.into_pyobject(py).map_err(Into::into)?.into_bound();
+        let line_number = frame.line_number();
+        let prev_tb = self.traceback(py);
+        let tb = PyTraceback::new(py, prev_tb, frame, 0, line_number)?;
+        self.set_traceback(py, Some(tb));
+        Ok(())
+    }
+
+    /// Add current location to the top of the traceback stack.
+    #[inline]
+    #[track_caller]
+    pub fn traceback_here(&self, py: Python<'_>) {
+        let _ = py;
+        #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+        let _ = self.add_frame(py, core::panic::Location::caller());
+    }
 }
 
 /// Called when `PyErr::fetch` is called but no exception is set.
@@ -759,6 +794,7 @@ where
 
 /// Returns Ok if the error code is non-negative.
 #[inline]
+#[track_caller]
 pub(crate) fn error_on_negative<T: From<i8> + Ord>(py: Python<'_>, result: T) -> PyResult<()> {
     if result >= T::from(0) {
         Ok(())
@@ -895,10 +931,30 @@ mod tests {
 
             assert_eq!(fields.next().unwrap(), "type: <class 'Exception'>");
             assert_eq!(fields.next().unwrap(), "value: Exception('banana')");
-            assert_eq!(
-                fields.next().unwrap(),
-                "traceback: Some(\"Traceback (most recent call last):\\n  File \\\"<string>\\\", line 1, in <module>\\n\")"
-            );
+
+            let traceback = cfg_select! {
+                Py_LIMITED_API => {
+                    "traceback: Some(\"Traceback (most recent call last):\\n  File \\\"<string>\\\", line 1, in <module>\\n\")"
+                }
+                windows => {
+                    concat!(
+                        r#"traceback: Some("Traceback (most recent call last):\n"#,
+                        r#"  File \"src\\err\\mod.rs\", line 921, in <unknown>\n"#,
+                        r#"    .run(c\"raise Exception('banana')\", None, None)\n"#,
+                        r#"  File \"<string>\", line 1, in <module>\n")"#,
+                    )
+                }
+                _ => {
+                    concat!(
+                        r#"traceback: Some("Traceback (most recent call last):\n"#,
+                        r#"  File \"src/err/mod.rs\", line 921, in <unknown>\n"#,
+                        r#"    .run(c\"raise Exception('banana')\", None, None)\n"#,
+                        r#"  File \"<string>\", line 1, in <module>\n")"#,
+                    )
+                }
+            };
+
+            assert_eq!(fields.next().unwrap(), traceback);
 
             assert!(fields.next().is_none());
         });

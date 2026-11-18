@@ -989,11 +989,19 @@ impl<'a> FnSpec<'a> {
             } else {
                 let args = self_arg.into_iter().chain(args);
                 let return_conversion = quotes::wrap_into_ptr(ret_ident.to_token_stream(), ctx);
+                let err = Ident::new("err", Span::call_site());
+                let py = Ident::new("py", Span::call_site());
+                let traceback_here = quote_spanned! { self.name.span() =>
+                    #err.traceback_here(#py);
+                };
                 quote! {
                     {
                         #init_holders
                         let #ret_ident = function(#(#args),*);
-                        #return_conversion
+                        (#return_conversion).map_err(|err| {
+                            #traceback_here
+                            err
+                        })
                     }
                 }
             }

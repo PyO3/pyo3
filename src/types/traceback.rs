@@ -86,14 +86,13 @@ pub trait PyTracebackMethods<'py>: crate::sealed::Sealed {
     ///         .expect_err("raise will create a Python error");
     ///
     ///     let traceback = err.traceback(py).expect("raised exception will have a traceback");
-    ///     assert_eq!(
-    ///         format!("{}{}", traceback.format()?, err),
+    ///     let formatted = format!("{}{}", traceback.format()?, err);
+    ///     assert!(formatted.starts_with("Traceback (most recent call last):\n"));
+    ///     assert!(formatted.ends_with(
     ///         "\
-    /// Traceback (most recent call last):
     ///   File \"<string>\", line 1, in <module>
-    /// Exception: banana\
-    /// "
-    ///     );
+    /// Exception: banana"
+    ///     ));
     ///     Ok(())
     /// })
     /// # ;
@@ -137,10 +136,29 @@ mod tests {
                 .run(c"raise Exception('banana')", None, None)
                 .expect_err("raising should have given us an error");
 
-            assert_eq!(
-                err.traceback(py).unwrap().format().unwrap(),
-                "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n"
-            );
+            let traceback = cfg_select! {
+                Py_LIMITED_API => {
+                    "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n"
+                },
+                windows => {
+                    concat!(
+                        "Traceback (most recent call last):\n",
+                        "  File \"src\\types\\traceback.rs\", line 136, in <unknown>\n",
+                        "    .run(c\"raise Exception('banana')\", None, None)\n",
+                        "  File \"<string>\", line 1, in <module>\n"
+                    )
+                }
+               _ => {
+                    concat!(
+                        "Traceback (most recent call last):\n",
+                        "  File \"src/types/traceback.rs\", line 136, in <unknown>\n",
+                        "    .run(c\"raise Exception('banana')\", None, None)\n",
+                        "  File \"<string>\", line 1, in <module>\n"
+                    )
+                }
+            };
+
+            assert_eq!(err.traceback(py).unwrap().format().unwrap(), traceback);
         })
     }
 

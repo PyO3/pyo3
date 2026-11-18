@@ -1,6 +1,4 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
-#[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
-use crate::Python;
 #[cfg(any(not(Py_LIMITED_API), Py_3_12, all(Py_3_10, not(PyPy))))]
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::sealed::Sealed;
@@ -9,6 +7,8 @@ use crate::types::PyCode;
 #[cfg(all(not(Py_LIMITED_API), any(Py_3_11, not(any(PyPy, GraalPy)))))]
 use crate::types::PyDict;
 use crate::{Bound, PyAny, ffi};
+#[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
+use crate::{IntoPyObject, PyErr, Python};
 #[cfg(Py_LIMITED_API)]
 use crate::{
     Py,
@@ -211,6 +211,26 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
         // - `PyFrame_GetLocals` returns an owned reference
         // - the result can not be null
         unsafe { ffi::PyFrame_GetLocals(self.as_ptr().cast()).assume_owned_unchecked(self.py()) }
+    }
+}
+
+#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+impl<'py> IntoPyObject<'py> for &core::panic::Location<'_> {
+    type Target = PyFrame;
+    type Output = Bound<'py, PyFrame>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> PyResult<Bound<'py, PyFrame>> {
+        #[allow(clippy::incompatible_msrv)]
+        PyFrame::new(
+            py,
+            #[cfg(file_as_c_str)]
+            self.file_as_c_str(),
+            #[cfg(not(file_as_c_str))]
+            &alloc::ffi::CString::new(self.file()).unwrap(),
+            c"<unknown>",
+            self.line().try_into()?,
+        )
     }
 }
 

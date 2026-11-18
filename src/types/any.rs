@@ -842,6 +842,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         ptr::eq(self.as_ptr(), other.as_ref().as_ptr())
     }
 
+    #[track_caller]
     fn hasattr<N>(&self, attr_name: N) -> PyResult<bool>
     where
         N: IntoPyObject<'py, Target = PyString>,
@@ -855,6 +856,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
     }
 
+    #[track_caller]
     fn getattr<N>(&self, attr_name: N) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
@@ -864,6 +866,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe { ffi::PyObject_GetAttr(self.as_ptr(), attr_name.as_ptr()).assume_owned_or_err(py) }
     }
 
+    #[track_caller]
     fn getattr_opt<N>(&self, attr_name: N) -> PyResult<Option<Bound<'py, PyAny>>>
     where
         N: IntoPyObject<'py, Target = PyString>,
@@ -883,6 +886,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
     }
 
+    #[track_caller]
     fn setattr<N, V>(&self, attr_name: N, value: V) -> PyResult<()>
     where
         N: IntoPyObject<'py, Target = PyString>,
@@ -896,6 +900,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         })
     }
 
+    #[track_caller]
     fn delattr<N>(&self, attr_name: N) -> PyResult<()>
     where
         N: IntoPyObject<'py, Target = PyString>,
@@ -1071,6 +1076,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe { ffi::PyCallable_Check(self.as_ptr()) != 0 }
     }
 
+    #[track_caller]
     fn call<A>(&self, args: A, kwargs: Option<&Bound<'py, PyDict>>) -> PyResult<Bound<'py, PyAny>>
     where
         A: PyCallArgs<'py>,
@@ -1087,10 +1093,12 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     #[inline]
+    #[track_caller]
     fn call0(&self) -> PyResult<Bound<'py, PyAny>> {
         unsafe { ffi::compat::PyObject_CallNoArgs(self.as_ptr()).assume_owned_or_err(self.py()) }
     }
 
+    #[track_caller]
     fn call1<A>(&self, args: A) -> PyResult<Bound<'py, PyAny>>
     where
         A: PyCallArgs<'py>,
@@ -1118,6 +1126,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
     }
 
     #[inline]
+    #[track_caller]
     fn call_method0<N>(&self, name: N) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
@@ -1130,6 +1139,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         }
     }
 
+    #[track_caller]
     fn call_method1<N, A>(&self, name: N, args: A) -> PyResult<Bound<'py, PyAny>>
     where
         N: IntoPyObject<'py, Target = PyString>,
@@ -1158,6 +1168,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         self.len().map(|l| l == 0)
     }
 
+    #[track_caller]
     fn get_item<K>(&self, key: K) -> PyResult<Bound<'py, PyAny>>
     where
         K: IntoPyObject<'py>,
@@ -1167,6 +1178,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         unsafe { ffi::PyObject_GetItem(self.as_ptr(), key.as_ptr()).assume_owned_or_err(py) }
     }
 
+    #[track_caller]
     fn set_item<K, V>(&self, key: K, value: V) -> PyResult<()>
     where
         K: IntoPyObject<'py>,
@@ -1180,6 +1192,7 @@ impl<'py> PyAnyMethods<'py> for Bound<'py, PyAny> {
         })
     }
 
+    #[track_caller]
     fn del_item<K>(&self, key: K) -> PyResult<()>
     where
         K: IntoPyObject<'py>,

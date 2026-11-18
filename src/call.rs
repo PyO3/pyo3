@@ -50,6 +50,7 @@ pub(crate) mod private {
 )]
 pub trait PyCallArgs<'py>: Sized + private::Sealed {
     #[doc(hidden)]
+    #[track_caller]
     fn call(
         self,
         function: Borrowed<'_, 'py, PyAny>,
@@ -58,6 +59,7 @@ pub trait PyCallArgs<'py>: Sized + private::Sealed {
     ) -> PyResult<Bound<'py, PyAny>>;
 
     #[doc(hidden)]
+    #[track_caller]
     fn call_positional(
         self,
         function: Borrowed<'_, 'py, PyAny>,
@@ -65,6 +67,7 @@ pub trait PyCallArgs<'py>: Sized + private::Sealed {
     ) -> PyResult<Bound<'py, PyAny>>;
 
     #[doc(hidden)]
+    #[track_caller]
     fn call_method_positional(
         self,
         object: Borrowed<'_, 'py, PyAny>,

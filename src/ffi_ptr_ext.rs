@@ -41,6 +41,7 @@ impl FfiPtrExt for *mut ffi::PyObject {
     ///
     /// see requirements for [`Bound::from_owned_ptr_or_err`]
     #[inline]
+    #[track_caller]
     unsafe fn assume_owned_or_err(self, py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         // SAFETY: caller upholds requirements
         unsafe { Bound::from_owned_ptr_or_err(py, self) }
@@ -78,6 +79,7 @@ impl FfiPtrExt for *mut ffi::PyObject {
     ///
     /// see requirements for [`Borrowed::from_ptr_or_err`]
     #[inline]
+    #[track_caller]
     unsafe fn assume_borrowed_or_err<'a>(
         self,
         py: Python<'_>,
