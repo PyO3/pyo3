@@ -216,6 +216,117 @@ fn get_all_and_set() {
     });
 }
 
+/// a 16-byte aligned field large enough for the optimizer to copy it with aligned SSE loads
+/// (`movaps`), which fault on a misaligned address: on x86-64 this is the case where reading a
+/// packed field through a reference crashes in release builds rather than silently working
+#[pyclass(from_py_object)]
+#[derive(Clone, Copy)]
+struct Wide {
+    data: [u128; 8],
+}
+
+#[pymethods]
+impl Wide {
+    fn first(&self) -> u128 {
+        self.data[0]
+    }
+}
+
+/// every field after `shift` is misaligned, so the getters must not read them through references
+#[pyclass(get_all, set_all)]
+#[repr(C, packed)]
+struct Packed {
+    shift: u8,
+    num: i64,
+    real: f32,
+    text: String,
+    items: Vec<u32>,
+    object: Py<PyAny>,
+    wide: Wide,
+}
+
+#[test]
+fn packed_get_set_all() {
+    Python::attach(|py| {
+        let inst = Py::new(
+            py,
+            Packed {
+                shift: 1,
+                num: -10,
+                real: 2.5,
+                text: "ten".to_string(),
+                items: vec![1, 2, 3],
+                object: PyList::new(py, [4u8, 5]).unwrap().into_any().unbind(),
+                wide: Wide { data: [3; 8] },
+            },
+        )
+        .unwrap();
+
+        py_run!(py, inst, "assert inst.shift == 1");
+        py_run!(py, inst, "assert inst.num == -10");
+        py_run!(py, inst, "assert inst.real == 2.5");
+        py_run!(py, inst, "assert inst.text == 'ten'");
+        py_run!(py, inst, "assert inst.items == [1, 2, 3]");
+        py_run!(py, inst, "assert inst.object == [4, 5]");
+        py_run!(py, inst, "assert inst.wide.first() == 3");
+        py_run!(
+            py,
+            inst,
+            "inst.wide = inst.wide; assert inst.wide.first() == 3"
+        );
+        py_run!(py, inst, "inst.num = 20; assert inst.num == 20");
+        py_run!(py, inst, "inst.real = -0.5; assert inst.real == -0.5");
+        py_run!(
+            py,
+            inst,
+            "inst.text = 'twenty'; assert inst.text == 'twenty'"
+        );
+        py_run!(py, inst, "inst.items = [6]; assert inst.items == [6]");
+        // the setter releases the previous object
+        py_run!(
+            py,
+            inst,
+            "import sys
+held = inst.object
+count = sys.getrefcount(held)
+inst.object = (7,)
+assert inst.object == (7,)
+assert sys.getrefcount(held) == count - 1"
+        );
+        let packed = inst.borrow(py);
+        assert_eq!({ packed.num }, 20);
+        assert_eq!({ packed.real }, -0.5);
+    });
+}
+
+/// a frozen class exposes `Py<T>` fields as struct members, which is only possible when aligned
+#[pyclass(frozen, get_all)]
+#[repr(C, packed)]
+struct PackedFrozen {
+    shift: u8,
+    object: Py<PyAny>,
+}
+
+#[test]
+fn packed_frozen_py_field() {
+    Python::attach(|py| {
+        let object = PyString::new(py, "held").into_any().unbind();
+        let inst = Py::new(py, PackedFrozen { shift: 1, object }).unwrap();
+
+        py_run!(py, inst, "assert inst.shift == 1");
+        // the getter borrows the field: every read hands out one new reference and nothing leaks
+        py_run!(
+            py,
+            inst,
+            "import sys
+count = sys.getrefcount(inst.object)
+assert inst.object == 'held'
+assert inst.object is inst.object
+assert sys.getrefcount(inst.object) == count"
+        );
+    });
+}
+
 #[pyclass(unsendable)]
 struct CellGetterSetter {
     #[pyo3(get, set)]
