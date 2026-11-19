@@ -448,9 +448,9 @@ impl<'py> FromPyObject<'_, 'py> for Offset {
 
         let py_timedelta = ob.call_method1(intern!(py, "utcoffset"), (PyNone::get(py),))?;
         if py_timedelta.is_none() {
-            return Err(PyTypeError::new_err(format!(
-                "{ob:?} is not a fixed offset timezone"
-            )));
+            return Err(PyTypeError::new_err(
+                py_format!(py, "{ob:?} is not a fixed offset timezone")?.unbind(),
+            ));
         }
 
         let total_seconds = py_timedelta.extract::<SignedDuration>()?.as_secs();
