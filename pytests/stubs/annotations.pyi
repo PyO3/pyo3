@@ -1,5 +1,6 @@
 from .pyclasses import EmptyClass
-from typing import Protocol, SupportsIndex, type_check_only
+from collections.abc import Callable, Iterable
+from typing import Literal, Protocol, SupportsIndex, type_check_only
 
 __all__ = ["cross_module_imports", "with_custom_type_annotations", "write_to"]
 
@@ -20,6 +21,10 @@ class _SupportsReadWrite(Protocol):
 
 def cross_module_imports(_a: EmptyClass) -> None: ...
 def with_custom_type_annotations(
-    a: "list[int]", *_args: "str", _b: "int | None" = None, **_kwargs: "bool"
-) -> "int": ...
+    a: Iterable[int | None],
+    b: Literal["foo", 1, -2, True] | None = None,
+    c: Callable[[str, tuple[int, ...]], tuple[()]] | None = None,
+    *_args: int,
+    **_kwargs: bool | str,
+) -> Iterable[int | None]: ...
 def write_to(f: _SupportsReadWrite, data: bytes) -> int: ...
