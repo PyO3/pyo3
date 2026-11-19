@@ -456,6 +456,9 @@ pub use pyo3_macros::{
     FromPyObject, IntoPyObject, IntoPyObjectRef, pyfunction, pymethods, pymodule,
 };
 
+#[cfg(all(feature = "macros", feature = "experimental-inspect"))]
+pub use pyo3_macros::pyprotocol;
+
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.
 ///
 #[doc = include_str!("../guide/pyclass-parameters.md")]

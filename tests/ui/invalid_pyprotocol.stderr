@@ -1,0 +1,37 @@
+error: protocol methods cannot have a body
+ --> tests/ui/invalid_pyprotocol.rs:5:26
+  |
+5 |         fn method(&self) {}
+  |                          ^^
+
+error: protocol methods must take `&self`
+  --> tests/ui/invalid_pyprotocol.rs:12:18
+   |
+12 |         fn method(x: i32);
+   |                  ^^^^^^^^
+
+error: protocol methods must take `&self`
+  --> tests/ui/invalid_pyprotocol.rs:19:18
+   |
+19 |         fn method(&mut self);
+   |                  ^^^^^^^^^^^
+
+error: expected `name` or `signature`
+  --> tests/ui/invalid_pyprotocol.rs:26:16
+   |
+26 |         #[pyo3(pass_module)]
+   |                ^^^^^^^^^^^
+
+error: expected `name` or `crate`
+  --> tests/ui/invalid_pyprotocol.rs:33:12
+   |
+33 |     #[pyo3(signature = ())]
+   |            ^^^^^^^^^
+
+error: `name` may only be specified once
+  --> tests/ui/invalid_pyprotocol.rs:40:28
+   |
+40 |         #[pyo3(name = "a", name = "b")]
+   |                            ^^^^
+
+error: aborting due to 6 previous errors

@@ -61,6 +61,8 @@ impl<T> Sealed for AddClassToModule<T> {}
 impl Sealed for PyMethodDef {}
 impl Sealed for PyFunctionDef {}
 impl Sealed for ModuleDef {}
+#[cfg(feature = "experimental-inspect")]
+impl Sealed for crate::impl_::pymodule::AddProtocolToModule {}
 
 impl<T: crate::type_object::PyTypeInfo> Sealed for PyNativeTypeInitializer<T> {}
 impl<T: crate::pyclass::PyClass> Sealed for PyClassInitializer<T> {}
