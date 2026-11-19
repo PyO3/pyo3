@@ -1,7 +1,11 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
 #[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
 use crate::Python;
+#[cfg(any(not(Py_LIMITED_API), Py_3_12, all(Py_3_10, not(PyPy))))]
+use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::sealed::Sealed;
+#[cfg(all(any(Py_3_10, not(Py_LIMITED_API)), any(not(PyPy), Py_3_12)))]
+use crate::types::PyCode;
 #[cfg(all(not(Py_LIMITED_API), any(Py_3_11, not(any(PyPy, GraalPy)))))]
 use crate::types::PyDict;
 use crate::{Bound, PyAny, ffi};
@@ -11,8 +15,6 @@ use crate::{
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
 };
-#[cfg(any(not(Py_LIMITED_API), Py_3_10))]
-use crate::{ffi_ptr_ext::FfiPtrExt, types::PyCode};
 #[cfg(all(not(Py_LIMITED_API), any(Py_3_12, not(any(PyPy, GraalPy)))))]
 use {crate::PyResult, core::ffi::CStr};
 
@@ -92,7 +94,7 @@ pub trait PyFrameMethods<'py>: Sealed {
     fn outer(&self) -> Option<Bound<'py, PyFrame>>;
 
     /// Gets the frame code
-    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+    #[cfg(all(any(Py_3_10, not(Py_LIMITED_API)), any(not(PyPy), Py_3_12)))]
     fn code(&self) -> Bound<'py, PyCode>;
 
     /// Gets the variable `name` of this frame.
@@ -136,7 +138,7 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
         }
     }
 
-    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+    #[cfg(all(any(Py_3_10, not(Py_LIMITED_API)), any(not(PyPy), Py_3_12)))]
     fn code(&self) -> Bound<'py, PyCode> {
         // SAFETY:
         // - we're attached to the interpreter
@@ -212,11 +214,12 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
     }
 }
 
-#[cfg(all(test, any(not(Py_LIMITED_API), Py_3_10)))]
+#[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::Python;
+    #[cfg(any(not(Py_LIMITED_API), all(Py_3_10, any(not(PyPy), Py_3_12))))]
+    use {super::*, crate::Python};
 
+    #[cfg(any(not(Py_LIMITED_API), all(Py_3_10, any(not(PyPy), Py_3_12))))]
     fn get_frame(py: Python<'_>) -> Bound<'_, PyFrame> {
         use crate::types::PyAnyMethods as _;
 
@@ -288,6 +291,7 @@ def outer():
     }
 
     #[test]
+    #[cfg(all(any(Py_3_10, not(Py_LIMITED_API)), any(not(PyPy), Py_3_12)))]
     fn test_frame_get_code() {
         Python::attach(|py| {
             use crate::types::PyAnyMethods as _;
