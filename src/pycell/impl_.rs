@@ -1,9 +1,12 @@
 #![allow(missing_docs)]
 //! Crate-private implementation of PyClassObject
 
+#[cfg(not(Py_GIL_DISABLED))]
+use core::cell::Cell;
 use core::cell::UnsafeCell;
 use core::marker::PhantomData;
 use core::mem::{ManuallyDrop, MaybeUninit, offset_of};
+#[cfg(Py_GIL_DISABLED)]
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::impl_::pyclass::{
@@ -58,12 +61,50 @@ impl<M: PyClassMutability> PyClassMutability for ExtendsMutableAncestor<M> {
     type MutableChild = ExtendsMutableAncestor<MutableClass>;
 }
 
+/// Tracks whether the pyclass is currently mutably borrowed, or the number of
+/// current immutable borrows.
+///
+/// With the GIL enabled, every access to this flag happens while the
+/// accessing thread holds the GIL: the `PyRef` / `PyRefMut` borrow guards
+/// hold the `Python<'py>` token (which is `!Send`), so they cannot be
+/// created, used, or dropped outside of an attached region, and pyclass
+/// trampolines are invoked from Python code which runs under the GIL. The
+/// GIL's release / acquire establish happens-before edges which order
+/// accesses to this flag between threads, so plain cell accesses are sound,
+/// and avoid an atomic read-modify-write on every `&self` method call.
+///
+/// With the GIL disabled (free-threaded builds), trampolines can run
+/// concurrently, so atomic accesses are required.
+#[cfg(not(Py_GIL_DISABLED))]
+#[derive(Debug)]
+struct BorrowFlag(Cell<usize>);
+
+#[cfg(Py_GIL_DISABLED)]
 #[derive(Debug)]
 struct BorrowFlag(AtomicUsize);
 
 impl BorrowFlag {
     pub(crate) const UNUSED: usize = 0;
     const HAS_MUTABLE_BORROW: usize = usize::MAX;
+
+    /// Accesses are serialized by the GIL, so a plain read-modify-write is
+    /// equivalent to the atomic CAS loop used on free-threaded builds.
+    #[cfg(not(Py_GIL_DISABLED))]
+    fn increment(&self) -> Result<(), PyBorrowError> {
+        let value = self.0.get();
+        if value == BorrowFlag::HAS_MUTABLE_BORROW {
+            return Err(PyBorrowError { _private: () });
+        }
+        self.0.set(value + 1);
+        Ok(())
+    }
+
+    #[cfg(not(Py_GIL_DISABLED))]
+    fn decrement(&self) {
+        self.0.set(self.0.get() - 1);
+    }
+
+    #[cfg(Py_GIL_DISABLED)]
     fn increment(&self) -> Result<(), PyBorrowError> {
         // relaxed is OK because we will read the value again in the compare_exchange
         let mut value = self.0.load(Ordering::Relaxed);
@@ -92,6 +133,7 @@ impl BorrowFlag {
             }
         }
     }
+    #[cfg(Py_GIL_DISABLED)]
     fn decrement(&self) {
         // relaxed load is OK but decrements must happen-before the next read
         self.0.fetch_sub(1, Ordering::Release);
@@ -146,7 +188,11 @@ impl PyClassBorrowChecker for EmptySlot {
 impl PyClassBorrowChecker for BorrowChecker {
     #[inline]
     fn new() -> Self {
-        Self(BorrowFlag(AtomicUsize::new(BorrowFlag::UNUSED)))
+        #[cfg(not(Py_GIL_DISABLED))]
+        let flag = BorrowFlag(Cell::new(BorrowFlag::UNUSED));
+        #[cfg(Py_GIL_DISABLED)]
+        let flag = BorrowFlag(AtomicUsize::new(BorrowFlag::UNUSED));
+        Self(flag)
     }
 
     fn try_borrow(&self) -> Result<(), PyBorrowError> {
@@ -158,26 +204,48 @@ impl PyClassBorrowChecker for BorrowChecker {
     }
 
     fn try_borrow_mut(&self) -> Result<(), PyBorrowMutError> {
-        let flag = &self.0;
-        match flag.0.compare_exchange(
-            // only allowed to transition to mutable borrow if the reference is
-            // currently unused
-            BorrowFlag::UNUSED,
-            BorrowFlag::HAS_MUTABLE_BORROW,
-            // On success, reading the flag and updating its state are an atomic
-            // operation
-            Ordering::AcqRel,
-            // It doesn't matter precisely when the failure gets turned
-            // into an error
-            Ordering::Relaxed,
-        ) {
-            Ok(..) => Ok(()),
-            Err(..) => Err(PyBorrowMutError { _private: () }),
+        // With the GIL enabled, accesses are serialized by the GIL, so the
+        // check-and-set below cannot interleave with another thread's flag
+        // access; a mutable borrow is granted only when the flag is
+        // completely unused.
+        #[cfg(not(Py_GIL_DISABLED))]
+        {
+            if self.0.0.get() == BorrowFlag::UNUSED {
+                self.0.0.set(BorrowFlag::HAS_MUTABLE_BORROW);
+                Ok(())
+            } else {
+                Err(PyBorrowMutError { _private: () })
+            }
+        }
+        #[cfg(Py_GIL_DISABLED)]
+        {
+            match self.0.0.compare_exchange(
+                // only allowed to transition to mutable borrow if the reference is
+                // currently unused
+                BorrowFlag::UNUSED,
+                BorrowFlag::HAS_MUTABLE_BORROW,
+                // On success, reading the flag and updating its state are an atomic
+                // operation
+                Ordering::AcqRel,
+                // It doesn't matter precisely when the failure gets turned
+                // into an error
+                Ordering::Relaxed,
+            ) {
+                Ok(..) => Ok(()),
+                Err(..) => Err(PyBorrowMutError { _private: () }),
+            }
         }
     }
 
     fn release_borrow_mut(&self) {
-        self.0.0.store(BorrowFlag::UNUSED, Ordering::Release)
+        #[cfg(not(Py_GIL_DISABLED))]
+        {
+            self.0.0.set(BorrowFlag::UNUSED)
+        }
+        #[cfg(Py_GIL_DISABLED)]
+        {
+            self.0.0.store(BorrowFlag::UNUSED, Ordering::Release)
+        }
     }
 }
 
@@ -1003,8 +1071,15 @@ mod tests {
         });
     }
 
+    /// This test races the borrow checker from raw threads without holding
+    /// the GIL, which is only sound when the checker is atomic. On
+    /// free-threaded builds the checker must remain atomic and this test
+    /// guards that. On GIL builds the equivalent real-world pattern (threads
+    /// racing borrows through `Python::attach`) is covered by
+    /// `test_thread_safety` above.
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(Py_GIL_DISABLED)]
     fn test_thread_safety_2() {
         struct SyncUnsafeCell<T>(UnsafeCell<T>);
         unsafe impl<T> Sync for SyncUnsafeCell<T> {}
