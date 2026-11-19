@@ -1,11 +1,22 @@
 #![deny(clippy::undocumented_unsafe_blocks)]
-use crate::PyAny;
+#[cfg(not(any(Py_LIMITED_API, GraalPy, PyPy)))]
+use crate::Python;
+#[cfg(any(not(Py_LIMITED_API), Py_3_12, all(Py_3_10, not(PyPy))))]
 use crate::ffi_ptr_ext::FfiPtrExt;
 use crate::sealed::Sealed;
-use crate::types::{PyCode, PyDict};
-use crate::{Bound, PyResult, Python, ffi};
-use core::ffi::CStr;
-use pyo3_ffi::PyObject;
+#[cfg(all(any(Py_3_10, not(Py_LIMITED_API)), any(not(PyPy), Py_3_12)))]
+use crate::types::PyCode;
+#[cfg(all(not(Py_LIMITED_API), any(Py_3_11, not(any(PyPy, GraalPy)))))]
+use crate::types::PyDict;
+use crate::{Bound, PyAny, ffi};
+#[cfg(Py_LIMITED_API)]
+use crate::{
+    Py,
+    sync::PyOnceLock,
+    types::{PyType, PyTypeMethods},
+};
+#[cfg(all(not(Py_LIMITED_API), any(Py_3_12, not(any(PyPy, GraalPy)))))]
+use {crate::PyResult, core::ffi::CStr};
 
 /// Represents a Python frame.
 ///
@@ -14,6 +25,7 @@ use pyo3_ffi::PyObject;
 #[repr(transparent)]
 pub struct PyFrame(PyAny);
 
+#[cfg(not(Py_LIMITED_API))]
 pyobject_native_type_core!(
     PyFrame,
     pyobject_native_static_type_object!(ffi::PyFrame_Type),
@@ -22,8 +34,21 @@ pyobject_native_type_core!(
     #checkfunction=ffi::PyFrame_Check
 );
 
+#[cfg(Py_LIMITED_API)]
+pyobject_native_type_core!(
+    PyFrame,
+    |py| {
+        static TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+        TYPE.import(py, "types", "FrameType").unwrap().as_type_ptr()
+    },
+    "types",
+    "FrameType",
+    #module=Some("types")
+);
+
 impl PyFrame {
     /// Creates a new frame object.
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
     pub fn new<'py>(
         py: Python<'py>,
         file_name: &CStr,
@@ -47,7 +72,7 @@ impl PyFrame {
                 globals.as_ptr(),
                 locals.as_ptr(),
             )
-            .cast::<PyObject>()
+            .cast::<ffi::PyObject>()
             .assume_owned_or_err(py)?
             .cast_into_unchecked::<PyFrame>())
         }
@@ -65,11 +90,11 @@ pub trait PyFrameMethods<'py>: Sealed {
     fn line_number(&self) -> i32;
 
     /// Gets this frame's next outer frame if there is one
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     fn outer(&self) -> Option<Bound<'py, PyFrame>>;
 
     /// Gets the frame code
-    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+    #[cfg(all(any(Py_3_10, not(Py_LIMITED_API)), any(not(PyPy), Py_3_12)))]
     fn code(&self) -> Bound<'py, PyCode>;
 
     /// Gets the variable `name` of this frame.
@@ -97,7 +122,7 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
         unsafe { ffi::PyFrame_GetLineNumber(self.as_ptr().cast()) }
     }
 
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     fn outer(&self) -> Option<Bound<'py, PyFrame>> {
         // SAFETY:
         // - we're attached to the interpreter
@@ -113,7 +138,7 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
         }
     }
 
-    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+    #[cfg(all(any(Py_3_10, not(Py_LIMITED_API)), any(not(PyPy), Py_3_12)))]
     fn code(&self) -> Bound<'py, PyCode> {
         // SAFETY:
         // - we're attached to the interpreter
@@ -191,8 +216,10 @@ impl<'py> PyFrameMethods<'py> for Bound<'py, PyFrame> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    #[cfg(any(not(Py_LIMITED_API), all(Py_3_10, any(not(PyPy), Py_3_12))))]
+    use {super::*, crate::Python};
 
+    #[cfg(any(not(Py_LIMITED_API), all(Py_3_10, any(not(PyPy), Py_3_12))))]
     fn get_frame(py: Python<'_>) -> Bound<'_, PyFrame> {
         use crate::types::PyAnyMethods as _;
 
@@ -219,6 +246,7 @@ def get_frame():
     }
 
     #[test]
+    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
     fn test_frame_creation() {
         Python::attach(|py| {
             let frame = PyFrame::new(py, c"file.py", c"func", 42).unwrap();
@@ -227,7 +255,7 @@ def get_frame():
     }
 
     #[test]
-    #[cfg(not(Py_LIMITED_API))]
+    #[cfg(not(any(Py_LIMITED_API, PyPy)))]
     fn test_frame_outer() {
         Python::attach(|py| {
             use crate::types::PyAnyMethods as _;
@@ -263,7 +291,7 @@ def outer():
     }
 
     #[test]
-    #[cfg(any(not(Py_LIMITED_API), Py_3_10))]
+    #[cfg(all(any(Py_3_10, not(Py_LIMITED_API)), any(not(PyPy), Py_3_12)))]
     fn test_frame_get_code() {
         Python::attach(|py| {
             use crate::types::PyAnyMethods as _;
@@ -313,6 +341,7 @@ def outer():
     #[cfg(all(Py_3_11, not(Py_LIMITED_API)))]
     #[should_panic(expected = "`PyFrame_GetBuiltins` returns a `dict`")]
     fn test_frame_builtins_panics_on_type_error() {
+        use crate::PyResult;
         use crate::types::PyAnyMethods as _;
         Python::attach(|py| -> PyResult<()> {
             let sys = py.import("sys")?;

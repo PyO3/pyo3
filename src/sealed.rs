@@ -1,5 +1,4 @@
 use crate::impl_::pyfunction::PyFunctionDef;
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 use crate::types::PyFrame;
 #[cfg(Py_3_15)]
 use crate::types::PyFrozenDict;
@@ -48,7 +47,6 @@ impl Sealed for Bound<'_, PySet> {}
 impl Sealed for Bound<'_, PySlice> {}
 impl Sealed for Bound<'_, PyString> {}
 impl Sealed for Bound<'_, PyTraceback> {}
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 impl Sealed for Bound<'_, PyFrame> {}
 impl Sealed for Bound<'_, PyTuple> {}
 impl Sealed for Bound<'_, PyType> {}

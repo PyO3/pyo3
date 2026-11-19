@@ -8,7 +8,6 @@ use crate::{
     sync::PyOnceLock,
     types::{PyType, PyTypeMethods},
 };
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 use crate::{PyTypeCheck, Python, types::PyFrame};
 
 /// Represents a Python traceback.
@@ -47,7 +46,6 @@ impl PyTraceback {
     ///
     /// The `next` is the next traceback in the direction of where the exception was raised
     /// or `None` if this is the last frame in the traceback.
-    #[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
     pub fn new<'py>(
         py: Python<'py>,
         next: Option<Bound<'py, PyTraceback>>,
