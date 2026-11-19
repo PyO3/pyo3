@@ -67,6 +67,10 @@ style = "fenced"
 [tool.uv]
 package = false
 
+[tool.uv.workspace]
+members = ["pytests/", "pyo3-introspection/", "examples/*"]
+exclude = ["examples/plugin", "examples/meson-starter"]
+
 [tool.uv.dependency-groups]
 codecov = { requires-python = ">=3.14" }
 dev = { requires-python = ">=3.14" }

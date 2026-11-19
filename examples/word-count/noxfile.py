@@ -1,8 +1,21 @@
 import argparse
+from collections.abc import Iterable
 
 import nox
 
 nox.options.sessions = ["test"]
+
+
+def uv_sync(session: nox.Session, groups: Iterable[str] = ()):
+    cmd = ["uv", "sync", "--locked", "--no-default-groups"]
+    cmd.extend([f"--group={g}" for g in groups])
+    session.run_install(
+        *cmd,
+        env={
+            "UV_PROJECT_ENVIRONMENT": session.virtualenv.location,
+            "UV_PYTHON": session.virtualenv.location,
+        },
+    )
 
 
 @nox.session
@@ -14,7 +27,8 @@ def test(session: nox.Session):
     session.env["MATURIN_PEP517_ARGS"] = "--profile=dev"
     if args.features:
         session.env["MATURIN_PEP517_ARGS"] += f" --features={args.features}"
-    session.install(".[dev]")
+
+    uv_sync(session, groups=["dev"])
     session.run("pytest")
 
 
@@ -26,5 +40,6 @@ def bench(session: nox.Session):
 
     if args.features:
         session.env["MATURIN_PEP517_ARGS"] = f" --features={args.features}"
-    session.install(".[dev]")
+
+    uv_sync(session, groups=["dev"])
     session.run("pytest", "--benchmark-enable")
