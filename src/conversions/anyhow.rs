@@ -125,6 +125,8 @@ impl From<anyhow::Error> for PyErr {
 
 #[cfg(test)]
 mod test_anyhow {
+    extern crate std;
+
     use crate::exceptions::{PyRuntimeError, PyValueError};
     use crate::platform::prelude::*;
     use crate::prelude::*;
