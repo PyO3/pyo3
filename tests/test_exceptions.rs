@@ -86,6 +86,67 @@ fn test_custom_error() {
 }
 
 #[test]
+#[cfg(not(Py_LIMITED_API))]
+fn test_pyfunction_traceback() {
+    use pyo3::types::PyDict;
+
+    #[pyfunction]
+    fn fail_from_rust() -> PyResult<()> {
+        Err(exceptions::PyValueError::new_err("from Rust"))
+    }
+
+    Python::attach(|py| {
+        let locals = PyDict::new(py);
+        locals
+            .set_item(
+                "fail_from_rust",
+                wrap_pyfunction!(fail_from_rust, py).unwrap(),
+            )
+            .unwrap();
+
+        py.run(
+            c"def call_from_python():\n    fail_from_rust()",
+            Some(&locals),
+            Some(&locals),
+        )
+        .unwrap();
+
+        let err = locals
+            .get_item("call_from_python")
+            .unwrap()
+            .unwrap()
+            .call0()
+            .unwrap_err();
+
+        locals.set_item("tb", err.traceback(py)).unwrap();
+
+        let frames: Vec<String> = py
+            .eval(
+                c"[frame.line for frame in __import__('traceback').extract_tb(tb)]",
+                Some(&locals),
+                Some(&locals),
+            )
+            .unwrap()
+            .extract()
+            .unwrap();
+
+        assert_eq!(
+            frames,
+            vec![
+                // Rust -> Python
+                ".call0()",
+                // Python -> Rust
+                "",
+                // Rust entrypoint
+                "fn fail_from_rust() -> PyResult<()> {",
+                // Exception raised in Rust
+                "Err(exceptions::PyValueError::new_err(\"from Rust\"))"
+            ]
+        );
+    });
+}
+
+#[test]
 fn test_exception_nosegfault() {
     #[cfg(wip_feature_std)]
     use std::net::TcpListener;

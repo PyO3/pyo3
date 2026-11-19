@@ -8,6 +8,8 @@ use crate::platform::thread::{self, ThreadId};
 
 use core::cell::UnsafeCell;
 
+#[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+use crate::IntoPyObject;
 use crate::sync::MutexExt;
 use crate::{
     Bound, Py, PyAny, PyErrArguments, PyTypeInfo, Python,
@@ -38,11 +40,16 @@ impl PyErrState {
         Self::from_inner(PyErrStateInner::Lazy(f))
     }
 
+    #[track_caller]
     pub(crate) fn lazy_arguments(ptype: Py<PyAny>, args: impl PyErrArguments + 'static) -> Self {
+        #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+        let location = core::panic::Location::caller();
         Self::from_inner(PyErrStateInner::Lazy(Box::new(move |py| {
             PyErrStateLazyFnOutput {
                 ptype,
                 pvalue: args.arguments(py),
+                #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+                location,
             }
         })))
     }
@@ -300,6 +307,8 @@ impl PyErrStateNormalized {
 pub(crate) struct PyErrStateLazyFnOutput {
     pub(crate) ptype: Py<PyAny>,
     pub(crate) pvalue: Py<PyAny>,
+    #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+    pub(crate) location: &'static core::panic::Location<'static>,
 }
 
 pub(crate) type PyErrStateLazyFn =
@@ -388,7 +397,15 @@ fn lazy_into_normalized_ffi_tuple(
 /// This would require either moving some logic from C to Rust, or requesting a new
 /// API in CPython.
 fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
-    let PyErrStateLazyFnOutput { ptype, pvalue } = lazy(py);
+    let PyErrStateLazyFnOutput {
+        ptype,
+        pvalue,
+        #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+        location,
+    } = lazy(py);
+    #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+    let frame = location.into_pyobject(py);
+
     unsafe {
         if ffi::PyExceptionClass_Check(ptype.as_ptr()) == 0 {
             ffi::PyErr_SetString(
@@ -397,6 +414,11 @@ fn raise_lazy(py: Python<'_>, lazy: Box<PyErrStateLazyFn>) {
             )
         } else {
             ffi::PyErr_SetObject(ptype.as_ptr(), pvalue.as_ptr())
+        }
+
+        #[cfg(all(debug_assertions, not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
+        if let Ok(frame) = frame {
+            ffi::PyTraceBack_Here(frame.as_ptr().cast());
         }
     }
 }

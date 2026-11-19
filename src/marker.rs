@@ -590,6 +590,7 @@ impl<'py> Python<'py> {
     /// assert_eq!(res, vec![0, 10, 20, 30, 40])
     /// # });
     /// ```
+    #[track_caller]
     pub fn eval(
         self,
         code: &CStr,
@@ -633,6 +634,7 @@ impl<'py> Python<'py> {
     ///
     /// You can use [`py_run!`](macro.py_run.html) for a handy alternative of `run`
     /// if you don't need `globals` and unwrapping is OK.
+    #[track_caller]
     pub fn run(
         self,
         code: &CStr,

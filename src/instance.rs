@@ -372,6 +372,7 @@ impl<'py> Bound<'py, PyAny> {
     /// - `ptr` must be a valid pointer to a Python object, or null
     /// - `ptr` must be an owned Python reference, as the `Bound<'py, PyAny>` will assume ownership
     #[inline]
+    #[track_caller]
     pub unsafe fn from_owned_ptr_or_err(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
@@ -441,6 +442,7 @@ impl<'py> Bound<'py, PyAny> {
     ///
     /// - `ptr` must be a valid pointer to a Python object, or null
     #[inline]
+    #[track_caller]
     pub unsafe fn from_borrowed_ptr_or_err(
         py: Python<'py>,
         ptr: *mut ffi::PyObject,
@@ -1177,6 +1179,7 @@ impl<'a, 'py> Borrowed<'a, 'py, PyAny> {
     ///   the caller and it is the caller's responsibility to ensure that the reference this is
     ///   derived from is valid for the lifetime `'a`.
     #[inline]
+    #[track_caller]
     pub unsafe fn from_ptr_or_err(py: Python<'py>, ptr: *mut ffi::PyObject) -> PyResult<Self> {
         NonNull::new(ptr).map_or_else(
             || Err(PyErr::fetch(py)),
