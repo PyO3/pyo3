@@ -1,6 +1,7 @@
 #[cfg(not(any(PyPy, GraalPy)))]
 use crate::Py_ssize_t;
 use crate::PyObject;
+#[cfg(not(PyPy))]
 use libc::c_int;
 
 #[repr(C)]
@@ -157,45 +158,35 @@ pub struct PyStopIterationObject {
 
 // skipped _PyErr_ChainExceptions
 
+#[cfg(all(Py_3_10, not(PyPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyNameErrorObject {
     pub ob_base: PyObject,
-    #[cfg(not(PyPy))]
     pub dict: *mut PyObject,
-    #[cfg(not(PyPy))]
     pub args: *mut PyObject,
-    #[cfg(all(Py_3_11, not(PyPy)))]
+    #[cfg(Py_3_11)]
     pub notes: *mut PyObject,
-    #[cfg(not(PyPy))]
     pub traceback: *mut PyObject,
-    #[cfg(not(PyPy))]
     pub context: *mut PyObject,
-    #[cfg(not(PyPy))]
     pub cause: *mut PyObject,
-    #[cfg(not(PyPy))]
-    pub suppress_context: char,
+    pub suppress_context: libc::c_char,
     pub name: *mut PyObject,
 }
 
+#[cfg(all(Py_3_10, not(PyPy)))]
 #[repr(C)]
 #[derive(Debug)]
 pub struct PyAttributeErrorObject {
     pub ob_base: PyObject,
-    #[cfg(not(PyPy))]
     pub dict: *mut PyObject,
-    #[cfg(not(PyPy))]
     pub args: *mut PyObject,
-    #[cfg(all(Py_3_11, not(PyPy)))]
+    #[cfg(Py_3_11)]
     pub notes: *mut PyObject,
-    #[cfg(not(PyPy))]
     pub traceback: *mut PyObject,
-    #[cfg(not(PyPy))]
     pub context: *mut PyObject,
-    #[cfg(not(PyPy))]
     pub cause: *mut PyObject,
-    #[cfg(not(PyPy))]
-    pub suppress_context: char,
+    pub suppress_context: libc::c_char,
     pub obj: *mut PyObject,
     pub name: *mut PyObject,
 }
@@ -225,7 +216,10 @@ pub struct PyAttributeErrorObject {
 // skipped _Py_FatalErrorFormat
 // skipped Py_FatalError
 
+#[cfg(not(PyPy))]
 extern_libpython! {
+    // Declared in earlier CPython headers, but first exported in 3.13.
+    #[cfg(Py_3_13)]
     pub fn PySignal_SetWakeupFd(fd: c_int) -> c_int;
     pub fn PyErr_SyntaxLocationObject(filename: *mut PyObject, lineno: c_int, col_offset: c_int);
     #[cfg(Py_3_10)]
@@ -237,5 +231,6 @@ extern_libpython! {
         end_col_offset: c_int,
     );
     pub fn PyErr_ProgramTextObject(filename: *mut PyObject, lineno: c_int) -> *mut PyObject;
+    #[cfg(Py_3_13)]
     pub static PyExc_PythonFinalizationError: *mut PyObject;
 }
