@@ -11,7 +11,7 @@ runs:
     - name: Select Python
       shell: bash
       run: echo "UV_PYTHON=3.15" >> "$GITHUB_ENV"
-    - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+    - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       with:
         save-cache: ${{ inputs.save-cache }}
     - name: Install Rust toolchain
@@ -41,7 +41,7 @@ runs:
       with:
         path: .nox/wasi
         key: wasi-${{ hashFiles('wasm/wasi/*', 'wasm/common.mk') }}-${{ hashFiles('noxfile.py') }}-${{ steps.python.outputs.version }}
-    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       with:
         save-if: ${{ inputs.save-cache }}
     - name: Prepare CPython source
