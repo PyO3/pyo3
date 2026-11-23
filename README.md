@@ -205,6 +205,7 @@ about this topic.
 - [fastuuid](https://github.com/thedrow/fastuuid/) _Python bindings to Rust's UUID library._
 - [fast-paseto](https://github.com/CodingCogs-OSS/Fast-Paseto) _High-performance PASETO (Platform-Agnostic Security Tokens) implementation with Python bindings._
 - [feos](https://github.com/feos-org/feos) _Lightning fast thermodynamic modeling in Rust with fully developed Python interface._
+- [fin-primitives](https://github.com/Mattbusel/fin-primitives/tree/main/python) _743 trading indicators (RSI, EMA, MACD, ATR, Bollinger) in exact decimal arithmetic, with numpy, pandas and Polars support._
 - [finalytics](https://github.com/Nnamdi-sys/finalytics) _Investment Analysis library in Rust | Python._
 - [forust](https://github.com/jinlow/forust) _A lightweight gradient boosted decision tree library written in Rust._
 - [geo-index](https://github.com/kylebarron/geo-index) _A Rust crate and [Python library](https://github.com/kylebarron/geo-index/tree/main/python) for packed, immutable, zero-copy spatial indexes._
