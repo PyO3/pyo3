@@ -13,6 +13,7 @@ pyo3 = { path = "../", features = ["auto-initialize", "full"] }
 pyo3-build-config = { path = "../pyo3-build-config" }
 
 [dev-dependencies]
+chrono = { version = "0.4.25", default-features = false }
 codspeed-criterion-compat = "5.0"
 criterion = "0.8.0"
 num-bigint = "0.4.3"
@@ -48,6 +49,10 @@ harness = false
 
 [[bench]]
 name = "bench_err"
+harness = false
+
+[[bench]]
+name = "bench_datetime"
 harness = false
 
 [[bench]]
