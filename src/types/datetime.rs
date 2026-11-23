@@ -1419,4 +1419,20 @@ class MyDate(datetime.date):
             assert_eq!(my_date.get_year(), 2024);
         });
     }
+
+    #[test]
+    #[cfg(Py_LIMITED_API)]
+    fn test_limited_api_field_descriptor_errors() {
+        use crate::exceptions::{PyAttributeError, PyTypeError};
+        use crate::type_object::PyTypeInfo;
+
+        Python::attach(|py| {
+            // (a missing attribute, and a class attribute that is not a descriptor)
+            let missing = LimitedApiFieldDescriptor::new(PyDate::type_object(py), "missing");
+            assert!(missing.is_err_and(|err| err.is_instance_of::<PyAttributeError>(py)));
+
+            let not_descriptor = LimitedApiFieldDescriptor::new(PyDate::type_object(py), "min");
+            assert!(not_descriptor.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));
+        });
+    }
 }
