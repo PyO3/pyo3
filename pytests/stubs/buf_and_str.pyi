@@ -4,7 +4,7 @@ Objects related to PyBuffer and PyStr
 
 from _typeshed import SupportsGetItem
 from collections.abc import Buffer
-from typing import SupportsIndex, final
+from typing import Self, SupportsIndex, final
 
 __all__ = [
     "BytesExtractor",
@@ -19,7 +19,7 @@ class BytesExtractor:
     """
     This is for confirming that PyBuffer does not cause memory leak
     """
-    def __new__(cls, /) -> BytesExtractor: ...
+    def __new__(cls, /) -> Self: ...
     @staticmethod
     def from_buffer(buf: Buffer) -> int: ...
     @staticmethod
