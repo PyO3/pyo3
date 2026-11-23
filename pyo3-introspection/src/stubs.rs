@@ -95,6 +95,8 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
         ));
     }
 
+    let dunder_all = dunder_all_stubs(module, &imports);
+
     let mut final_elements = Vec::new();
     if let Some(docstring) = &module.docstring {
         let mut buffer = String::new();
@@ -102,19 +104,21 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
         final_elements.push(buffer);
     }
     final_elements.extend(imports.imports);
+    final_elements.extend(dunder_all);
     final_elements.extend(elements);
 
     let mut output = String::new();
 
-    // We insert two line jumps (i.e. empty strings) only above and below multiple line elements (classes with methods, functions with decorators)
+    // We insert two line jumps (i.e. empty strings) only above and below multiple line elements
+    // (classes with methods, functions with decorators) and the `__all__` declaration
     for element in final_elements {
-        let is_multiline = element.contains('\n');
-        if is_multiline && !output.is_empty() && !output.ends_with("\n\n") {
+        let needs_empty_lines = element.contains('\n') || element.starts_with("__all__");
+        if needs_empty_lines && !output.is_empty() && !output.ends_with("\n\n") {
             output.push('\n');
         }
         output.push_str(&element);
         output.push('\n');
-        if is_multiline {
+        if needs_empty_lines {
             output.push('\n');
         }
     }
@@ -124,6 +128,64 @@ fn module_stubs(module: &Module, parents: &[&str]) -> String {
         output.pop();
     }
     output
+}
+
+/// Generates the `__all__` declaration of a module, if we are able to write an accurate one.
+///
+/// `PyModuleMethods::add` appends every name it adds to the module `__all__`, so any `#[pymodule]`
+/// with at least one member has one at runtime. Incomplete modules are skipped: we do not know all
+/// of their members, and a partial `__all__` would hide names that do exist at runtime.
+fn dunder_all_stubs(module: &Module, imports: &Imports) -> Option<String> {
+    if module.incomplete {
+        return None;
+    }
+    if module.attributes.iter().any(|a| a.name == "__all__") {
+        // The introspection data carries an explicit `__all__`, it is more accurate than ours
+        return None;
+    }
+    // `@typing.type_check_only` classes only exist in the stubs, so they are not in it at runtime
+    let classes = module
+        .classes
+        .iter()
+        .filter(|c| !is_type_check_only(c))
+        .collect::<Vec<_>>();
+    let member_count =
+        module.attributes.len() + classes.len() + module.functions.len() + module.modules.len();
+    if member_count == 0 {
+        // Nothing was ever added to the module, so it has no `__all__` at runtime either
+        return None;
+    }
+
+    // Each of these lists is already sorted by name, so listing them in the order the stub declares
+    // them keeps the output stable.
+    let mut elts = Vec::with_capacity(member_count);
+    elts.extend(
+        module
+            .attributes
+            .iter()
+            .map(|a| &a.name)
+            .chain(classes.iter().map(|c| &c.name))
+            .chain(module.functions.iter().map(|f| &f.name))
+            .chain(module.modules.iter().map(|m| &m.name))
+            .map(|name| Expr::Constant {
+                value: Constant::Str(name.clone()),
+            }),
+    );
+
+    let mut buffer = "__all__ = ".to_string();
+    imports.serialize_expr(&Expr::List { elts }, &mut buffer);
+    Some(buffer)
+}
+
+fn is_type_check_only(class: &Class) -> bool {
+    class.decorators.iter().any(|decorator| {
+        matches!(
+            decorator,
+            Expr::Attribute { value, attr }
+                if attr == "type_check_only"
+                    && matches!(&**value, Expr::Name { id } if id == "typing")
+        )
+    })
 }
 
 fn class_stubs(class: &Class, imports: &Imports) -> String {
@@ -369,8 +431,8 @@ impl Imports {
     /// and create the aliases when needed.
     fn create(module: &Module, module_parents: &[&str]) -> Self {
         let module_is_package = !module.modules.is_empty();
-        let mut elements_used_in_annotations = ElementsUsedInAnnotations::new();
-        elements_used_in_annotations.walk_module(module);
+        let mut referenced_names = ReferencedNames::new();
+        referenced_names.walk_module(module);
 
         let mut imports = Vec::new();
         let mut renaming = BTreeMap::new();
@@ -396,11 +458,9 @@ impl Imports {
             local_name_to_module_and_attribute
                 .insert(name.clone(), (current_module_name.clone(), name.clone()));
         }
-        // We don't process the current module elements, no need to care about them
-        local_name_to_module_and_attribute.remove(&current_module_name);
 
         // We process then imports, normalizing local imports
-        for (module, attrs) in &elements_used_in_annotations.module_to_name {
+        for (module, attrs) in &referenced_names.module_to_name {
             let mut import_for_module = Vec::new();
             for attr in attrs {
                 // We split nested classes A.B in "A" (the part that must be imported and can have naming conflicts) and ".B"
@@ -585,13 +645,13 @@ impl Imports {
     }
 }
 
-/// Lists all the elements used in annotations
-struct ElementsUsedInAnnotations {
+/// Collects the names referenced by the expressions emitted in a module's stub
+struct ReferencedNames {
     /// module -> name where module is global (from the root of the interpreter).
     module_to_name: BTreeMap<String, BTreeSet<String>>,
 }
 
-impl ElementsUsedInAnnotations {
+impl ReferencedNames {
     fn new() -> Self {
         Self {
             module_to_name: BTreeMap::new(),
@@ -642,6 +702,9 @@ impl ElementsUsedInAnnotations {
         if let Some(type_hint) = &attribute.annotation {
             self.walk_expr(type_hint);
         }
+        if let Some(value) = &attribute.value {
+            self.walk_expr(value);
+        }
     }
 
     fn walk_function(&mut self, function: &Function) {
@@ -657,6 +720,9 @@ impl ElementsUsedInAnnotations {
         {
             if let Some(type_hint) = &arg.annotation {
                 self.walk_expr(type_hint);
+            }
+            if let Some(default_value) = &arg.default_value {
+                self.walk_expr(default_value);
             }
         }
         for arg in function
@@ -988,10 +1054,8 @@ mod tests {
         assert_eq!(output, "dict[A, (A3.C, A3.D, B, A2, int, int2, float)]");
     }
 
-    /// A submodule is an attribute of its parent at runtime, so the parent stub must re-export it.
-    #[test]
-    fn submodules_are_re_exported_by_their_parent() {
-        let submodule = |name: &str| Module {
+    fn empty_module(name: &str) -> Module {
+        Module {
             name: name.into(),
             modules: Vec::new(),
             classes: Vec::new(),
@@ -999,10 +1063,15 @@ mod tests {
             attributes: Vec::new(),
             incomplete: false,
             docstring: None,
-        };
+        }
+    }
+
+    /// A submodule is an attribute of its parent at runtime, so the parent stub must re-export it.
+    #[test]
+    fn submodules_are_re_exported_by_their_parent() {
         let module = Module {
             name: "foo".into(),
-            modules: vec![submodule("zulu"), submodule("alpha")],
+            modules: vec![empty_module("zulu"), empty_module("alpha")],
             classes: Vec::new(),
             functions: Vec::new(),
             attributes: Vec::new(),
@@ -1011,10 +1080,114 @@ mod tests {
         };
         assert_eq!(
             module_stubs(&module, &[]),
-            "from . import alpha as alpha, zulu as zulu\n"
+            "from . import alpha as alpha, zulu as zulu\n\n__all__ = [\"zulu\", \"alpha\"]\n"
         );
         // A module without submodules gets no such line.
-        assert_eq!(module_stubs(&submodule("alpha"), &["foo"]), "");
+        assert_eq!(module_stubs(&empty_module("alpha"), &["foo"]), "");
+    }
+
+    /// A module with one member of every kind that lands in `__all__` at runtime.
+    fn populated_module() -> Module {
+        Module {
+            modules: vec![empty_module("sub")],
+            classes: vec![Class {
+                name: "Zulu".into(),
+                bases: Vec::new(),
+                methods: Vec::new(),
+                attributes: Vec::new(),
+                decorators: Vec::new(),
+                inner_classes: Vec::new(),
+                docstring: None,
+            }],
+            functions: vec![Function {
+                name: "func".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: Vec::new(),
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: None,
+                is_async: false,
+                docstring: None,
+            }],
+            attributes: vec![Attribute {
+                name: "CONST".into(),
+                value: Some(Expr::Constant {
+                    value: Constant::Int("1".into()),
+                }),
+                annotation: None,
+                docstring: None,
+            }],
+            ..empty_module("bar")
+        }
+    }
+
+    /// The `pytests` stubs cover the common cases, we only test the ones they don't have:
+    /// a module with a submodule, and an empty module.
+    #[test]
+    fn test_dunder_all() {
+        // The names are the ones `PyModuleMethods::add` puts in `__all__` at runtime, including
+        // the submodule which is declared in its own stub file.
+        assert_eq!(
+            module_stubs(&populated_module(), &["foo"]),
+            "from . import sub as sub\n\n__all__ = [\"CONST\", \"Zulu\", \"func\", \"sub\"]\n\nCONST = 1\nclass Zulu: ...\ndef func(): ...\n"
+        );
+        // Nothing was added to an empty module, so it has no `__all__` at runtime either
+        assert_eq!(module_stubs(&empty_module("bar"), &["foo"]), "");
+    }
+
+    /// A `@typing.type_check_only` class only exists in the stubs, so it is not exported at runtime
+    #[test]
+    fn test_dunder_all_skips_type_check_only_classes() {
+        let protocol = Class {
+            name: "Proto".into(),
+            bases: Vec::new(),
+            methods: Vec::new(),
+            attributes: Vec::new(),
+            decorators: vec![Expr::Attribute {
+                value: Box::new(Expr::Name {
+                    id: "typing".into(),
+                }),
+                attr: "type_check_only".into(),
+            }],
+            inner_classes: Vec::new(),
+            docstring: None,
+        };
+        let mut module = populated_module();
+        module.classes.insert(0, protocol.clone());
+        assert!(
+            module_stubs(&module, &["foo"])
+                .contains("__all__ = [\"CONST\", \"Zulu\", \"func\", \"sub\"]\n")
+        );
+        let module = Module {
+            classes: vec![protocol],
+            ..empty_module("bar")
+        };
+        assert_eq!(
+            module_stubs(&module, &["foo"]),
+            "from typing import type_check_only\n\n@type_check_only\nclass Proto: ...\n"
+        );
+    }
+
+    /// A `#[pymodule_init]` that is handed the module can add anything to it, so the module is
+    /// tagged incomplete and the members we know about are not the whole of `__all__`. An
+    /// initialiser declared without the module argument leaves the module complete and keeps its
+    /// `__all__`, which `test_dunder_all` and the `othermod` stubs of `pytests` cover.
+    #[test]
+    fn test_dunder_all_omitted_for_incomplete_module() {
+        let module = Module {
+            incomplete: true,
+            ..populated_module()
+        };
+        let stubs = module_stubs(&module, &["foo"]);
+        assert!(
+            !stubs.contains("__all__"),
+            "an incomplete module must not declare `__all__`:\n{stubs}"
+        );
+        assert!(stubs.contains("def __getattr__(name: str) -> Incomplete: ...\n"));
     }
 
     #[test]
@@ -1222,5 +1395,96 @@ mod tests {
         assert!(files[Path::new("child/__init__.pyi")].contains("from .. import Top"));
         assert!(files[Path::new("child/grandchild.pyi")].contains("from .. import Top"));
         assert!(files[Path::new("sibling.pyi")].is_empty());
+    }
+
+    /// Default values and attribute values go through the same renaming table as the type hints,
+    /// so the names they use must be collected too, or `serialize_expr` panics on them.
+    #[test]
+    fn names_in_defaults_and_values_are_imported() {
+        let math = |attr: &str| Expr::Attribute {
+            value: Box::new(Expr::Name { id: "math".into() }),
+            attr: attr.into(),
+        };
+        let module = Module {
+            name: "foo".into(),
+            modules: Vec::new(),
+            classes: Vec::new(),
+            functions: vec![Function {
+                name: "func".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: vec![Argument {
+                        name: "a".into(),
+                        default_value: Some(math("nan")),
+                        annotation: None,
+                    }],
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: None,
+                is_async: false,
+                docstring: None,
+            }],
+            attributes: vec![Attribute {
+                name: "X".into(),
+                value: Some(math("inf")),
+                annotation: None,
+                docstring: None,
+            }],
+            incomplete: false,
+            docstring: None,
+        };
+        assert_eq!(
+            module_stubs(&module, &[]),
+            "from math import inf, nan\n\n__all__ = [\"X\", \"func\"]\n\nX = inf\ndef func(a=nan): ...\n"
+        );
+    }
+
+    /// A class named like the root module used to be imported from itself and shadowed by builtins
+    #[test]
+    fn local_binding_named_like_the_root_module_is_kept() {
+        let module = Module {
+            name: "int".into(),
+            modules: Vec::new(),
+            classes: vec![Class {
+                name: "int".into(),
+                bases: Vec::new(),
+                methods: Vec::new(),
+                attributes: Vec::new(),
+                decorators: Vec::new(),
+                inner_classes: Vec::new(),
+                docstring: None,
+            }],
+            functions: vec![Function {
+                name: "make".into(),
+                decorators: Vec::new(),
+                arguments: Arguments {
+                    positional_only_arguments: Vec::new(),
+                    arguments: vec![Argument {
+                        name: "a".into(),
+                        default_value: None,
+                        annotation: Some(Expr::Name { id: "int".into() }),
+                    }],
+                    vararg: None,
+                    keyword_only_arguments: Vec::new(),
+                    kwarg: None,
+                },
+                returns: Some(Expr::Attribute {
+                    value: Box::new(Expr::Name { id: "int".into() }),
+                    attr: "int".into(),
+                }),
+                is_async: false,
+                docstring: None,
+            }],
+            attributes: Vec::new(),
+            incomplete: false,
+            docstring: None,
+        };
+        assert_eq!(
+            module_stubs(&module, &[]),
+            "from builtins import int as int2\n\n__all__ = [\"int\", \"make\"]\n\nclass int: ...\ndef make(a: int2) -> int: ...\n"
+        );
     }
 }

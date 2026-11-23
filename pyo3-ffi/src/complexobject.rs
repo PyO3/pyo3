@@ -3,7 +3,7 @@ use core::ffi::{c_double, c_int};
 
 #[cfg(not(RustPython))]
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPyComplex_Type")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyComplex_Type")]
     pub static mut PyComplex_Type: PyTypeObject;
 }
 
@@ -26,11 +26,11 @@ extern_libpython! {
     pub fn PyComplex_CheckExact(op: *mut PyObject) -> c_int;
 
     // skipped non-limited PyComplex_FromCComplex
-    #[cfg_attr(PyPy, link_name = "PyPyComplex_FromDoubles")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyComplex_FromDoubles")]
     pub fn PyComplex_FromDoubles(real: c_double, imag: c_double) -> *mut PyObject;
 
-    #[cfg_attr(PyPy, link_name = "PyPyComplex_RealAsDouble")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyComplex_RealAsDouble")]
     pub fn PyComplex_RealAsDouble(op: *mut PyObject) -> c_double;
-    #[cfg_attr(PyPy, link_name = "PyPyComplex_ImagAsDouble")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyComplex_ImagAsDouble")]
     pub fn PyComplex_ImagAsDouble(op: *mut PyObject) -> c_double;
 }

@@ -4,8 +4,8 @@ use pyo3::{pyclass, pyfunction, pymodule};
 pub mod enums {
     #[pymodule_export]
     use super::{
-        do_complex_stuff, do_mixed_complex_stuff, do_simple_stuff, do_tuple_stuff, ComplexEnum,
-        MixedComplexEnum, SimpleEnum, SimpleEnumWithoutDerive, SimpleTupleEnum, TupleEnum,
+        ComplexEnum, MixedComplexEnum, SimpleEnum, SimpleEnumWithoutDerive, SimpleTupleEnum,
+        TupleEnum, do_complex_stuff, do_mixed_complex_stuff, do_simple_stuff, do_tuple_stuff,
     };
 }
 

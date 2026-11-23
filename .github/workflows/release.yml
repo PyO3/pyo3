@@ -9,12 +9,10 @@ on:
       version:
         description: The version to build
 
-env:
-  UV_CONSTRAINT: ${{ github.workspace }}/.github/uv-constraints.txt
-
 jobs:
   release:
     permissions:
+      contents: read
       id-token: write
 
     runs-on: ubuntu-latest
@@ -26,11 +24,11 @@ jobs:
           ref: ${{ github.event.inputs.version || github.ref }}
           persist-credentials: false
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          save-cache: false
+          enable-cache: false
 
-      - uses: rust-lang/crates-io-auth-action@v1
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
         id: auth
 
       - name: Publish to crates.io

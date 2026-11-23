@@ -2,6 +2,12 @@ use core::ffi::c_ulong;
 use core::num::NonZero;
 
 #[cfg(not(wip_feature_std))]
+pub use thread_local::*;
+
+#[cfg(not(wip_feature_std))]
+mod thread_local;
+
+#[cfg(not(wip_feature_std))]
 use pyo3_ffi::PyThread_get_thread_ident;
 
 #[must_use]
@@ -40,3 +46,5 @@ pub use std_feature::ThreadId;
 #[cfg(not(wip_feature_std))]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct ThreadId(NonZero<c_ulong>);
+#[cfg(wip_feature_std)]
+pub use std::thread::{AccessError, LocalKey};

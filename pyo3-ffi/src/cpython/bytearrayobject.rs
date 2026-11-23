@@ -1,8 +1,8 @@
+use crate::PyByteArray_Check;
 #[cfg(Py_GIL_DISABLED)]
 use crate::cpython::pyatomic::_Py_atomic_load_ssize_relaxed;
 use crate::object::*;
 use crate::pyport::Py_ssize_t;
-use crate::PyByteArray_Check;
 #[cfg(not(any(PyPy, GraalPy)))]
 use core::ffi::c_char;
 

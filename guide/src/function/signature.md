@@ -17,6 +17,7 @@ For example, below is a function that accepts arbitrary keyword arguments (`**kw
 
 ```rust,no_run
 #[pyo3::pymodule]
+# #[pyo3(name = "example_kwargs_signature")]
 mod module_with_functions {
     use pyo3::prelude::*;
     use pyo3::types::PyDict;
@@ -271,6 +272,7 @@ The `signature` attribute can also contain type hints:
 use pyo3::prelude::*;
 
 #[pymodule]
+# #[pyo3(name = "example_type_hints")]
 pub mod example {
    use pyo3::prelude::*;
 

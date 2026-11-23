@@ -27,23 +27,23 @@ unsafe extern "C" fn id_new(
     args: *mut PyObject,
     kwds: *mut PyObject,
 ) -> *mut PyObject {
-    if PyTuple_Size(args) != 0 || !kwds.is_null() {
+    if unsafe { PyTuple_Size(args) } != 0 || !kwds.is_null() {
         // We use pyo3-ffi's `c_str!` macro to create null-terminated literals because
         // Rust's string literals are not null-terminated
         // On Rust 1.77 or newer you can use `c"text"` instead.
-        PyErr_SetString(PyExc_TypeError, c"Id() takes no arguments".as_ptr());
+        unsafe { PyErr_SetString(PyExc_TypeError, c"Id() takes no arguments".as_ptr()) };
         return ptr::null_mut();
     }
 
-    let f: allocfunc = (*subtype).tp_alloc.unwrap_or(PyType_GenericAlloc);
-    let slf = f(subtype, 0);
+    let f: allocfunc = unsafe { (*subtype).tp_alloc.unwrap_or(PyType_GenericAlloc) };
+    let slf = unsafe { f(subtype, 0) };
 
     if slf.is_null() {
         return ptr::null_mut();
     } else {
         let id = Id::new();
         let slf = slf.cast::<PyId>();
-        (&raw mut (*slf).id).write(id);
+        unsafe { (&raw mut (*slf).id).write(id) };
     }
 
     slf
@@ -51,15 +51,17 @@ unsafe extern "C" fn id_new(
 
 unsafe extern "C" fn id_repr(slf: *mut PyObject) -> *mut PyObject {
     let slf = slf.cast::<PyId>();
-    let id = (*slf).id.0;
+    let id = unsafe { (*slf).id.0 };
     let string = format!("Id({})", id);
-    PyUnicode_FromStringAndSize(string.as_ptr().cast::<c_char>(), string.len() as Py_ssize_t)
+    unsafe {
+        PyUnicode_FromStringAndSize(string.as_ptr().cast::<c_char>(), string.len() as Py_ssize_t)
+    }
 }
 
 unsafe extern "C" fn id_int(slf: *mut PyObject) -> *mut PyObject {
     let slf = slf.cast::<PyId>();
-    let id = (*slf).id.0;
-    PyLong_FromUnsignedLongLong(id as c_ulonglong)
+    let id = unsafe { (*slf).id.0 };
+    unsafe { PyLong_FromUnsignedLongLong(id as c_ulonglong) }
 }
 
 unsafe extern "C" fn id_richcompare(
@@ -67,12 +69,12 @@ unsafe extern "C" fn id_richcompare(
     other: *mut PyObject,
     op: c_int,
 ) -> *mut PyObject {
-    let pytype = Py_TYPE(slf); // guaranteed to be `sequential.Id`
-    if Py_TYPE(other) != pytype {
-        return Py_NewRef(Py_NotImplemented());
+    let pytype = unsafe { Py_TYPE(slf) }; // guaranteed to be `sequential.Id`
+    if unsafe { Py_TYPE(other) } != pytype {
+        return unsafe { Py_NewRef(Py_NotImplemented()) };
     }
-    let slf = (*slf.cast::<PyId>()).id;
-    let other = (*other.cast::<PyId>()).id;
+    let slf = unsafe { (*slf.cast::<PyId>()).id };
+    let other = unsafe { (*other.cast::<PyId>()).id };
 
     let cmp = match op {
         pyo3_ffi::Py_LT => slf < other,
@@ -87,15 +89,15 @@ unsafe extern "C" fn id_richcompare(
                 unrecognized
             ))
             .unwrap();
-            PyErr_SetString(PyExc_SystemError, msg.as_ptr());
+            unsafe { PyErr_SetString(PyExc_SystemError, msg.as_ptr()) };
             return ptr::null_mut();
         }
     };
 
     if cmp {
-        Py_NewRef(Py_True())
+        unsafe { Py_NewRef(Py_True()) }
     } else {
-        Py_NewRef(Py_False())
+        unsafe { Py_NewRef(Py_False()) }
     }
 }
 

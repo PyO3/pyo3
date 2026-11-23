@@ -3,9 +3,9 @@ use core::ffi::{c_char, c_int};
 use libc::wchar_t;
 
 extern_libpython! {
-    #[cfg_attr(PyPy, link_name = "PyPySys_GetObject")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySys_GetObject")]
     pub fn PySys_GetObject(arg1: *const c_char) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPySys_SetObject")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySys_SetObject")]
     pub fn PySys_SetObject(arg1: *const c_char, arg2: *mut PyObject) -> c_int;
 
     #[cfg_attr(
@@ -24,9 +24,9 @@ extern_libpython! {
     pub fn PySys_SetArgvEx(arg1: c_int, arg2: *mut *mut wchar_t, arg3: c_int);
     pub fn PySys_SetPath(arg1: *const wchar_t);
 
-    #[cfg_attr(PyPy, link_name = "PyPySys_WriteStdout")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySys_WriteStdout")]
     pub fn PySys_WriteStdout(format: *const c_char, ...);
-    #[cfg_attr(PyPy, link_name = "PyPySys_WriteStderr")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPySys_WriteStderr")]
     pub fn PySys_WriteStderr(format: *const c_char, ...);
     pub fn PySys_FormatStdout(format: *const c_char, ...);
     pub fn PySys_FormatStderr(format: *const c_char, ...);

@@ -26,7 +26,6 @@ note: required by a bound in `pyo3::impl_::pymethods::tp_new_impl`
  --> src/impl_/pymethods.rs
   |
   | pub unsafe fn tp_new_impl<'py, InitializerT, ClassT>(
-  |               ----------- required by a bound in this function
 ...
   |     InitializerT: PyClassInit<'py, ClassT>,
   |                   ^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `tp_new_impl`

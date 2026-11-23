@@ -3,7 +3,7 @@ name = "pyo3-benches"
 version = "0.1.0"
 description = "In-tree benchmarks for the PyO3 project"
 authors = ["PyO3 Project and Contributors <https://github.com/PyO3>"]
-edition = "2021"
+edition = "2024"
 publish = false
 
 [dependencies]
@@ -13,6 +13,7 @@ pyo3 = { path = "../", features = ["auto-initialize", "full"] }
 pyo3-build-config = { path = "../pyo3-build-config" }
 
 [dev-dependencies]
+chrono = { version = "0.4.25", default-features = false }
 codspeed-criterion-compat = "5.0"
 criterion = "0.8.0"
 num-bigint = "0.4.3"
@@ -48,6 +49,10 @@ harness = false
 
 [[bench]]
 name = "bench_err"
+harness = false
+
+[[bench]]
+name = "bench_datetime"
 harness = false
 
 [[bench]]

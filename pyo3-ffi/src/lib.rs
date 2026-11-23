@@ -201,14 +201,14 @@
 //! // The module initialization function
 //! #[cfg(not(Py_3_15))]
 //! #[allow(non_snake_case, reason = "must be named `PyInit_<your_module>`")]
-//! #[no_mangle]
+//! #[unsafe(no_mangle)]
 //! pub unsafe extern "C" fn PyInit_string_sum() -> *mut PyObject {
 //!     PyModuleDef_Init(&raw mut MODULE_DEF)
 //! }
 //!
 //! #[cfg(Py_3_15)]
 //! #[allow(non_snake_case, reason = "must be named `PyModExport_<your_module>`")]
-//! #[no_mangle]
+//! #[unsafe(no_mangle)]
 //! pub unsafe extern "C" fn PyModExport_string_sum() -> *mut PySlot {
 //!     (&raw mut SLOTS).cast()
 //! }

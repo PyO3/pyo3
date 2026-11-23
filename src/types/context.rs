@@ -7,13 +7,10 @@
 //!
 //! [1]: https://docs.python.org/3/library/contextvars.html#contextvars.Context
 
-use crate::{ffi, PyAny};
+use crate::{PyAny, ffi};
 
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
-use crate::{
-    err::{error_on_minusone, error_on_minusone_with_result},
-    Borrowed, PyResult, Python,
-};
+use crate::{Borrowed, PyResult, Python, err};
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
 use core::ffi::c_int;
 
@@ -56,8 +53,9 @@ impl PyContext {
         // SAFETY:
         // - `py` proves that the thread is attached
         // - `callback` contains a static C-compatible function
-        let watcher_id =
-            error_on_minusone_with_result(py, unsafe { ffi::PyContext_AddWatcher(callback.0) })?;
+        let watcher_id = err::error_on_negative_with_result(py, unsafe {
+            ffi::PyContext_AddWatcher(callback.0)
+        })?;
 
         Ok(BoundContextWatcherGuard {
             watcher_id,
@@ -234,7 +232,7 @@ fn clear_watcher(py: Python<'_>, watcher_id: c_int) -> PyResult<()> {
     //   attaching to more than one interpreter, so this is the interpreter for which the watcher
     //   was registered
     // - `watcher_id` was returned by `PyContext_AddWatcher`
-    error_on_minusone(py, unsafe { ffi::PyContext_ClearWatcher(watcher_id) })
+    err::error_on_negative(py, unsafe { ffi::PyContext_ClearWatcher(watcher_id) })
 }
 
 #[cfg(all(Py_3_14, not(Py_GIL_DISABLED)))]
@@ -429,14 +427,14 @@ pub mod impl_ {
 
 #[cfg(all(test, Py_3_14, not(Py_GIL_DISABLED)))]
 mod watcher_tests {
-    use super::impl_::{context_watcher, ContextWatcherCallback, ContextWatcherCallbackDef};
+    use super::impl_::{ContextWatcherCallback, ContextWatcherCallbackDef, context_watcher};
     use super::{ContextEvent, PyContext};
     use crate::exceptions::{PyRuntimeError, PyValueError};
-    use crate::platform::sync::non_poison::{Mutex, MutexGuard};
+    use crate::platform::sync::nonpoison::{Mutex, MutexGuard};
     #[cfg(feature = "macros")]
     use crate::test_utils::UnraisableCapture;
     use crate::types::PyAnyMethods;
-    use crate::{ffi, PyErr, PyResult, Python};
+    use crate::{PyErr, PyResult, Python, ffi};
     use alloc::string::ToString;
     use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
     use static_assertions::{assert_impl_all, assert_not_impl_any};
@@ -775,8 +773,8 @@ mod watcher_tests {
 #[cfg(test)]
 mod tests {
     use super::PyContext;
-    use crate::types::PyAnyMethods;
     use crate::Python;
+    use crate::types::PyAnyMethods;
 
     #[test]
     fn context_type() {

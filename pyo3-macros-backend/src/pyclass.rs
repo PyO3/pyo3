@@ -2,17 +2,18 @@ use std::borrow::Cow;
 use std::fmt::Debug;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
 use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parse_quote, parse_quote_spanned, spanned::Spanned, ImplItemFn, Result, Token};
+use syn::{ImplItemFn, Result, Token, parse_quote, parse_quote_spanned, spanned::Spanned};
 
+use crate::PyFunctionOptions;
 use crate::attributes::kw::frozen;
 use crate::attributes::{
-    self, kw, take_pyo3_options, CrateAttribute, ExtendsAttribute, FreelistAttribute,
-    ModuleAttribute, NameAttribute, NameLitStr, NewImplTypeAttribute, NewImplTypeAttributeValue,
-    RenameAllAttribute, StrFormatterAttribute,
+    self, CrateAttribute, ExtendsAttribute, FreelistAttribute, ModuleAttribute, NameAttribute,
+    NameLitStr, NewImplTypeAttribute, NewImplTypeAttributeValue, RenameAllAttribute,
+    StrFormatterAttribute, kw, take_pyo3_options,
 };
 use crate::combine_errors::CombineErrors;
 #[cfg(feature = "experimental-inspect")]
@@ -27,16 +28,15 @@ use crate::py_expr::PyExpr;
 use crate::pyfunction::{ConstructorAttribute, FunctionSignature};
 #[cfg(feature = "experimental-inspect")]
 use crate::pyimpl::method_introspection_code;
-use crate::pyimpl::{gen_py_const, get_cfg_attributes, PyClassMethodsType};
+use crate::pyimpl::{PyClassMethodsType, gen_py_const, get_cfg_attributes};
 #[cfg(feature = "experimental-inspect")]
 use crate::pymethod::field_python_name;
 use crate::pymethod::{
-    impl_py_class_attribute, impl_py_getter_def, impl_py_setter_def, MethodAndMethodDef,
-    MethodAndSlotDef, PropertyType, SlotDef, __GETITEM__, __HASH__, __INT__, __LEN__, __NEW__,
-    __REPR__, __RICHCMP__, __STR__,
+    __GETITEM__, __HASH__, __INT__, __LEN__, __NEW__, __REPR__, __RICHCMP__, __STR__,
+    MethodAndMethodDef, MethodAndSlotDef, PropertyType, SlotDef, impl_py_class_attribute,
+    impl_py_getter_def, impl_py_setter_def,
 };
-use crate::utils::{self, apply_renaming_rule, get_doc, locate_tokens_at, Ctx, PythonDoc};
-use crate::PyFunctionOptions;
+use crate::utils::{self, Ctx, PythonDoc, apply_renaming_rule, get_doc, locate_tokens_at};
 
 /// If the class is derived from a Rust `struct` or `enum`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -2300,9 +2300,6 @@ fn impl_pytypeinfo(cls: &Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStream {
     quote! {
         unsafe impl #pyo3_path::type_object::PyTypeInfo for #cls {
 
-            const NAME: &str = <Self as #pyo3_path::PyClass>::NAME;
-            const MODULE: ::core::option::Option<&str> = <Self as #pyo3_path::impl_::pyclass::PyClassImpl>::MODULE;
-
             #type_hint
 
             #[inline]
@@ -2832,6 +2829,13 @@ impl<'a> PyClassImplsBuilder<'a> {
         let is_immutable_type =
             is_immutable_type.then(|| quote! { const IS_IMMUTABLE_TYPE: bool = true; });
 
+        let allocators = self.attr.options.freelist.is_some().then(|| {
+            quote! {
+                const TP_ALLOC: #pyo3_path::ffi::allocfunc = #pyo3_path::impl_::pyclass::alloc_with_freelist::<Self> as _;
+                const TP_FREE: #pyo3_path::ffi::freefunc = #pyo3_path::impl_::pyclass::free_with_freelist::<Self> as _;
+            }
+        });
+
         let dict_offset = if self.attr.options.dict.is_some() {
             quote! {
                 fn dict_offset() -> ::core::option::Option<#pyo3_path::impl_::pyclass::PyObjectOffset> {
@@ -2919,14 +2923,10 @@ impl<'a> PyClassImplsBuilder<'a> {
             .iter()
             .map(|slot| &slot.slot_def)
             .collect::<Vec<_>>();
-        let freelist_slots = self.freelist_slots(ctx);
 
         // When there are no intrinsic items, point at a shared empty `PyClassItems` to keep the
         // generated code small.
-        let items_iter = if default_method_defs.is_empty()
-            && default_slot_defs.is_empty()
-            && freelist_slots.is_empty()
-        {
+        let items_iter = if default_method_defs.is_empty() && default_slot_defs.is_empty() {
             quote! {
                 fn items_iter() -> #pyo3_path::impl_::pyclass::PyClassItemsIter {
                     #pyo3_path::impl_::pyclass::PyClassItemsIter::new(
@@ -2940,7 +2940,7 @@ impl<'a> PyClassImplsBuilder<'a> {
                 fn items_iter() -> #pyo3_path::impl_::pyclass::PyClassItemsIter {
                     static INTRINSIC_ITEMS: #pyo3_path::impl_::pyclass::PyClassItems = #pyo3_path::impl_::pyclass::PyClassItems {
                         methods: &[#(#default_method_defs),*],
-                        slots: &[#(#default_slot_defs),* #(#freelist_slots),*],
+                        slots: &[#(#default_slot_defs),*],
                     };
                     #pyo3_path::impl_::pyclass::PyClassItemsIter::new(&INTRINSIC_ITEMS, #pymethods_items)
                 }
@@ -3062,6 +3062,8 @@ impl<'a> PyClassImplsBuilder<'a> {
                 #is_sequence
                 #is_immutable_type
 
+                #allocators
+
                 type Layout = <Self::BaseNativeType as #pyo3_path::impl_::pyclass::PyClassBaseType>::Layout<Self>;
                 type BaseType = #base;
                 type ThreadChecker = #thread_checker;
@@ -3137,30 +3139,6 @@ impl<'a> PyClassImplsBuilder<'a> {
                 }
             }
         })
-    }
-
-    fn freelist_slots(&self, ctx: &Ctx) -> Vec<TokenStream> {
-        let Ctx { pyo3_path, .. } = ctx;
-        let cls = self.cls_ident;
-
-        if self.attr.options.freelist.is_some() {
-            vec![
-                quote! {
-                    #pyo3_path::ffi::PyType_Slot {
-                        slot: #pyo3_path::ffi::Py_tp_alloc,
-                        pfunc: #pyo3_path::impl_::pyclass::alloc_with_freelist::<#cls> as *mut _,
-                    }
-                },
-                quote! {
-                    #pyo3_path::ffi::PyType_Slot {
-                        slot: #pyo3_path::ffi::Py_tp_free,
-                        pfunc: #pyo3_path::impl_::pyclass::free_with_freelist::<#cls> as *mut _,
-                    }
-                },
-            ]
-        } else {
-            Vec::new()
-        }
     }
 
     #[cfg(feature = "experimental-inspect")]

@@ -1,10 +1,10 @@
+#[cfg(not(PyPy))]
+use crate::PyList_Check;
 #[cfg(Py_GIL_DISABLED)]
 use crate::cpython::pyatomic::_Py_atomic_load_ssize_relaxed;
 use crate::object::*;
 #[cfg(not(PyPy))]
 use crate::pyport::Py_ssize_t;
-#[cfg(not(PyPy))]
-use crate::PyList_Check;
 
 #[cfg(not(PyPy))]
 #[repr(C)]

@@ -1,17 +1,7 @@
-error[E0658]: file modules in proc macro input are unstable
- --> tests/ui/invalid_pymodule_in_root.rs:5:1
-  |
-5 | mod invalid_pymodule_in_root_module;
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: see issue #54727 <https://github.com/rust-lang/rust/issues/54727> for more information
-
 error: `#[pymodule]` can only be used on inline modules
  --> tests/ui/invalid_pymodule_in_root.rs:5:1
   |
 5 | mod invalid_pymodule_in_root_module;
   | ^^^
 
-error: aborting due to 2 previous errors
-
-For more information about this error, try `rustc --explain E0658`.
+error: aborting due to 1 previous error

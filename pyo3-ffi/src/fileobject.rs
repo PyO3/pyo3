@@ -4,6 +4,7 @@ use core::ffi::{c_char, c_int};
 pub const PY_STDIOTEXTMODE: &str = "b";
 
 extern_libpython! {
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFile_FromFd")]
     pub fn PyFile_FromFd(
         arg1: c_int,
         arg2: *const c_char,
@@ -14,13 +15,13 @@ extern_libpython! {
         arg7: *const c_char,
         arg8: c_int,
     ) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyFile_GetLine")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFile_GetLine")]
     pub fn PyFile_GetLine(arg1: *mut PyObject, arg2: c_int) -> *mut PyObject;
-    #[cfg_attr(PyPy, link_name = "PyPyFile_WriteObject")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFile_WriteObject")]
     pub fn PyFile_WriteObject(arg1: *mut PyObject, arg2: *mut PyObject, arg3: c_int) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyFile_WriteString")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyFile_WriteString")]
     pub fn PyFile_WriteString(arg1: *const c_char, arg2: *mut PyObject) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyFile_AsFileDescriptor")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyObject_AsFileDescriptor")]
     pub fn PyObject_AsFileDescriptor(arg1: *mut PyObject) -> c_int;
 }
 

@@ -32,13 +32,22 @@ def test(session: nox.Session):
     try_install_binary("gevent", ">=22.10.2")
     # hypothesis itself depends on PyO3 so newer Python versions may fail
     # to build
-    try_install_binary("hypothesis", ">=6.171.1")
-    ignored_paths = []
+    try_install_binary("hypothesis", ">=6.156.1")
+    # The stubs are generated from a build with `experimental-async,experimental-inspect`,
+    # so only such a build exports the members they declare. The `test-introspection`
+    # session runs this test against one.
+    ignored_paths = ["tests/test_stubs.py"]
     if sys.version_info < (3, 10):
         # Match syntax is only available in Python >= 3.10
         ignored_paths.append("tests/test_enums_match.py")
     ignore_args = [f"--ignore={path}" for path in ignored_paths]
-    session.run("pytest", *ignore_args, *unhandled_posargs)
+
+    extra_args = []
+    # https://github.com/oracle/graalpython/issues/1211
+    if sys.implementation.name == "graalpy":
+        extra_args.append("--assert=plain")
+
+    session.run("pytest", *extra_args, *ignore_args, *unhandled_posargs)
 
 
 @nox.session
@@ -47,7 +56,7 @@ def bench(session: nox.Session):
     session.run("pytest", "--benchmark-enable", "--benchmark-only", *session.posargs)
 
 
-@nox.session
+@nox.session(python="3.14")
 def mypy(session: nox.Session):
     type_checker(
         session,
@@ -56,7 +65,7 @@ def mypy(session: nox.Session):
     # TODO: enable stubtest session.run_always("python", "-m", "mypy.stubtest", "pyo3_pytests")
 
 
-@nox.session
+@nox.session(python="3.14")
 def pyrefly(session: nox.Session):
     type_checker(
         session,

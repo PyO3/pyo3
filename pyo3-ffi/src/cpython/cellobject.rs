@@ -12,6 +12,7 @@ extern_libpython! {
     pub fn PyCell_New(o: *mut PyObject) -> *mut PyObject;
     pub fn PyCell_Get(o: *mut PyObject) -> *mut PyObject;
     pub fn PyCell_Set(o: *mut PyObject, val: *mut PyObject) -> c_int;
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyCell_Type")]
     pub static mut PyCell_Type: PyTypeObject;
 }
 

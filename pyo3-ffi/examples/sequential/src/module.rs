@@ -68,16 +68,17 @@ pub static mut SEQUENTIAL_SLOTS: [PyModuleDef_Slot; SEQUENTIAL_SLOTS_LEN] = [
 ];
 
 unsafe extern "C" fn sequential_exec(module: *mut PyObject) -> c_int {
-    let state: *mut sequential_state = PyModule_GetState(module).cast();
+    let state: *mut sequential_state = unsafe { PyModule_GetState(module).cast() };
 
-    let id_type = PyType_FromModuleAndSpec(module, &raw mut crate::id::ID_SPEC, ptr::null_mut());
+    let id_type =
+        unsafe { PyType_FromModuleAndSpec(module, &raw mut crate::id::ID_SPEC, ptr::null_mut()) };
     if id_type.is_null() {
-        PyErr_SetString(PyExc_SystemError, c"cannot locate type object".as_ptr());
+        unsafe { PyErr_SetString(PyExc_SystemError, c"cannot locate type object".as_ptr()) };
         return -1;
     }
-    (*state).id_type = id_type.cast::<PyTypeObject>();
+    unsafe { (*state).id_type = id_type.cast::<PyTypeObject>() };
 
-    PyModule_AddObjectRef(module, c"Id".as_ptr(), id_type)
+    unsafe { PyModule_AddObjectRef(module, c"Id".as_ptr(), id_type) }
 }
 
 unsafe extern "C" fn sequential_traverse(
@@ -85,24 +86,24 @@ unsafe extern "C" fn sequential_traverse(
     visit: visitproc,
     arg: *mut c_void,
 ) -> c_int {
-    let state: *mut sequential_state = PyModule_GetState(module.cast()).cast();
-    let id_type: *mut PyObject = (*state).id_type.cast();
+    let state: *mut sequential_state = unsafe { PyModule_GetState(module.cast()).cast() };
+    let id_type: *mut PyObject = unsafe { (*state).id_type.cast() };
 
     if id_type.is_null() {
         0
     } else {
-        (visit)(id_type, arg)
+        unsafe { (visit)(id_type, arg) }
     }
 }
 
 unsafe extern "C" fn sequential_clear(module: *mut PyObject) -> c_int {
-    let state: *mut sequential_state = PyModule_GetState(module.cast()).cast();
-    Py_CLEAR((&raw mut (*state).id_type).cast());
+    let state: *mut sequential_state = unsafe { PyModule_GetState(module.cast()).cast() };
+    unsafe { Py_CLEAR((&raw mut (*state).id_type).cast()) };
     0
 }
 
 unsafe extern "C" fn sequential_free(module: *mut c_void) {
-    sequential_clear(module.cast());
+    unsafe { sequential_clear(module.cast()) };
 }
 
 #[repr(C)]

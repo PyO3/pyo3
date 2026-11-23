@@ -4,11 +4,11 @@ use crate::impl_::callback::IntoPyCallbackOutput;
 use crate::py_result_ext::PyResultExt;
 use crate::pyclass::PyClass;
 use crate::types::{
-    any::PyAnyMethods, list::PyListMethods, string::PyStringMethods, PyAny, PyCFunction, PyDict,
-    PyList, PyString,
+    PyAny, PyCFunction, PyDict, PyList, PyString, any::PyAnyMethods, list::PyListMethods,
+    string::PyStringMethods,
 };
 use crate::{
-    exceptions, ffi, Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python,
+    Borrowed, Bound, BoundObject, IntoPyObject, IntoPyObjectExt, Py, Python, exceptions, ffi,
 };
 #[cfg(RustPython)]
 use crate::{
@@ -16,9 +16,9 @@ use crate::{
     types::{PyType, PyTypeMethods},
 };
 use alloc::borrow::Cow;
+use core::ffi::CStr;
 #[cfg(all(not(Py_LIMITED_API), Py_GIL_DISABLED))]
 use core::ffi::c_int;
-use core::ffi::CStr;
 use core::str;
 
 /// Represents a Python [`module`][1] object.
@@ -138,7 +138,10 @@ impl PyModule {
     ///
     /// # Example: bundle in a file at compile time with [`include_str!`][core::include_str]:
     ///
-    /// ```rust
+    /// <!-- Using standalone_crate ensures that the `include_str!` is resolved relative to this
+    /// file, not the workspace root, when merged doctests are being compiled. -->
+    ///
+    /// ```rust,standalone_crate
     /// use pyo3::prelude::*;
     /// use pyo3::ffi::c_str;
     ///
@@ -240,6 +243,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
+    /// # #[pyo3(name = "example_module_add_constant")]
     /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     module.add("c", 299_792_458)?;
     ///     Ok(())
@@ -279,6 +283,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// struct Foo { /* fields omitted */ }
     ///
     /// #[pymodule]
+    /// # #[pyo3(name = "example_module_add_class")]
     /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     module.add_class::<Foo>()?;
     ///     Ok(())
@@ -329,6 +334,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
+    /// # #[pyo3(name = "example_module_add_submodule")]
     /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     let submodule = PyModule::new(py, "submodule")?;
     ///     submodule.add("super_useful_constant", "important")?;
@@ -369,6 +375,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     ///     println!("Hello world!")
     /// }
     /// #[pymodule]
+    /// # #[pyo3(name = "example_module_add_function")]
     /// fn my_module(module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     module.add_function(wrap_pyfunction!(say_hello, module)?)
     /// }
@@ -408,6 +415,7 @@ pub trait PyModuleMethods<'py>: crate::sealed::Sealed {
     /// use pyo3::prelude::*;
     ///
     /// #[pymodule]
+    /// # #[pyo3(name = "example_module_gil_used")]
     /// fn my_module(py: Python<'_>, module: &Bound<'_, PyModule>) -> PyResult<()> {
     ///     let submodule = PyModule::new(py, "submodule")?;
     ///     submodule.gil_used(true)?;
@@ -581,8 +589,8 @@ fn __name__(py: Python<'_>) -> &Bound<'_, PyString> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::{module::PyModuleMethods, PyModule},
         Python,
+        types::{PyModule, module::PyModuleMethods},
     };
 
     #[test]
@@ -598,12 +606,13 @@ mod tests {
         use crate::types::string::PyStringMethods;
         Python::attach(|py| {
             let site = PyModule::import(py, "site").unwrap();
-            assert!(site
-                .filename()
-                .unwrap()
-                .to_cow()
-                .unwrap()
-                .ends_with("site.py"));
+            assert!(
+                site.filename()
+                    .unwrap()
+                    .to_cow()
+                    .unwrap()
+                    .ends_with("site.py")
+            );
         })
     }
 

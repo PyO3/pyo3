@@ -2,15 +2,24 @@
 Objects related to PyBuffer and PyStr
 """
 
-from collections.abc import Buffer, Sequence
-from typing import SupportsIndex, final
+from _typeshed import SupportsGetItem
+from collections.abc import Buffer
+from typing import Self, SupportsIndex, final
+
+__all__ = [
+    "BytesExtractor",
+    "map_byte_cow",
+    "map_byte_slice",
+    "map_byte_vec",
+    "return_memoryview",
+]
 
 @final
 class BytesExtractor:
     """
     This is for confirming that PyBuffer does not cause memory leak
     """
-    def __new__(cls, /) -> BytesExtractor: ...
+    def __new__(cls, /) -> Self: ...
     @staticmethod
     def from_buffer(buf: Buffer) -> int: ...
     @staticmethod
@@ -20,7 +29,7 @@ class BytesExtractor:
     @staticmethod
     def from_str_lossy(string: str) -> int: ...
 
-def map_byte_cow(bytes: Sequence[SupportsIndex]) -> bytes: ...
+def map_byte_cow(bytes: SupportsGetItem[int, SupportsIndex]) -> bytes: ...
 def map_byte_slice(bytes: bytes) -> bytes: ...
-def map_byte_vec(bytes: Sequence[SupportsIndex]) -> bytes: ...
+def map_byte_vec(bytes: SupportsGetItem[int, SupportsIndex]) -> bytes: ...
 def return_memoryview() -> memoryview: ...

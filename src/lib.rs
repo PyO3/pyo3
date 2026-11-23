@@ -25,9 +25,6 @@
         unused_variables,
         unused_assignments,
         unused_extern_crates,
-        // FIXME https://github.com/rust-lang/rust/issues/121621#issuecomment-1965156376
-        unknown_lints,
-        non_local_definitions,
     )
 )))]
 
@@ -151,7 +148,7 @@
 //!
 //! # Minimum supported Rust and Python versions
 //!
-//! Requires Rust 1.83 or greater.
+//! Requires Rust 1.85 or greater.
 //!
 //! PyO3 supports the following Python distributions:
 //!   - CPython 3.9 or greater
@@ -173,7 +170,7 @@
 //! [package]
 //! name = "string-sum"
 //! version = "0.1.0"
-//! edition = "2021"
+//! edition = "2024"
 //!
 //! [lib]
 //! name = "string_sum"
@@ -200,6 +197,7 @@
 //!
 //! /// A Python module implemented in Rust.
 //! #[pymodule]
+//! # #[pyo3(name = "example_string_sum_lib_rs")]
 //! fn string_sum(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
 //!
@@ -455,8 +453,11 @@ pub use crate::conversions::*;
 
 #[cfg(feature = "macros")]
 pub use pyo3_macros::{
-    pyfunction, pymethods, pymodule, FromPyObject, IntoPyObject, IntoPyObjectRef, PyGcTraversable,
+    FromPyObject, IntoPyObject, IntoPyObjectRef, PyGcTraversable, pyfunction, pymethods, pymodule,
 };
+
+#[cfg(all(feature = "macros", feature = "experimental-inspect"))]
+pub use pyo3_macros::pyprotocol;
 
 /// A proc macro used to expose Rust structs and fieldless enums as Python objects.
 ///

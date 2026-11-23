@@ -11,7 +11,7 @@
 use crate::ffi;
 use crate::marker::Python;
 use crate::platform::prelude::*;
-use crate::platform::sync::non_poison::Mutex;
+use crate::platform::sync::nonpoison::Mutex;
 use crate::sync::{MutexExt, PyOnceLock};
 
 use core::ops::DerefMut;
@@ -29,7 +29,7 @@ impl FreeList {
         &self,
         py: Python<'_>,
         capacity: usize,
-    ) -> impl DerefMut<Target = PyObjectFreeList> + '_ {
+    ) -> impl DerefMut<Target = PyObjectFreeList> + use<'_> {
         self.0
             .get_or_init(py, || Mutex::new(PyObjectFreeList::with_capacity(capacity)))
             .lock_py_attached(py)

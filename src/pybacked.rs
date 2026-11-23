@@ -10,12 +10,12 @@ use crate::sync::critical_section::with_critical_section;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_union;
 use crate::{
+    Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo, Python,
     pyclass::{PyGcTraversable, PyTraverseError, PyVisit},
     types::{
-        bytearray::PyByteArrayMethods, bytes::PyBytesMethods, string::PyStringMethods, PyByteArray,
-        PyBytes, PyString, PyTuple,
+        PyByteArray, PyBytes, PyString, PyTuple, bytearray::PyByteArrayMethods,
+        bytes::PyBytesMethods, string::PyStringMethods,
     },
-    Borrowed, Bound, CastError, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyTypeInfo, Python,
 };
 use alloc::sync::Arc;
 use core::{borrow::Borrow, convert::Infallible, ops::Deref, ptr::NonNull};
@@ -466,8 +466,10 @@ use impl_traits;
 
 #[cfg(test)]
 mod test {
+    extern crate std;
+
     use super::*;
-    use crate::impl_::pyclass::{value_of, IsSend, IsSync};
+    use crate::impl_::pyclass::{IsSend, IsSync, value_of};
     use crate::types::PyAnyMethods as _;
     use crate::{IntoPyObject, Python};
     use core::hash::{Hash, Hasher};
@@ -553,10 +555,12 @@ mod test {
         Python::attach(|py| {
             let orig_bytes = PyBytes::new(py, b"abcde");
             let py_backed_bytes = PyBackedBytes::from(orig_bytes.clone());
-            assert!((&py_backed_bytes)
-                .into_pyobject(py)
-                .unwrap()
-                .is(&orig_bytes));
+            assert!(
+                (&py_backed_bytes)
+                    .into_pyobject(py)
+                    .unwrap()
+                    .is(&orig_bytes)
+            );
         });
     }
 
@@ -663,7 +667,7 @@ mod test {
     #[test]
     fn test_backed_str_map_key() {
         Python::attach(|py| {
-            use crate::platform::HashMap;
+            use crate::platform::collections::HashMap;
 
             let mut map: HashMap<PyBackedStr, usize> = HashMap::new();
             let s: PyBackedStr = PyString::new(py, "key1").try_into().unwrap();

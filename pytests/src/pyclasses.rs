@@ -428,8 +428,8 @@ pub mod pyclasses {
     use super::SubClassWithInit;
     #[pymodule_export]
     use super::{
-        map_a_class, AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass,
-        Number, PlainObject, PyClassIter, PyClassOptionAsyncIter, PyClassOptionIter,
-        PyClassResultOptionIter, PyClassThreadIter,
+        AssertingBaseClass, ClassWithDecorators, ClassWithoutConstructor, EmptyClass, Number,
+        PlainObject, PyClassIter, PyClassOptionAsyncIter, PyClassOptionIter,
+        PyClassResultOptionIter, PyClassThreadIter, map_a_class,
     };
 }

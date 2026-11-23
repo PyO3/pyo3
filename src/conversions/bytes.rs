@@ -44,6 +44,7 @@
 //! }
 //!
 //! #[pymodule]
+//! # #[pyo3(name = "example_bytes")]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(get_message_bytes, m)?)?;
 //!     m.add_function(wrap_pyfunction!(num_bytes, m)?)?;
@@ -64,6 +65,8 @@
 //! ```
 use bytes::Bytes;
 
+#[cfg(feature = "experimental-inspect")]
+use crate::PyTypeInfo;
 use crate::conversion::IntoPyObject;
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
@@ -72,8 +75,6 @@ use crate::instance::Bound;
 use crate::platform::prelude::*;
 use crate::pybacked::PyBackedBytes;
 use crate::types::PyBytes;
-#[cfg(feature = "experimental-inspect")]
-use crate::PyTypeInfo;
 use crate::{Borrowed, CastError, FromPyObject, PyAny, PyErr, Python};
 
 impl<'a, 'py> FromPyObject<'a, 'py> for Bytes {
@@ -116,8 +117,8 @@ impl<'py> IntoPyObject<'py> for &Bytes {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods, PyBytes};
     use crate::Python;
+    use crate::types::{PyAnyMethods, PyByteArray, PyByteArrayMethods, PyBytes};
 
     #[test]
     fn test_bytes() {

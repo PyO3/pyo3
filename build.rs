@@ -3,7 +3,7 @@ use std::env;
 use pyo3_build_config::pyo3_build_script_impl::{
     cargo_env_var, env_var, errors::Result, print_feature_cfgs,
 };
-use pyo3_build_config::{add_libpython_rpath_link_args, bail, InterpreterConfig};
+use pyo3_build_config::{InterpreterConfig, add_libpython_rpath_link_args, bail};
 
 fn ensure_auto_initialize_ok(interpreter_config: &InterpreterConfig) -> Result<()> {
     if cargo_env_var("CARGO_FEATURE_AUTO_INITIALIZE").is_some() && !interpreter_config.shared() {

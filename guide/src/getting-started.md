@@ -12,7 +12,7 @@ We'll cover each of these below.
 First, make sure you have Rust installed on your system.
 If you haven't already done so, try following the instructions [on the Rust website](https://www.rust-lang.org/tools/install).
 PyO3 runs on both the `stable` and `nightly` versions so you can choose whichever one fits you best.
-The minimum required Rust version is 1.83.
+The minimum required Rust version is 1.85.
 
 If you can run `rustc --version` and the version is new enough you're good to go!
 
@@ -128,7 +128,7 @@ Also, make sure that the crate type is `cdylib` and add PyO3 as a dependency as 
 name = "pyo3_start"
 # these are good defaults:
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
 # The name of the native library. This is the name which will be used in Python to import the

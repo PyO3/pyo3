@@ -3,7 +3,7 @@
 use core::{convert::Infallible, marker::PhantomData, ops::Deref};
 
 use crate::{
-    ffi, types::PyNone, Bound, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
+    Bound, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python, ffi, types::PyNone,
 };
 
 /// Used to wrap values in `Option<T>` for default arguments.

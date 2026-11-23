@@ -1,8 +1,8 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
-use crate::ffi::*;
 use crate::Python;
+use crate::ffi::*;
 
 #[cfg(not(Py_LIMITED_API))]
 use crate::types::any::PyAnyMethods;
@@ -11,7 +11,7 @@ use crate::types::any::PyAnyMethods;
 use crate::types::PyString;
 
 #[cfg(not(Py_LIMITED_API))]
-use crate::{types::PyDict, Bound, PyAny};
+use crate::{Bound, PyAny, types::PyDict};
 #[cfg(not(any(Py_3_12, Py_LIMITED_API, GraalPy)))]
 use libc::wchar_t;
 

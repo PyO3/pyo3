@@ -49,9 +49,8 @@ mod into_py_callback_output {
     use pyo3_ffi::Py_hash_t;
 
     use crate::{
-        ffi,
+        IntoPyObject, Py, PyAny, PyErr, ffi,
         impl_::callback::{HashCallbackOutput, IntoPyCallbackOutput, WrappingCastTo},
-        IntoPyObject, Py, PyAny, PyErr,
     };
 
     pub trait Sealed<'py, Target> {}
@@ -197,11 +196,7 @@ impl IntoPyCallbackOutput<'_, Py_hash_t> for HashCallbackOutput {
     #[inline]
     fn convert(self, _py: Python<'_>) -> PyResult<Py_hash_t> {
         let hash = self.0;
-        if hash == -1 {
-            Ok(-2)
-        } else {
-            Ok(hash)
-        }
+        if hash == -1 { Ok(-2) } else { Ok(hash) }
     }
 }
 

@@ -16,6 +16,7 @@ It's also possible to tweak its configuration (mostly to tune its performance).
 
 ```rust,no_run
 #[pyo3::pymodule]
+# #[pyo3(name = "example_logging")]
 mod my_module {
     use log::info;
     use pyo3::prelude::*;
@@ -75,7 +76,7 @@ fn main() -> PyResult<()> {
     // Log some messages from Python
     Python::attach(|py| {
         py.run(
-            "
+            c"
 import logging
 logging.error('Something bad happened')
 ",

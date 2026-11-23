@@ -8,6 +8,7 @@ Below is a brief description of each of these:
 | ------- | ----------- |
 | `decorator` | A project showcasing the example from the [Emulating callable objects](https://pyo3.rs/latest/class/call.html) chapter of the guide. |
 | `maturin-starter` | A template project which is configured to use [`maturin`](https://github.com/PyO3/maturin) for development. |
+| `meson-starter` | A template project which is configured to use [`meson-python`](https://github.com/mesonbuild/meson-python) for development. |
 | `setuptools-rust-starter` | A template project which is configured to use [`setuptools_rust`](https://github.com/PyO3/setuptools-rust/) for development. |
 | `plugin` | Illustrates how to use Python as a scripting language within a Rust application |
 

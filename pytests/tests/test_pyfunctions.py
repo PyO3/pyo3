@@ -101,6 +101,32 @@ def test_positional_only_rs(benchmark):
     assert rust == py
 
 
+def test_positional_only_batched_py(benchmark):
+    def run():
+        f = positional_only_py
+        result = None
+        for _ in range(1_000):
+            result = f(1, "foo")
+        return result
+
+    benchmark(run)
+
+
+# Use direct positional calls to exercise the specialization affected by #6426:
+# https://github.com/PyO3/pyo3/issues/6426
+# Batch 1,000 calls to reduce CodSpeed's fixed overhead per call.
+def test_positional_only_batched_rs(benchmark):
+    def run():
+        f = pyfunctions.positional_only
+        result = None
+        for _ in range(1_000):
+            result = f(1, "foo")
+        return result
+
+    rust = benchmark(run)
+    assert rust == positional_only_py(1, "foo")
+
+
 def with_typed_args_py(
     a: bool, b: int, c: float, d: str
 ) -> tuple[bool, int, float, str]:

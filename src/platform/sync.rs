@@ -66,7 +66,7 @@ impl OnceExt for Once {
     }
 }
 
-pub mod non_poison {
+pub mod nonpoison {
     // TODO replace with cfg_select when MSRV >= 1.95.0
     #[cfg(wip_feature_std)]
     pub use {
@@ -124,7 +124,7 @@ pub mod non_poison {
     }
 
     #[cfg(wip_feature_std)]
-    impl<T> crate::sealed::Sealed for Mutex<T> {}
+    impl<T> crate::sync::mutex_ext_sealed::Sealed<T> for Mutex<T> {}
 
     #[cfg(wip_feature_std)]
     impl<T> crate::sync::MutexExt<T> for Mutex<T> {

@@ -71,6 +71,7 @@
 //! }
 //!
 //! #[pymodule]
+//! # #[pyo3(name = "example_indexmap")]
 //! fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 //!     m.add_function(wrap_pyfunction!(calculate_statistics, m)?)?;
 //!     Ok(())
@@ -91,9 +92,9 @@ use crate::conversion::{FromPyObjectOwned, IntoPyObject};
 #[cfg(feature = "experimental-inspect")]
 use crate::inspect::PyStaticExpr;
 use crate::types::*;
-#[cfg(feature = "experimental-inspect")]
-use crate::{type_hint_subscript, PyTypeInfo};
 use crate::{Borrowed, Bound, FromPyObject, PyErr, Python};
+#[cfg(feature = "experimental-inspect")]
+use crate::{PyTypeInfo, type_hint_subscript};
 use core::hash;
 
 impl<'py, K, V, H> IntoPyObject<'py> for indexmap::IndexMap<K, V, H>

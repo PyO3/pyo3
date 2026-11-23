@@ -2,7 +2,7 @@
 
 use crate::ffi_ptr_ext::FfiPtrExt as _;
 use crate::types::{PyAnyMethods as _, PyDict, PyString, PyTuple};
-use crate::{ffi, Borrowed, Bound, IntoPyObjectExt as _, Py, PyAny, PyResult};
+use crate::{Borrowed, Bound, IntoPyObjectExt as _, Py, PyAny, PyResult, ffi};
 
 pub(crate) mod private {
     use super::*;
@@ -225,9 +225,8 @@ impl<'py> PyCallArgs<'py> for Borrowed<'_, 'py, PyTuple> {
 #[cfg(feature = "macros")]
 mod tests {
     use crate::{
-        pyfunction,
+        Py, pyfunction,
         types::{PyDict, PyTuple},
-        Py,
     };
 
     #[pyfunction(signature = (*args, **kwargs), crate = "crate")]
@@ -241,8 +240,9 @@ mod tests {
     #[test]
     fn test_call() {
         use crate::{
+            Py, Python,
             types::{IntoPyDict, PyAnyMethods, PyDict, PyTuple},
-            wrap_pyfunction, Py, Python,
+            wrap_pyfunction,
         };
 
         Python::attach(|py| {
@@ -283,8 +283,9 @@ mod tests {
     #[test]
     fn test_call_positional() {
         use crate::{
+            Py, Python,
             types::{PyAnyMethods, PyNone, PyTuple},
-            wrap_pyfunction, Py, Python,
+            wrap_pyfunction,
         };
 
         Python::attach(|py| {

@@ -1,14 +1,14 @@
-use crate::attributes::{self, get_pyo3_options, GcAttribute};
+use crate::attributes::{self, GcAttribute, get_pyo3_options};
 use crate::derive_attributes::{ContainerAttributes, FieldAttribute};
 use crate::utils::Ctx;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::{
+    DeriveInput, Fields, Result,
     parse::{Parse, ParseStream},
     parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
-    DeriveInput, Fields, Result,
 };
 
 struct GcField<'a> {

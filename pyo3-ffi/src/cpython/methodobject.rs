@@ -1,6 +1,6 @@
 use crate::object::*;
 #[cfg(not(GraalPy))]
-use crate::{PyCFunctionObject, PyMethodDefPointer, METH_METHOD, METH_STATIC};
+use crate::{METH_METHOD, METH_STATIC, PyCFunctionObject, PyMethodDefPointer};
 use core::ffi::c_int;
 
 #[cfg(not(GraalPy))]

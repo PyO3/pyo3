@@ -6,7 +6,7 @@ use crate::sync::PyOnceLock;
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyAnyMethods;
 use crate::types::{PyType, PyTypeMethods};
-use crate::{ffi, Bound, Py, PyAny, PyErr, PyResult};
+use crate::{Bound, Py, PyAny, PyErr, PyResult, ffi};
 
 /// A Python iterator object.
 ///
@@ -163,14 +163,14 @@ mod tests {
     use super::PyIterator;
     #[cfg(all(not(PyPy), Py_3_10))]
     use super::PySendResult;
+    #[cfg(feature = "macros")]
+    use crate::PyErr;
     use crate::exceptions::PyTypeError;
     #[allow(unused_imports, reason = "conditionally used")]
     use crate::platform::prelude::*;
     #[cfg(all(not(PyPy), Py_3_10))]
     use crate::types::PyNone;
     use crate::types::{PyAnyMethods, PyDict, PyList, PyListMethods};
-    #[cfg(feature = "macros")]
-    use crate::PyErr;
     use crate::{IntoPyObject, PyTypeInfo, Python};
 
     #[test]
@@ -296,8 +296,8 @@ def gen():
 
     #[test]
     fn fibonacci_generator_bound() {
-        use crate::types::any::PyAnyMethods;
         use crate::Bound;
+        use crate::types::any::PyAnyMethods;
 
         let fibonacci_generator = cr#"
 def fibonacci(target):

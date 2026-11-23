@@ -108,8 +108,8 @@
 //! [`RuntimeError`]: https://docs.python.org/3/library/exceptions.html#RuntimeError "Built-in Exceptions — Python documentation"
 //! [Error handling]: https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html "Recoverable Errors with Result - The Rust Programming Language"
 
-use crate::exceptions::PyRuntimeError;
 use crate::PyErr;
+use crate::exceptions::PyRuntimeError;
 use eyre::Report;
 
 /// Converts [`eyre::Report`] to a [`PyErr`] containing a [`PyRuntimeError`].
@@ -136,7 +136,7 @@ mod tests {
     use crate::prelude::*;
     use crate::types::IntoPyDict;
 
-    use eyre::{bail, eyre, Report, Result, WrapErr};
+    use eyre::{Report, Result, WrapErr, bail, eyre};
 
     fn f() -> Result<()> {
         use std::io;

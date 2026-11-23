@@ -5,19 +5,19 @@ use crate::conversion::private::Reference;
 use crate::conversion::{FromPyObjectSequence, IntoPyObject};
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_object::PyTypeInfo;
 use crate::types::{PyByteArray, PyByteArrayMethods, PyBytes, PyInt};
-use crate::{exceptions, ffi, Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python};
+use crate::{Borrowed, Bound, FromPyObject, PyAny, PyErr, PyResult, Python, exceptions, ffi};
 use core::convert::Infallible;
 use core::ffi::c_long;
 use core::mem::MaybeUninit;
 use core::num::{
-    NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
-    NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize, NonZeroU8,
+    NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
 };
 
 use super::array::invalid_sequence_length;
@@ -460,7 +460,7 @@ pub(crate) fn pylong_visit_digits<R>(
 ) -> PyResult<R> {
     let mut long_export = MaybeUninit::<ffi::PyLongExport>::uninit();
     unsafe {
-        crate::err::error_on_minusone(
+        crate::err::error_on_negative(
             obj.py(),
             ffi::PyLong_Export(obj.as_ptr(), long_export.as_mut_ptr()),
         )?;
@@ -643,7 +643,7 @@ mod fast_128bit_int_conversion {
                     let mut buffer = [0u8; core::mem::size_of::<$rust_type>()];
                     #[cfg(not(Py_3_13))]
                     {
-                        crate::err::error_on_minusone(ob.py(), unsafe {
+                        crate::err::error_on_negative(ob.py(), unsafe {
                             ffi::_PyLong_AsByteArray(
                                 num.as_ptr() as *mut ffi::PyLongObject,
                                 buffer.as_mut_ptr(),

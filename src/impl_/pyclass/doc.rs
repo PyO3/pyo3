@@ -1,6 +1,6 @@
 use core::{ffi::CStr, marker::PhantomData};
 
-use crate::{impl_::pyclass::PyClassImpl, PyClass};
+use crate::{PyClass, impl_::pyclass::PyClassImpl};
 
 /// Trait implemented by classes with a known text signature for instantiation.
 ///

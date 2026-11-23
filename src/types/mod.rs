@@ -20,20 +20,19 @@ pub use self::complex::{PyComplex, PyComplexMethods};
 #[cfg(not(any(Py_LIMITED_API, PyPy, GraalPy, RustPython)))]
 pub use self::context::PyContext;
 #[doc(inline)]
-pub use self::datetime::{PyDate, PyDateTime, PyDelta, PyTime, PyTzInfo, PyTzInfoAccess};
-#[cfg(not(Py_LIMITED_API))]
+pub use self::datetime::{
+    PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyTime, PyTimeAccess, PyTzInfo,
+    PyTzInfoAccess,
+};
 #[doc(inline)]
-pub use self::datetime::{PyDateAccess, PyDeltaAccess, PyTimeAccess};
+pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
 #[cfg(not(any(PyPy, GraalPy, RustPython)))]
 #[doc(inline)]
 pub use self::dict::{items::PyDictItems, keys::PyDictKeys, values::PyDictValues};
 #[doc(inline)]
-pub use self::dict::{IntoPyDict, PyDict, PyDictMethods};
-#[doc(inline)]
 pub use self::ellipsis::PyEllipsis;
 #[doc(inline)]
 pub use self::float::{PyFloat, PyFloatMethods};
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 #[doc(inline)]
 pub use self::frame::{PyFrame, PyFrameMethods};
 #[cfg(Py_3_15)]
@@ -85,12 +84,12 @@ pub use self::typeobject::{PyType, PyTypeMethods};
 pub use self::weakref::{PyWeakref, PyWeakrefMethods, PyWeakrefProxy, PyWeakrefReference};
 
 /// Deprecated alias for [`crate::sync::PyMutex`].
-#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+#[cfg(all(not(Py_LIMITED_API), Py_3_13, wip_feature_std))]
 #[deprecated(since = "0.30.0", note = "moved to `pyo3::sync::PyMutex`")]
 pub type PyMutex<T> = crate::sync::PyMutex<T>;
 
 /// Deprecated alias for [`crate::sync::PyMutexGuard`].
-#[cfg(all(not(Py_LIMITED_API), Py_3_13))]
+#[cfg(all(not(Py_LIMITED_API), Py_3_13, wip_feature_std))]
 #[deprecated(since = "0.30.0", note = "moved to `pyo3::sync::PyMutexGuard`")]
 pub type PyMutexGuard<'a, T> = crate::sync::PyMutexGuard<'a, T>;
 
@@ -256,8 +255,6 @@ macro_rules! pyobject_native_type_info(
     ($name:ty, $typeobject:expr, $type_hint_module:expr, $type_hint_name:expr, $module:expr $(, #checkfunction=$checkfunction:path)? $(;$generics:ident)*) => {
         // SAFETY: macro caller has upheld the safety contracts
         unsafe impl<$($generics,)*> $crate::type_object::PyTypeInfo for $name {
-            const NAME: &'static str = stringify!($name);
-            const MODULE: ::core::option::Option<&'static str> = $module;
             $crate::pyobject_type_info_type_hint!($type_hint_module, $type_hint_name);
 
             #[inline]
@@ -363,7 +360,6 @@ pub mod datetime;
 pub mod dict;
 mod ellipsis;
 pub(crate) mod float;
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 mod frame;
 #[cfg(Py_3_15)]
 pub mod frozendict;

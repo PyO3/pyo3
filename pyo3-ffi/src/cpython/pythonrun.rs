@@ -1,7 +1,7 @@
+use crate::PyCompilerFlags;
 use crate::object::*;
 #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
 use crate::pyarena::PyArena;
-use crate::PyCompilerFlags;
 #[cfg(not(any(PyPy, GraalPy, Py_3_10)))]
 use crate::{_mod, _node};
 use core::ffi::{c_char, c_int};
@@ -153,7 +153,7 @@ extern_libpython! {
         arg2: *const c_char,
         arg3: *mut PyCompilerFlags,
     ) -> c_int;
-    #[cfg_attr(PyPy, link_name = "PyPyRun_SimpleString")]
+    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyRun_SimpleString")]
     pub fn PyRun_SimpleString(s: *const c_char) -> c_int;
     #[cfg(not(any(PyPy, GraalPy)))]
     pub fn PyRun_SimpleFile(f: *mut FILE, p: *const c_char) -> c_int;

@@ -7,6 +7,7 @@ The following example defines a function called `double` in a Python module call
 
 ```rust,no_run
 #[pyo3::pymodule]
+# #[pyo3(name = "example_double")]
 mod my_extension {
     use pyo3::prelude::*;
 

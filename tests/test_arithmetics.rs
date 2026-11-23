@@ -2,7 +2,7 @@
 
 use pyo3::class::basic::CompareOp;
 use pyo3::py_run;
-use pyo3::{prelude::*, BoundObject};
+use pyo3::{BoundObject, prelude::*};
 
 mod test_utils;
 

@@ -1,6 +1,6 @@
-use crate::cpython::pystate::Py_tracefunc;
-use crate::object::{freefunc, PyObject};
 use crate::Py_ssize_t;
+use crate::cpython::pystate::Py_tracefunc;
+use crate::object::{PyObject, freefunc};
 
 extern_libpython! {
     pub fn PyEval_SetProfile(trace_func: Option<Py_tracefunc>, arg1: *mut PyObject);

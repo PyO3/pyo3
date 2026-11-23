@@ -1,6 +1,6 @@
 use crate::{
-    internal::state::SuspendAttach, types::any::PyAnyMethods, Bound, Py, PyResult, PyTypeCheck,
-    Python,
+    Bound, Py, PyResult, PyTypeCheck, Python, internal::state::SuspendAttach,
+    types::any::PyAnyMethods,
 };
 
 /// An equivalent to [`std::sync::OnceLock`] for initializing objects while attached to

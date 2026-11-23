@@ -9,7 +9,7 @@
 //! yourself to import Python classes that are ultimately derived from
 //! `BaseException`.
 
-use crate::{ffi, Bound, PyResult, Python};
+use crate::{Bound, PyResult, Python, ffi};
 use core::ffi::CStr;
 use core::ops;
 
@@ -123,6 +123,7 @@ macro_rules! import_exception {
 /// }
 ///
 /// #[pymodule]
+/// # #[pyo3(name = "example_exceptions")]
 /// fn my_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 ///     m.add("MyError", m.py().get_type::<MyError>())?;
 ///     m.add_function(wrap_pyfunction!(raise_myerror, m)?)?;
@@ -204,9 +205,6 @@ macro_rules! create_exception_type_object {
 
         // SAFETY: macro caller has upheld the safety contracts
         unsafe impl $crate::type_object::PyTypeInfo for $name {
-            const NAME: &'static str = stringify!($name);
-            const MODULE: ::core::option::Option<&'static str> =
-                ::core::option::Option::Some(stringify!($module));
             $crate::create_exception_type_hint!($module, $name);
 
             #[inline]

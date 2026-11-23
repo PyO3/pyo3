@@ -1,5 +1,5 @@
-use crate::object::*;
 use crate::Py_ssize_t;
+use crate::object::*;
 #[cfg(not(Py_LIMITED_API))]
 use core::ffi::c_char;
 use core::ffi::c_int;

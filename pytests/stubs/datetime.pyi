@@ -1,9 +1,28 @@
 from datetime import date, datetime, time, timedelta, tzinfo
-from typing import SupportsFloat, SupportsIndex, final
+from typing import Self, SupportsFloat, SupportsIndex, final
+
+__all__ = [
+    "TzClass",
+    "date_from_timestamp",
+    "datetime_from_timestamp",
+    "get_date_tuple",
+    "get_datetime_tuple",
+    "get_datetime_tuple_fold",
+    "get_datetime_tzinfo",
+    "get_delta_tuple",
+    "get_time_tuple",
+    "get_time_tuple_fold",
+    "get_time_tzinfo",
+    "make_date",
+    "make_datetime",
+    "make_delta",
+    "make_time",
+    "time_with_fold",
+]
 
 @final
 class TzClass(tzinfo):
-    def __new__(cls, /) -> TzClass: ...
+    def __new__(cls, /) -> Self: ...
     def dst(self, _dt: datetime | None, /) -> timedelta | None: ...
     def tzname(self, _dt: datetime | None, /) -> str: ...
     def utcoffset(self, _dt: datetime | None, /) -> timedelta: ...

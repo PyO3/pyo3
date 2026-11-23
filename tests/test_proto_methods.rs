@@ -94,10 +94,12 @@ fn test_getattr() {
                 .unwrap(),
             20,
         );
-        assert!(example_py
-            .getattr("other_attr")
-            .unwrap_err()
-            .is_instance_of::<PyAttributeError>(py));
+        assert!(
+            example_py
+                .getattr("other_attr")
+                .unwrap_err()
+                .is_instance_of::<PyAttributeError>(py)
+        );
 
         // Ensure that passing a wrong self type from Python does not cause UB
         // FIXME __getattr__ cannot be accessed via the type's __getattr__ slot0

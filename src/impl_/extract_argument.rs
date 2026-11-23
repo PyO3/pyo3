@@ -1,22 +1,24 @@
 // TODO https://github.com/PyO3/pyo3/issues/5487
 #![allow(clippy::undocumented_unsafe_blocks)]
 
+use crate::PyTypeInfo;
 use crate::platform::prelude::*;
+use crate::types::PyType;
 use core::ptr::NonNull;
 
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_union, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_union};
 #[cfg(feature = "experimental-inspect")]
 use crate::types::PyNone;
 #[cfg(any(Py_3_10, not(Py_LIMITED_API), feature = "experimental-inspect"))]
 use crate::types::PyString;
 use crate::{
+    Borrowed, Bound, CastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr,
+    PyResult, PyTypeCheck, Python,
     exceptions::PyTypeError,
     ffi,
     pyclass::boolean_struct::False,
-    types::{any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods, PyDict, PyTuple},
-    Borrowed, Bound, CastError, FromPyObject, PyAny, PyClass, PyClassGuard, PyClassGuardMut, PyErr,
-    PyResult, PyTypeCheck, Python,
+    types::{PyDict, PyTuple, any::PyAnyMethods, dict::PyDictMethods, tuple::PyTupleMethods},
 };
 
 /// Helper type used to keep implementation more concise.
@@ -29,8 +31,8 @@ type PyArg<'py> = Borrowed<'py, 'py, PyAny>;
 /// The public API is `FromPyObject`.
 mod function_argument {
     use crate::{
-        impl_::extract_argument::PyFunctionArgument, pyclass::boolean_struct::False, FromPyObject,
-        PyClass, PyTypeCheck,
+        FromPyObject, PyClass, PyTypeCheck, impl_::extract_argument::PyFunctionArgument,
+        pyclass::boolean_struct::False,
     };
 
     pub trait Sealed<const IMPLEMENTS_FROMPYOBJECT: bool> {}
@@ -122,7 +124,8 @@ where
     type Error = T::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = type_hint_union!(T::INPUT_TYPE, PyNone::TYPE_HINT);
+    const INPUT_TYPE: PyStaticExpr =
+        type_hint_union!(T::INPUT_TYPE, <PyNone as PyTypeCheck>::TYPE_HINT);
 
     #[inline]
     fn extract(
@@ -143,7 +146,7 @@ impl<'a, 'holder, 'py> PyFunctionArgument<'a, 'holder, 'py, false> for &'holder 
     type Error = <alloc::borrow::Cow<'a, str> as FromPyObject<'a, 'py>>::Error;
 
     #[cfg(feature = "experimental-inspect")]
-    const INPUT_TYPE: PyStaticExpr = PyString::TYPE_HINT;
+    const INPUT_TYPE: PyStaticExpr = <PyString as PyTypeCheck>::TYPE_HINT;
 
     #[inline]
     fn extract(
@@ -323,6 +326,29 @@ where
 {
     let bound = bound_ref.cast::<T>().map_err(PyErr::from)?;
     R::try_from(bound).map_err(Into::into)
+}
+
+/// Extracts a `cls` receiver from a class instance, assuming the correct instance
+/// type has been provided.
+#[inline]
+pub fn extract_cls_receiver_trusted<'a, 'py>(
+    slf: &'a Bound<'py, PyAny>,
+    holder: &'a mut Option<Bound<'py, PyType>>,
+) -> &'a Bound<'py, PyType> {
+    holder.insert(slf.get_type())
+}
+
+/// Extracts a `cls` receiver from a class instance, performing a checked cast.
+#[inline]
+pub fn extract_cls_receiver<'a, 'py, T>(
+    slf: &'a Bound<'py, PyAny>,
+    holder: &'a mut Option<Bound<'py, PyType>>,
+) -> PyResult<&'a Bound<'py, PyType>>
+where
+    T: PyTypeInfo,
+{
+    slf.cast::<T>()?; // Perform type check
+    Ok(extract_cls_receiver_trusted(slf, holder))
 }
 
 /// The standard implementation of how PyO3 extracts a `#[pyfunction]` or `#[pymethod]` function argument.
@@ -1086,11 +1112,11 @@ fn push_parameter_list(msg: &mut String, parameter_names: &[&str]) {
 
 #[cfg(test)]
 mod tests {
+    use crate::Python;
     use crate::platform::prelude::*;
     use crate::types::{IntoPyDict, PyTuple};
-    use crate::Python;
 
-    use super::{push_parameter_list, FunctionDescription, NoVarargs, NoVarkeywords};
+    use super::{FunctionDescription, NoVarargs, NoVarkeywords, push_parameter_list};
 
     #[test]
     fn unexpected_keyword_argument() {

@@ -49,8 +49,8 @@ use crate::inspect::PyStaticExpr;
 #[cfg(feature = "experimental-inspect")]
 use crate::type_hint_union;
 use crate::{
-    exceptions::PyTypeError, Borrowed, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny,
-    PyErr, Python,
+    Borrowed, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python,
+    exceptions::PyTypeError,
 };
 use either::Either;
 

@@ -1,5 +1,5 @@
 #[cfg(not(any(PyPy, GraalPy, RustPython)))]
-use crate::{ffi, PyAny};
+use crate::{PyAny, ffi};
 
 /// Represents a Python `dict_items`.
 #[cfg(not(any(PyPy, GraalPy, RustPython)))]

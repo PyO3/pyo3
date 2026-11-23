@@ -519,6 +519,7 @@ impl UserModel {
 }
 
 #[pymodule]
+# #[pyo3(name = "example_trait_exposure_02")]
 mod trait_exposure {
     #[pymodule_export]
     use super::{UserModel, solve_wrapper};

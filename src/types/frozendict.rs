@@ -6,13 +6,13 @@ use crate::instance::Bound;
 #[cfg(Py_LIMITED_API)]
 use crate::types::PyAnyMethods;
 use crate::types::{PyAny, PyList, PyMapping};
-use crate::{ffi, Borrowed, BoundObject, IntoPyObject, IntoPyObjectExt, Python};
+use crate::{BoundObject, IntoPyObject, IntoPyObjectExt, Python, ffi};
 #[cfg(Py_LIMITED_API)]
 use crate::{
+    Py,
     sync::PyOnceLock,
     type_object::PyTypeInfo,
     types::{PyType, PyTypeMethods},
-    Py,
 };
 #[cfg(not(Py_LIMITED_API))]
 use core::ptr;
@@ -189,48 +189,31 @@ impl<'py> PyFrozenDictMethods<'py> for Bound<'py, PyFrozenDict> {
     where
         K: IntoPyObject<'py>,
     {
-        fn inner(fd: &Bound<'_, PyFrozenDict>, key: Borrowed<'_, '_, PyAny>) -> PyResult<bool> {
-            match unsafe { ffi::PyDict_Contains(fd.as_ptr(), key.as_ptr()) } {
-                1 => Ok(true),
-                0 => Ok(false),
-                _ => Err(PyErr::fetch(fd.py())),
-            }
-        }
-
         let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
+        let key = key.into_pyobject_or_pyerr(py)?;
+        match unsafe { ffi::PyDict_Contains(self.as_ptr(), key.as_ptr()) } {
+            1 => Ok(true),
+            0 => Ok(false),
+            _ => Err(PyErr::fetch(py)),
+        }
     }
 
     fn get_item<K>(&self, key: K) -> PyResult<Option<Bound<'py, PyAny>>>
     where
         K: IntoPyObject<'py>,
     {
-        fn inner<'py>(
-            fd: &Bound<'py, PyFrozenDict>,
-            key: Borrowed<'_, '_, PyAny>,
-        ) -> PyResult<Option<Bound<'py, PyAny>>> {
-            let py = fd.py();
-            let mut result: *mut ffi::PyObject = core::ptr::null_mut();
-            match unsafe { ffi::compat::PyDict_GetItemRef(fd.as_ptr(), key.as_ptr(), &mut result) }
-            {
-                core::ffi::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
-                0 => Ok(None),
-                1..=core::ffi::c_int::MAX => {
-                    // Safety: PyDict_GetItemRef positive return value means the result is a valid
-                    // owned reference
-                    Ok(Some(unsafe { result.assume_owned_unchecked(py) }))
-                }
+        let py = self.py();
+        let key = key.into_pyobject_or_pyerr(py)?;
+        let mut result: *mut ffi::PyObject = core::ptr::null_mut();
+        match unsafe { ffi::compat::PyDict_GetItemRef(self.as_ptr(), key.as_ptr(), &mut result) } {
+            core::ffi::c_int::MIN..=-1 => Err(PyErr::fetch(py)),
+            0 => Ok(None),
+            1..=core::ffi::c_int::MAX => {
+                // Safety: PyDict_GetItemRef positive return value means the result is a valid
+                // owned reference
+                Ok(Some(unsafe { result.assume_owned_unchecked(py) }))
             }
         }
-
-        let py = self.py();
-        inner(
-            self,
-            key.into_pyobject_or_pyerr(py)?.into_any().as_borrowed(),
-        )
     }
 
     fn keys(&self) -> Bound<'py, PyList> {
@@ -358,7 +341,7 @@ impl<'py> IntoIterator for &Bound<'py, PyFrozenDict> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{list::PyListMethods, mapping::PyMappingMethods, PyAnyMethods};
+    use crate::types::{PyAnyMethods, list::PyListMethods, mapping::PyMappingMethods};
 
     use alloc::collections::BTreeMap;
     use alloc::string::{String, ToString};

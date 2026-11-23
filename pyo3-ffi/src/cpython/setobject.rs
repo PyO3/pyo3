@@ -1,7 +1,7 @@
 #[cfg(Py_GIL_DISABLED)]
 use crate::pyatomic::_Py_atomic_load_ssize_relaxed;
 #[cfg(not(any(PyPy, GraalPy)))]
-use crate::{PyAnySet_Check, PyObject, Py_hash_t, Py_ssize_t};
+use crate::{Py_hash_t, Py_ssize_t, PyAnySet_Check, PyObject};
 
 pub const PySet_MINSIZE: usize = 8;
 

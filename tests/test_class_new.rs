@@ -20,17 +20,21 @@ impl EmptyClassWithNew {
 fn empty_class_with_new() {
     Python::attach(|py| {
         let typeobj = py.get_type::<EmptyClassWithNew>();
-        assert!(typeobj
-            .call((), None)
-            .unwrap()
-            .cast::<EmptyClassWithNew>()
-            .is_ok());
+        assert!(
+            typeobj
+                .call((), None)
+                .unwrap()
+                .cast::<EmptyClassWithNew>()
+                .is_ok()
+        );
 
         // Calling with arbitrary args or kwargs is not ok
         assert!(typeobj.call(("some", "args"), None).is_err());
-        assert!(typeobj
-            .call((), Some(&[("some", "kwarg")].into_py_dict(py).unwrap()))
-            .is_err());
+        assert!(
+            typeobj
+                .call((), Some(&[("some", "kwarg")].into_py_dict(py).unwrap()))
+                .is_err()
+        );
     });
 }
 
@@ -49,11 +53,13 @@ impl UnitClassWithNew {
 fn unit_class_with_new() {
     Python::attach(|py| {
         let typeobj = py.get_type::<UnitClassWithNew>();
-        assert!(typeobj
-            .call((), None)
-            .unwrap()
-            .cast::<UnitClassWithNew>()
-            .is_ok());
+        assert!(
+            typeobj
+                .call((), None)
+                .unwrap()
+                .cast::<UnitClassWithNew>()
+                .is_ok()
+        );
     });
 }
 

@@ -1,10 +1,10 @@
 use core::future::Future;
 
 use crate::{
-    coroutine::{cancel::ThrowCallback, Coroutine},
+    Py, PyAny, PyResult, Python,
+    coroutine::{Coroutine, cancel::ThrowCallback},
     instance::Bound,
     types::PyString,
-    Py, PyAny, PyResult, Python,
 };
 
 pub fn new_coroutine<'py, F>(

@@ -13,15 +13,15 @@ use crate::panic::PanicException;
 use crate::platform::prelude::*;
 use crate::py_result_ext::PyResultExt;
 use crate::type_object::PyTypeInfo;
-use crate::types::any::PyAnyMethods;
 #[cfg(Py_3_11)]
 use crate::types::PyString;
+use crate::types::any::PyAnyMethods;
 use crate::types::{
-    string::PyStringMethods, traceback::PyTracebackMethods, typeobject::PyTypeMethods, PyTraceback,
-    PyType,
+    PyTraceback, PyType, string::PyStringMethods, traceback::PyTracebackMethods,
+    typeobject::PyTypeMethods,
 };
-use crate::{exceptions::PyBaseException, ffi};
 use crate::{BoundObject, Py, PyAny, Python};
+use crate::{exceptions::PyBaseException, ffi};
 use core::convert::Infallible;
 use core::ffi::CStr;
 use err_state::{PyErrState, PyErrStateLazyFnOutput, PyErrStateNormalized};
@@ -514,7 +514,7 @@ impl PyErr {
         message: &CStr,
         stacklevel: i32,
     ) -> PyResult<()> {
-        error_on_minusone(py, unsafe {
+        error_on_negative(py, unsafe {
             ffi::PyErr_WarnEx(
                 category.as_ptr(),
                 message.as_ptr(),
@@ -548,7 +548,7 @@ impl PyErr {
             None => core::ptr::null_mut(),
             Some(obj) => obj.as_ptr(),
         };
-        error_on_minusone(py, unsafe {
+        error_on_negative(py, unsafe {
             ffi::PyErr_WarnExplicit(
                 category.as_ptr(),
                 message.as_ptr(),
@@ -757,53 +757,36 @@ where
     }
 }
 
-/// Returns Ok if the error code is not -1.
+/// Returns Ok if the error code is non-negative.
 #[inline]
-pub(crate) fn error_on_minusone<T: SignedInteger>(py: Python<'_>, result: T) -> PyResult<()> {
-    if result != T::MINUS_ONE {
+pub(crate) fn error_on_negative<T: From<i8> + Ord>(py: Python<'_>, result: T) -> PyResult<()> {
+    if result >= T::from(0) {
         Ok(())
     } else {
+        debug_assert!(result == T::from(-1));
         Err(PyErr::fetch(py))
     }
 }
 
-/// Returns Ok wrapping the result if the error code is not -1.
+/// Returns Ok wrapping the result if the error code is non-negative.
 #[inline]
-pub(crate) fn error_on_minusone_with_result<T: SignedInteger>(
+pub(crate) fn error_on_negative_with_result<T: From<i8> + Ord>(
     py: Python<'_>,
     result: T,
 ) -> PyResult<T> {
-    if result != T::MINUS_ONE {
+    if result >= T::from(0) {
         Ok(result)
     } else {
+        debug_assert!(result == T::from(-1));
         Err(PyErr::fetch(py))
     }
 }
-
-pub(crate) trait SignedInteger: Eq {
-    const MINUS_ONE: Self;
-}
-
-macro_rules! impl_signed_integer {
-    ($t:ty) => {
-        impl SignedInteger for $t {
-            const MINUS_ONE: Self = -1;
-        }
-    };
-}
-
-impl_signed_integer!(i8);
-impl_signed_integer!(i16);
-impl_signed_integer!(i32);
-impl_signed_integer!(i64);
-impl_signed_integer!(i128);
-impl_signed_integer!(isize);
 
 #[cfg(test)]
 mod tests {
     use super::PyErrState;
     use crate::exceptions::{self, PyTypeError, PyValueError};
-    use crate::impl_::pyclass::{value_of, IsSend, IsSync};
+    use crate::impl_::pyclass::{IsSend, IsSync, value_of};
     use crate::platform::prelude::*;
     use crate::test_utils::assert_warnings;
     use crate::{PyErr, PyTypeInfo, Python};
@@ -946,12 +929,13 @@ mod tests {
             let err = PyErr::new::<PyValueError, _>("foo");
             assert!(err.matches(py, PyValueError::type_object(py)).unwrap());
 
-            assert!(err
-                .matches(
+            assert!(
+                err.matches(
                     py,
                     (PyValueError::type_object(py), PyTypeError::type_object(py))
                 )
-                .unwrap());
+                .unwrap()
+            );
 
             assert!(!err.matches(py, PyTypeError::type_object(py)).unwrap());
 
@@ -1042,14 +1026,15 @@ mod tests {
                 None,
             )
             .unwrap_err();
-            assert!(err
-                .value(py)
-                .getattr("args")
-                .unwrap()
-                .get_item(0)
-                .unwrap()
-                .eq("I am warning you")
-                .unwrap());
+            assert!(
+                err.value(py)
+                    .getattr("args")
+                    .unwrap()
+                    .get_item(0)
+                    .unwrap()
+                    .eq("I am warning you")
+                    .unwrap()
+            );
 
             // Finally, reset filter again
             warnings.call_method0("resetwarnings").unwrap();

@@ -1,5 +1,4 @@
 use crate::impl_::pyfunction::PyFunctionDef;
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 use crate::types::PyFrame;
 #[cfg(Py_3_15)]
 use crate::types::PyFrozenDict;
@@ -8,7 +7,7 @@ use crate::types::{
     PyMapping, PyMappingProxy, PyModule, PyRange, PySequence, PySet, PySlice, PyString,
     PyTraceback, PyTuple, PyType, PyWeakref, PyWeakrefProxy, PyWeakrefReference,
 };
-use crate::{ffi, Bound, PyAny, PyResult};
+use crate::{Bound, PyAny, PyResult, ffi};
 
 use crate::pyclass_init::PyClassInitializer;
 
@@ -48,7 +47,6 @@ impl Sealed for Bound<'_, PySet> {}
 impl Sealed for Bound<'_, PySlice> {}
 impl Sealed for Bound<'_, PyString> {}
 impl Sealed for Bound<'_, PyTraceback> {}
-#[cfg(all(not(Py_LIMITED_API), not(PyPy), not(GraalPy)))]
 impl Sealed for Bound<'_, PyFrame> {}
 impl Sealed for Bound<'_, PyTuple> {}
 impl Sealed for Bound<'_, PyType> {}
@@ -61,6 +59,8 @@ impl<T> Sealed for AddClassToModule<T> {}
 impl Sealed for PyMethodDef {}
 impl Sealed for PyFunctionDef {}
 impl Sealed for ModuleDef {}
+#[cfg(feature = "experimental-inspect")]
+impl Sealed for crate::impl_::pymodule::AddProtocolToModule {}
 
 impl<T: crate::type_object::PyTypeInfo> Sealed for PyNativeTypeInitializer<T> {}
 impl<T: crate::pyclass::PyClass> Sealed for PyClassInitializer<T> {}
@@ -68,16 +68,5 @@ impl<T: crate::pyclass::PyClass> Sealed for PyClassInitializer<T> {}
 #[cfg(wip_feature_std)]
 #[allow(clippy::disallowed_types)]
 impl Sealed for std::sync::Once {}
-#[cfg(wip_feature_std)]
-#[allow(clippy::disallowed_types)]
-impl<T> Sealed for std::sync::Mutex<T> {}
-#[cfg(feature = "lock_api")]
-impl<R, T> Sealed for lock_api::Mutex<R, T> {}
 #[cfg(feature = "parking_lot")]
 impl Sealed for parking_lot::Once {}
-#[cfg(feature = "arc_lock")]
-impl<R, T> Sealed for alloc::sync::Arc<lock_api::Mutex<R, T>> {}
-#[cfg(feature = "lock_api")]
-impl<R, G, T> Sealed for lock_api::ReentrantMutex<R, G, T> {}
-#[cfg(feature = "arc_lock")]
-impl<R, G, T> Sealed for alloc::sync::Arc<lock_api::ReentrantMutex<R, G, T>> {}

@@ -2,9 +2,9 @@
 
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::types::{PyAny, PyType};
-use crate::{ffi, Bound, Python};
+use crate::{Bound, Python, ffi};
 use core::ptr;
 
 /// `T: PyLayout<U>` represents that `T` is a concrete representation of `U` in the Python heap.
@@ -42,20 +42,6 @@ pub trait PySizedLayout<T>: PyLayout<T> + Sized {}
 ///
 /// `is_exact_type_of` must only return true for objects whose type is exactly `Self`.
 pub unsafe trait PyTypeInfo: Sized {
-    /// Class name.
-    #[deprecated(
-        since = "0.28.0",
-        note = "prefer using `::type_object(py).name()` to get the correct runtime value"
-    )]
-    const NAME: &'static str;
-
-    /// Module name, if any.
-    #[deprecated(
-        since = "0.28.0",
-        note = "prefer using `::type_object(py).module()` to get the correct runtime value"
-    )]
-    const MODULE: Option<&'static str>;
-
     /// Provides the full python type as a type hint.
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_identifier!("_typeshed", "Incomplete");

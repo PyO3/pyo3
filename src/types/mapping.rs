@@ -2,14 +2,14 @@ use crate::conversion::IntoPyObject;
 use crate::err::PyResult;
 use crate::ffi_ptr_ext::FfiPtrExt;
 #[cfg(feature = "experimental-inspect")]
-use crate::inspect::{type_hint_identifier, PyStaticExpr};
+use crate::inspect::{PyStaticExpr, type_hint_identifier};
 use crate::instance::Bound;
 use crate::py_result_ext::PyResultExt;
 use crate::sync::PyOnceLock;
 use crate::type_object::PyTypeInfo;
 use crate::types::any::PyAnyMethods;
 use crate::types::{PyAny, PyDict, PyList, PyType, PyTypeMethods};
-use crate::{ffi, Py, Python};
+use crate::{Py, Python, err, ffi};
 
 /// Represents a reference to a Python object supporting the mapping protocol.
 ///
@@ -24,9 +24,6 @@ pub struct PyMapping(PyAny);
 pyobject_native_type_named!(PyMapping);
 
 unsafe impl PyTypeInfo for PyMapping {
-    const NAME: &'static str = "Mapping";
-    const MODULE: Option<&'static str> = Some("collections.abc");
-
     #[cfg(feature = "experimental-inspect")]
     const TYPE_HINT: PyStaticExpr = type_hint_identifier!("collections.abc", "Mapping");
 
@@ -124,7 +121,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
     #[inline]
     fn len(&self) -> PyResult<usize> {
         let v = unsafe { ffi::PyMapping_Size(self.as_ptr()) };
-        crate::err::error_on_minusone(self.py(), v)?;
+        err::error_on_negative(self.py(), v)?;
         Ok(v as usize)
     }
 
@@ -195,7 +192,7 @@ impl<'py> PyMappingMethods<'py> for Bound<'py, PyMapping> {
 
 #[cfg(test)]
 mod tests {
-    use crate::platform::HashMap;
+    use crate::platform::collections::HashMap;
     use crate::{exceptions::PyKeyError, types::PyTuple};
 
     use super::*;
@@ -244,10 +241,12 @@ mod tests {
                 32,
                 mapping.get_item(7i32).unwrap().extract::<i32>().unwrap()
             );
-            assert!(mapping
-                .get_item(8i32)
-                .unwrap_err()
-                .is_instance_of::<PyKeyError>(py));
+            assert!(
+                mapping
+                    .get_item(8i32)
+                    .unwrap_err()
+                    .is_instance_of::<PyKeyError>(py)
+            );
         });
     }
 
@@ -280,10 +279,12 @@ mod tests {
             let mapping = ob.cast::<PyMapping>().unwrap();
             assert!(mapping.del_item(7i32).is_ok());
             assert_eq!(0, mapping.len().unwrap());
-            assert!(mapping
-                .get_item(7i32)
-                .unwrap_err()
-                .is_instance_of::<PyKeyError>(py));
+            assert!(
+                mapping
+                    .get_item(7i32)
+                    .unwrap_err()
+                    .is_instance_of::<PyKeyError>(py)
+            );
         });
     }
 

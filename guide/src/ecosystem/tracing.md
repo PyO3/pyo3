@@ -17,7 +17,8 @@ It exposes a few `tracing_subscriber` layers:
 
 The extension module must call [`pyo3_tracing_subscriber::add_submodule`][add-submodule] to export the Python classes needed to configure and initialize `tracing`.
 
-On the Python side, use the `Tracing` context manager to initialize tracing and run Rust code inside the context manager's block. `Tracing` takes a `GlobalTracingConfig` instance describing the layers to be used.
+On the Python side, use the `Tracing` context manager to initialize tracing and run Rust code inside the context manager's block.
+`Tracing` takes a `GlobalTracingConfig` instance describing the layers to be used.
 
 See [the README on crates.io][pyo3-tracing-subscriber] for example code.
 

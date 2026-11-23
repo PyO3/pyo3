@@ -1,4 +1,4 @@
-use crate::platform::sync::non_poison::Mutex;
+use crate::platform::sync::nonpoison::Mutex;
 use crate::{Py, PyAny};
 use alloc::sync::Arc;
 use core::future::poll_fn;

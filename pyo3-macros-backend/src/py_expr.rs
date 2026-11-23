@@ -4,7 +4,7 @@ use crate::utils::{PyO3CratePath, StaticIdent};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::borrow::Cow;
-use syn::visit_mut::{visit_type_mut, VisitMut};
+use syn::visit_mut::{VisitMut, visit_type_mut};
 use syn::{Expr, ExprLit, ExprPath, Lit, Type};
 
 /// A Python expression
@@ -258,14 +258,14 @@ impl PyExpr {
             Self::IterNextReturnType(t) => iter_next_output_type(
                 pyo3_crate_path,
                 t,
-                ITER_NEXT_OUTPUT,
-                ITER_NEXT_TYPE_FALLBACK,
+                StaticIdent::new("IterNextOutput"),
+                StaticIdent::new("IterNextTypeFallback"),
             ),
             Self::AsyncIterNextReturnType(t) => iter_next_output_type(
                 pyo3_crate_path,
                 t,
-                ASYNC_ITER_NEXT_OUTPUT,
-                ASYNC_ITER_NEXT_TYPE_FALLBACK,
+                StaticIdent::new("AsyncIterNextOutput"),
+                StaticIdent::new("AsyncIterNextTypeFallback"),
             ),
             Self::Type(t) => {
                 quote! { <#t as #pyo3_crate_path::type_object::PyTypeCheck>::TYPE_HINT }
@@ -329,11 +329,6 @@ impl PyExpr {
         }
     }
 }
-
-const ITER_NEXT_OUTPUT: StaticIdent = StaticIdent::new("IterNextOutput");
-const ITER_NEXT_TYPE_FALLBACK: StaticIdent = StaticIdent::new("IterNextTypeFallback");
-const ASYNC_ITER_NEXT_OUTPUT: StaticIdent = StaticIdent::new("AsyncIterNextOutput");
-const ASYNC_ITER_NEXT_TYPE_FALLBACK: StaticIdent = StaticIdent::new("AsyncIterNextTypeFallback");
 
 /// The type hint of what `__next__` / `__anext__` yields, read off the same wrapper the slot uses
 /// to convert the returned value so that the stub and the runtime agree on which return types say
