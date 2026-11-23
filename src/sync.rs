@@ -753,13 +753,16 @@ pub(crate) mod mutex_ext_sealed {
     #[cfg(wip_feature_std)]
     impl<T> Sealed<T> for std::sync::Mutex<T> {}
     #[cfg(feature = "lock_api")]
-    impl<R, T> Sealed<T> for lock_api::Mutex<R, T> {}
+    impl<R: lock_api::RawMutex, T> Sealed<T> for lock_api::Mutex<R, T> {}
     #[cfg(feature = "arc_lock")]
-    impl<R, T> Sealed<T> for alloc::sync::Arc<lock_api::Mutex<R, T>> {}
+    impl<R: lock_api::RawMutex, T> Sealed<T> for alloc::sync::Arc<lock_api::Mutex<R, T>> {}
     #[cfg(feature = "lock_api")]
-    impl<R, G, T> Sealed<T> for lock_api::ReentrantMutex<R, G, T> {}
+    impl<R: lock_api::RawMutex, G, T> Sealed<T> for lock_api::ReentrantMutex<R, G, T> {}
     #[cfg(feature = "arc_lock")]
-    impl<R, G, T> Sealed<T> for alloc::sync::Arc<lock_api::ReentrantMutex<R, G, T>> {}
+    impl<R: lock_api::RawMutex, G, T> Sealed<T>
+        for alloc::sync::Arc<lock_api::ReentrantMutex<R, G, T>>
+    {
+    }
 }
 
 mod rwlock_ext_sealed {
@@ -767,9 +770,9 @@ mod rwlock_ext_sealed {
     #[cfg(wip_feature_std)]
     impl<T> Sealed<T> for std::sync::RwLock<T> {}
     #[cfg(feature = "lock_api")]
-    impl<R, T> Sealed<T> for lock_api::RwLock<R, T> {}
+    impl<R: lock_api::RawRwLock, T> Sealed<T> for lock_api::RwLock<R, T> {}
     #[cfg(feature = "arc_lock")]
-    impl<R, T> Sealed<T> for alloc::sync::Arc<lock_api::RwLock<R, T>> {}
+    impl<R: lock_api::RawRwLock, T> Sealed<T> for alloc::sync::Arc<lock_api::RwLock<R, T>> {}
 }
 
 #[cfg(all(not(Py_LIMITED_API), Py_3_13))]
