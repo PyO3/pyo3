@@ -36,12 +36,9 @@ The given signatures should be interpreted as follows:
   It can be `&self`, `&mut self` or a `Bound` reference like `self_: PyRef<'_, Self>` and `self_: PyRefMut<'_, Self>`, as described [in the parent section](../class.md#inheritance).
 - An optional `Python<'py>` argument is always allowed as the first argument.
 - Return values can be optionally wrapped in `PyResult`.
-- `object` means that any type is allowed that can be extracted from a Python
-  object (if argument) or converted to a Python object (if return value).
-- Other types must match what's given, e.g. `pyo3::basic::CompareOp` for
-  `__richcmp__`'s second argument.
-- For the comparison and arithmetic methods, extraction errors are not
-  propagated as exceptions, but lead to a return of `NotImplemented`.
+- `object` means that any type is allowed that can be extracted from a Python object (if argument) or converted to a Python object (if return value).
+- Other types must match what's given, e.g. `pyo3::basic::CompareOp` for `__richcmp__`'s second argument.
+- For the comparison and arithmetic methods, extraction errors are not propagated as exceptions, but lead to a return of `NotImplemented`.
 - For some magic methods, the return values are not restricted by PyO3, but checked by the Python interpreter.
   For example, `__str__` needs to return a string object.
   This is indicated by `object (Python type)`.
@@ -152,8 +149,7 @@ The given signatures should be interpreted as follows:
 - `__bool__(<self>) -> bool`
 
   Determines the "truthyness" of an object.
-- `__call__(<self>, ...) -> object` - here, any argument list can be defined
-  as for normal `pymethods`
+- `__call__(<self>, ...) -> object` - here, any argument list can be defined as for normal `pymethods`
 
 ### Iterable objects
 

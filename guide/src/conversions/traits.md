@@ -449,8 +449,7 @@ If the input is neither a string nor an integer, the error message will be: `"'<
 ### `#[derive(FromPyObject)]` Container Attributes
 
 - `pyo3(transparent)`
-  - extract the field directly from the object as `obj.extract()` instead of `get_item()` or
-    `getattr()`
+  - extract the field directly from the object as `obj.extract()` instead of `get_item()` or `getattr()`
   - Newtype structs and tuple-variants are treated as transparent per default.
   - only supported for single-field structs and enum variants
 - `pyo3(annotation = "name")`

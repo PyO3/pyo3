@@ -23,19 +23,19 @@ else:
 IS_WINDOWS = sys.platform == "win32"
 
 if IS_WINDOWS:
-    MIN_DATETIME = pdt.datetime(1970, 1, 1, 0, 0, 0)  # noqa: DTZ001
+    MIN_DATETIME = pdt.datetime(1970, 1, 1, 0, 0, 0)
     if IS_32_BIT:
-        MAX_DATETIME = pdt.datetime(2038, 1, 18, 23, 59, 59)  # noqa: DTZ001
+        MAX_DATETIME = pdt.datetime(2038, 1, 18, 23, 59, 59)
     else:
-        MAX_DATETIME = pdt.datetime(3000, 12, 31, 23, 59, 59)  # noqa: DTZ001
+        MAX_DATETIME = pdt.datetime(3000, 12, 31, 23, 59, 59)
 else:
     if IS_32_BIT:
         # TS ±2147483648 (2**31)
-        MIN_DATETIME = pdt.datetime(1901, 12, 13, 20, 45, 52)  # noqa: DTZ001
-        MAX_DATETIME = pdt.datetime(2038, 1, 19, 3, 14, 8)  # noqa: DTZ001
+        MIN_DATETIME = pdt.datetime(1901, 12, 13, 20, 45, 52)
+        MAX_DATETIME = pdt.datetime(2038, 1, 19, 3, 14, 8)
     else:
-        MIN_DATETIME = pdt.datetime(1, 1, 2, 0, 0)  # noqa: DTZ001
-        MAX_DATETIME = pdt.datetime(9999, 12, 31, 18, 59, 59)  # noqa: DTZ001
+        MIN_DATETIME = pdt.datetime(1, 1, 2, 0, 0)
+        MAX_DATETIME = pdt.datetime(9999, 12, 31, 18, 59, 59)
 
 
 @hypothesis.given(d=st.dates())
@@ -55,7 +55,7 @@ def test_date_from_timestamp(dt):
         return
 
     try:
-        expected = pdt.date.fromtimestamp(ts)  # noqa: DTZ012
+        expected = pdt.date.fromtimestamp(ts)
     except OverflowError as pdt_fail:
         # date from timestamp failed; expect the same from Rust binding
         with pytest.raises(type(pdt_fail)) as exc_info:
@@ -106,7 +106,7 @@ def test_datetime_tuple_fold(dt):
 
 
 @hypothesis.given(dt=st.datetimes(MIN_DATETIME, MAX_DATETIME))
-@hypothesis.example(dt=pdt.datetime(1971, 1, 2, 0, 0))  # noqa: DTZ001
+@hypothesis.example(dt=pdt.datetime(1971, 1, 2, 0, 0))
 def test_datetime_from_timestamp(dt):
     try:
         ts = pdt.datetime.timestamp(dt)
@@ -115,7 +115,7 @@ def test_datetime_from_timestamp(dt):
         return
 
     try:
-        expected = pdt.datetime.fromtimestamp(ts)  # noqa: DTZ006
+        expected = pdt.datetime.fromtimestamp(ts)
     except OverflowError as pdt_fail:
         # datetime from timestamp failed; expect the same from Rust binding
         with pytest.raises(type(pdt_fail)) as exc_info:
