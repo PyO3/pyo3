@@ -542,7 +542,7 @@ dev = ">=3.14"
 [package.metadata]
 
 [package.metadata.requires-dev]
-codecov = [{ name = "codecov-cli", marker = "python_full_version >= '3.14'", specifier = "==11.3.2" }]
+codecov = [{ name = "codecov-cli", marker = "python_full_version >= '3.14'" }]
 dev = [
     { name = "ruff", marker = "python_full_version >= '3.14'" },
     { name = "rumdl", marker = "python_full_version >= '3.14'" },
