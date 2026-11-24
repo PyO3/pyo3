@@ -27,7 +27,6 @@ requires-python = ">=3.9"
 "stubs/*.pyi" = [
     "I001",   # unsorted imports
     "PYI020", # quoted annotations
-    "PYI029", # redundant `__str__` definition
     "UP037",  # quoted annotations
 ]
 

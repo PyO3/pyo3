@@ -189,6 +189,7 @@ fn is_type_check_only(class: &Class) -> bool {
 }
 
 fn class_stubs(class: &Class, imports: &Imports) -> String {
+    let methods = emitted_methods(class).collect::<Vec<_>>();
     let mut buffer = String::new();
     for decorator in &class.decorators {
         buffer.push('@');
@@ -209,7 +210,7 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
     }
     buffer.push(':');
     if class.docstring.is_none()
-        && class.methods.is_empty()
+        && methods.is_empty()
         && class.attributes.is_empty()
         && class.inner_classes.is_empty()
     {
@@ -223,7 +224,7 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
         buffer.push_str("\n    ");
         push_indented(&mut buffer, "    ", &attribute_stubs(attribute, imports));
     }
-    for method in &class.methods {
+    for method in methods {
         // We do the indentation
         buffer.push_str("\n    ");
         push_indented(
@@ -238,6 +239,49 @@ fn class_stubs(class: &Class, imports: &Imports) -> String {
         push_indented(&mut buffer, "    ", &class_stubs(inner_class, imports));
     }
     buffer
+}
+
+/// The methods to write in the class stub
+fn emitted_methods(class: &Class) -> impl Iterator<Item = &Function> {
+    class
+        .methods
+        .iter()
+        .filter(|method| !is_redundant_object_method(method))
+}
+
+/// `__str__` and `__repr__` with the exact same signature as their `object` counterpart are
+/// inherited from `object` by every class, so declaring them again is redundant (ruff `PYI029`).
+///
+/// Methods with a docstring are kept to not lose documentation.
+fn is_redundant_object_method(method: &Function) -> bool {
+    let Arguments {
+        positional_only_arguments,
+        arguments,
+        vararg,
+        keyword_only_arguments,
+        kwarg,
+    } = &method.arguments;
+    matches!(method.name.as_str(), "__str__" | "__repr__")
+        && method.decorators.is_empty()
+        && !method.is_async
+        && method.docstring.is_none()
+        && matches!(
+            positional_only_arguments.as_slice(),
+            [Argument {
+                annotation: None,
+                default_value: None,
+                ..
+            }]
+        )
+        && arguments.is_empty()
+        && vararg.is_none()
+        && keyword_only_arguments.is_empty()
+        && kwarg.is_none()
+        && matches!(
+            &method.returns,
+            Some(Expr::Attribute { value, attr })
+                if attr == "str" && matches!(&**value, Expr::Name { id } if id == "builtins")
+        )
 }
 
 fn function_stubs(function: &Function, imports: &Imports, class_name: Option<&str>) -> String {
@@ -687,7 +731,7 @@ impl ReferencedNames {
         for decorator in &class.decorators {
             self.walk_expr(decorator);
         }
-        for method in &class.methods {
+        for method in emitted_methods(class) {
             self.walk_function(method);
         }
         for attr in &class.attributes {
