@@ -892,6 +892,7 @@ mod tests {
 
         Python::attach(|py| {
             let datetime = (&original).into_pyobject(py).unwrap();
+            assert!(datetime.get_fold());
             let roundtripped: ZonedDateTime = datetime.extract().unwrap();
 
             assert_eq!(
@@ -1285,7 +1286,7 @@ mod tests {
                                 Just(&TimeZone::get("Australia/Sydney").unwrap()),
                             ].prop_flat_map(|tz| (Just(tz), timezone_transitions(tz))),
                 hour in -2i32..=2i32,
-                min in 0u32..=59u32,
+                min in -59i32..=59i32,
             ) {
                 Python::attach(|py| {
                     let transition_moment = transition.timestamp();
