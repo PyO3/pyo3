@@ -80,6 +80,195 @@ macro_rules! type_hint_subscript {
 }
 pub(crate) use type_hint_subscript;
 
+/// Builds a `typing.Literal[...]` type hint.
+///
+/// Supports:
+/// - string literals, e.g. `"USD"`
+/// - booleans: `True`, `False`
+/// - `None`
+/// - `...`
+/// - numbers with wrappers: `int(...)`, `float(...)`
+/// - enum-style members: `enum_member(type_expr, "MEMBER")`
+/// - raw [`PyStaticExpr`] expressions
+///
+/// ```
+/// use pyo3::{type_hint_identifier, type_hint_literal};
+/// use pyo3::inspect::PyStaticExpr;
+///
+/// const COLOR: PyStaticExpr = type_hint_identifier!("mypkg", "Color");
+/// const T: PyStaticExpr = type_hint_literal!(
+///     "USD",
+///     int(1),
+///     float(1.5),
+///     True,
+///     None,
+///     enum_member(COLOR, "RED"),
+/// );
+/// assert_eq!(
+///     T.to_string(),
+///     "typing.Literal[\"USD\", 1, 1.5, True, None, mypkg.Color.RED]"
+/// );
+/// ```
+#[macro_export]
+macro_rules! type_hint_literal {
+    (@finish [$first:expr $(, $rest:expr)* $(,)?]) => {
+        $crate::type_hint_subscript!(
+            $crate::type_hint_identifier!("typing", "Literal"),
+            $first
+            $(, $rest)*
+        )
+    };
+
+    (@parse [$($out:expr),*] int($($value:tt)+), $($rest:tt)+) => {
+        $crate::type_hint_literal!(@parse [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::Int(stringify!($($value)+)),
+            }
+        ] $($rest)+)
+    };
+    (@parse [$($out:expr),*] int($($value:tt)+)) => {
+        $crate::type_hint_literal!(@finish [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::Int(stringify!($($value)+)),
+            }
+        ])
+    };
+
+    (@parse [$($out:expr),*] float($($value:tt)+), $($rest:tt)+) => {
+        $crate::type_hint_literal!(@parse [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::Float(stringify!($($value)+)),
+            }
+        ] $($rest)+)
+    };
+    (@parse [$($out:expr),*] float($($value:tt)+)) => {
+        $crate::type_hint_literal!(@finish [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::Float(stringify!($($value)+)),
+            }
+        ])
+    };
+
+    (@parse [$($out:expr),*] True, $($rest:tt)+) => {
+        $crate::type_hint_literal!(@parse [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::Bool(true),
+            }
+        ] $($rest)+)
+    };
+    (@parse [$($out:expr),*] True) => {
+        $crate::type_hint_literal!(@finish [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::Bool(true),
+            }
+        ])
+    };
+
+    (@parse [$($out:expr),*] False, $($rest:tt)+) => {
+        $crate::type_hint_literal!(@parse [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::Bool(false),
+            }
+        ] $($rest)+)
+    };
+    (@parse [$($out:expr),*] False) => {
+        $crate::type_hint_literal!(@finish [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::Bool(false),
+            }
+        ])
+    };
+
+    (@parse [$($out:expr),*] None, $($rest:tt)+) => {
+        $crate::type_hint_literal!(@parse [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::None,
+            }
+        ] $($rest)+)
+    };
+    (@parse [$($out:expr),*] None) => {
+        $crate::type_hint_literal!(@finish [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::None,
+            }
+        ])
+    };
+
+    (@parse [$($out:expr),*] ..., $($rest:tt)+) => {
+        $crate::type_hint_literal!(@parse [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::Ellipsis,
+            }
+        ] $($rest)+)
+    };
+    (@parse [$($out:expr),*] ...) => {
+        $crate::type_hint_literal!(@finish [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::Ellipsis,
+            }
+        ])
+    };
+
+    (@parse [$($out:expr),*] enum_member($enum_type:expr, $member:literal), $($rest:tt)+) => {
+        $crate::type_hint_literal!(@parse [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Attribute {
+                value: &$enum_type,
+                attr: $member,
+            }
+        ] $($rest)+)
+    };
+    (@parse [$($out:expr),*] enum_member($enum_type:expr, $member:literal)) => {
+        $crate::type_hint_literal!(@finish [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Attribute {
+                value: &$enum_type,
+                attr: $member,
+            }
+        ])
+    };
+
+    (@parse [$($out:expr),*] $value:literal, $($rest:tt)+) => {
+        $crate::type_hint_literal!(@parse [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::Str($value),
+            }
+        ] $($rest)+)
+    };
+    (@parse [$($out:expr),*] $value:literal) => {
+        $crate::type_hint_literal!(@finish [
+            $($out,)*
+            $crate::inspect::PyStaticExpr::Constant {
+                value: $crate::inspect::PyStaticConstant::Str($value),
+            }
+        ])
+    };
+
+    (@parse [$($out:expr),*] $value:expr, $($rest:tt)+) => {
+        $crate::type_hint_literal!(@parse [$($out,)* $value] $($rest)+)
+    };
+    (@parse [$($out:expr),*] $value:expr) => {
+        $crate::type_hint_literal!(@finish [$($out,)* $value])
+    };
+
+    ($($tokens:tt)+) => {
+        $crate::type_hint_literal!(@parse [] $($tokens)+)
+    };
+}
+
 /// A Python expression.
 ///
 /// This is the `expr` production of the [Python `ast` module grammar](https://docs.python.org/3/library/ast.html#abstract-grammar)
@@ -490,6 +679,26 @@ mod tests {
             T.to_string(),
             "dict[int | typing.Literal[\"\\0\\t\\\\\\\"\"], datetime.time]"
         )
+    }
+
+    #[test]
+    fn test_type_hint_literal_macro() {
+        const COLOR: PyStaticExpr = type_hint_identifier!("mypkg", "Color");
+        const T: PyStaticExpr = type_hint_literal!(
+            "USD",
+            int(1),
+            float(-2.5e2),
+            True,
+            False,
+            None,
+            ...,
+            enum_member(COLOR, "RED")
+        );
+
+        assert_eq!(
+            T.to_string(),
+            "typing.Literal[\"USD\", 1, -2.5e2, True, False, None, ..., mypkg.Color.RED]"
+        );
     }
 
     #[test]
