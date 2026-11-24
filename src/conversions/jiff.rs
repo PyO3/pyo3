@@ -299,23 +299,14 @@ impl<'py> IntoPyObject<'py> for &ZonedDateTime {
     const OUTPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        fn fold(zoned: &ZonedDateTime) -> Option<bool> {
-            let prev = zoned.time_zone().preceding(zoned.timestamp()).next()?;
-            let next = zoned.time_zone().following(prev.timestamp()).next()?;
-            let start_of_current_offset = if next.timestamp() == zoned.timestamp() {
-                next.timestamp()
-            } else {
-                prev.timestamp()
-            };
-            Some(zoned.timestamp() + (zoned.offset() - prev.offset()) <= start_of_current_offset)
-        }
+        let datetime = self.datetime();
+        let time_zone = self.time_zone();
+        let fold = matches!(
+            time_zone.to_ambiguous_timestamp(datetime).offset(),
+            AmbiguousOffset::Fold { after, .. } if self.offset() == after
+        );
 
-        datetime_to_pydatetime(
-            py,
-            self.datetime(),
-            fold(self).unwrap_or(false),
-            Some(self.time_zone()),
-        )
+        datetime_to_pydatetime(py, datetime, fold, Some(time_zone))
     }
 }
 
@@ -894,6 +885,25 @@ mod tests {
 
     #[test]
     #[cfg(not(windows))]
+    fn test_zoned_datetime_roundtrip_during_fold() {
+        let original: ZonedDateTime = "2024-11-03T01:30:00-05:00[America/New_York]"
+            .parse()
+            .unwrap();
+
+        Python::attach(|py| {
+            let datetime = (&original).into_pyobject(py).unwrap();
+            assert!(datetime.get_fold());
+            let roundtripped: ZonedDateTime = datetime.extract().unwrap();
+
+            assert_eq!(
+                roundtripped.timestamp().as_second(),
+                original.timestamp().as_second(),
+            );
+        });
+    }
+
+    #[test]
+    #[cfg(not(windows))]
     fn test_nonexistent_datetime_frompyobject_matches_python_timestamp() {
         Python::attach(|py| {
             let py_datetime = new_py_datetime_ob(
@@ -1276,7 +1286,7 @@ mod tests {
                                 Just(&TimeZone::get("Australia/Sydney").unwrap()),
                             ].prop_flat_map(|tz| (Just(tz), timezone_transitions(tz))),
                 hour in -2i32..=2i32,
-                min in 0u32..=59u32,
+                min in -59i32..=59i32,
             ) {
                 Python::attach(|py| {
                     let transition_moment = transition.timestamp();
