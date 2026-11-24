@@ -894,6 +894,24 @@ mod tests {
 
     #[test]
     #[cfg(not(windows))]
+    fn test_zoned_datetime_roundtrip_during_fold() {
+        let original: ZonedDateTime = "2024-11-03T01:30:00-05:00[America/New_York]"
+            .parse()
+            .unwrap();
+
+        Python::attach(|py| {
+            let datetime = (&original).into_pyobject(py).unwrap();
+            let roundtripped: ZonedDateTime = datetime.extract().unwrap();
+
+            assert_eq!(
+                roundtripped.timestamp().as_second(),
+                original.timestamp().as_second(),
+            );
+        });
+    }
+
+    #[test]
+    #[cfg(not(windows))]
     fn test_nonexistent_datetime_frompyobject_matches_python_timestamp() {
         Python::attach(|py| {
             let py_datetime = new_py_datetime_ob(
