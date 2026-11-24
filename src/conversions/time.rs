@@ -333,9 +333,9 @@ impl FromPyObject<'_, '_> for UtcOffset {
         // Get the offset in seconds from the Python tzinfo
         let py_timedelta = tz.call_method1("utcoffset", (PyNone::get(tz.py()),))?;
         if py_timedelta.is_none() {
-            return Err(PyTypeError::new_err(format!(
-                "{tz:?} is not a fixed offset timezone"
-            )));
+            return Err(PyTypeError::new_err(
+                py_format!(ob.py(), "{ob:?} is not a fixed offset timezone")?.unbind(),
+            ));
         }
 
         let total_seconds: Duration = py_timedelta.extract()?;

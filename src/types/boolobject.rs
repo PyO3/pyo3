@@ -11,7 +11,7 @@ use crate::{
 };
 #[cfg(RustPython)]
 use crate::{Py, sync::PyOnceLock, types::PyType};
-use core::convert::Infallible;
+use core::convert::{Infallible, identity};
 use core::ptr;
 
 /// Represents a Python `bool`.
@@ -208,10 +208,12 @@ impl FromPyObject<'_, '_> for bool {
 
         if is_numpy_bool {
             let missing_conversion = |obj: Borrowed<'_, '_, PyAny>| {
-                PyTypeError::new_err(format!(
+                py_format!(
+                    obj.py(),
                     "object of type '{}' does not define a '__bool__' conversion",
                     obj.get_type()
-                ))
+                )
+                .map_or_else(identity, |msg| PyTypeError::new_err(msg.unbind()))
             };
 
             #[cfg(not(any(Py_LIMITED_API, PyPy)))]

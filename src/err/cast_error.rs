@@ -2,8 +2,7 @@ use crate::platform::prelude::*;
 use alloc::borrow::Cow;
 
 use crate::{
-    Borrowed, Bound, IntoPyObjectExt, Py, PyAny, PyErr, PyErrArguments, PyTypeInfo, Python,
-    exceptions,
+    Borrowed, Bound, Py, PyAny, PyErr, PyErrArguments, PyTypeInfo, Python, exceptions,
     types::{
         PyAnyMethods, PyNone, PyStringMethods, PyTuple, PyTupleMethods, PyType, PyTypeMethods,
     },
@@ -68,15 +67,17 @@ struct CastErrorArguments {
 
 impl PyErrArguments for CastErrorArguments {
     fn arguments(self, py: Python<'_>) -> Py<PyAny> {
-        format!(
+        py_format!(
+            py,
             "{}",
             DisplayCastError {
                 from: &self.from.into_bound(py),
                 classinfo: &self.classinfo.into_bound(py),
             }
         )
-        .into_py_any(py)
         .expect("failed to create Python string")
+        .into_any()
+        .unbind()
     }
 }
 
