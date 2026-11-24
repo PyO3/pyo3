@@ -238,8 +238,7 @@ def bar():
 The example below shows:
 
 - how to include content of `app.py` and `utils/foo.py` into your rust binary
-- how to call function `run()` (declared in `app.py`) that needs function
-  imported from `utils/foo.py`
+- how to call function `run()` (declared in `app.py`) that needs function imported from `utils/foo.py`
 
 `src/main.rs`:
 
@@ -271,10 +270,8 @@ fn main() -> PyResult<()> {
 
 The example below shows:
 
-- how to load content of `app.py` at runtime so that it sees its dependencies
-  automatically
-- how to call function `run()` (declared in `app.py`) that needs function
-  imported from `utils/foo.py`
+- how to load content of `app.py` at runtime so that it sees its dependencies automatically
+- how to call function `run()` (declared in `app.py`) that needs function imported from `utils/foo.py`
 
 It is recommended to use absolute paths because then your binary can be run from anywhere as long as your `app.py` is in the expected directory (in this example that directory is `/usr/share/python_app`).
 

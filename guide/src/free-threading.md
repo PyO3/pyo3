@@ -95,12 +95,9 @@ Threads created via the Python [`threading`] module do not need to do this, and 
 
 The free-threaded build triggers global synchronization events in the following situations:
 
-- During garbage collection in order to get a globally consistent view of
-  reference counts and references between objects
-- In Python 3.13, when the first background thread is started in
-  order to mark certain objects as immortal
-- When either `sys.settrace` or `sys.setprofile` are called in order to
-  instrument running code objects and threads
+- During garbage collection in order to get a globally consistent view of reference counts and references between objects
+- In Python 3.13, when the first background thread is started in order to mark certain objects as immortal
+- When either `sys.settrace` or `sys.setprofile` are called in order to instrument running code objects and threads
 - During a call to `os.fork()`, to ensure a process-wide consistent state.
 
 This is a non-exhaustive list and there may be other situations in future Python versions that can trigger global synchronization events.

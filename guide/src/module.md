@@ -56,8 +56,7 @@ Otherwise, you will get an import error in Python with the following message: `I
 To import the module, either:
 
 - copy the shared library as described in [Manual builds](building-and-distribution.md#manual-builds), or
-- use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or
-`python setup.py develop` with [setuptools-rust](https://github.com/PyO3/setuptools-rust).
+- use a tool, e.g. `maturin develop` with [maturin](https://github.com/PyO3/maturin) or `python setup.py develop` with [setuptools-rust](https://github.com/PyO3/setuptools-rust).
 
 ## Documentation
 

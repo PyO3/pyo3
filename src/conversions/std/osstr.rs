@@ -37,41 +37,37 @@ impl<'py> IntoPyObject<'py> for &OsStr {
             return valid_utf8_path.into_pyobject(py);
         }
 
-        #[cfg(target_os = "wasi")]
-        {
-            self.to_str()
-                .expect("wasi strings are UTF8")
-                .into_pyobject(py)
-        }
-
-        #[cfg(any(unix, target_os = "emscripten"))]
-        {
-            let bytes = self.as_bytes();
-            let ptr = bytes.as_ptr().cast();
-            let len = bytes.len() as ffi::Py_ssize_t;
-            // SAFETY: passing valid pointer to python API
-            unsafe {
-                // DecodeFSDefault automatically chooses an appropriate decoding mechanism to
-                // parse os strings losslessly (i.e. surrogateescape most of the time)
-                Ok(ffi::PyUnicode_DecodeFSDefaultAndSize(ptr, len)
-                    .assume_owned(py)
-                    .cast_into_unchecked())
+        cfg_select! {
+            target_os = "wasi" => {
+                self.to_str()
+                    .expect("wasi strings are UTF8")
+                    .into_pyobject(py)
             }
-        }
-
-        #[cfg(windows)]
-        {
-            let wstr: Vec<u16> = self.encode_wide().collect();
-            // SAFETY: passing valid pointer to python API
-            unsafe {
-                // This will not panic because the data from encode_wide is well-formed Windows
-                // string data
-
-                Ok(
-                    ffi::PyUnicode_FromWideChar(wstr.as_ptr(), wstr.len() as ffi::Py_ssize_t)
+            any(unix, target_os = "emscripten") => {
+                let bytes = self.as_bytes();
+                let ptr = bytes.as_ptr().cast();
+                let len = bytes.len() as ffi::Py_ssize_t;
+                // SAFETY: passing valid pointer to python API
+                unsafe {
+                    // DecodeFSDefault automatically chooses an appropriate decoding mechanism to
+                    // parse os strings losslessly (i.e. surrogateescape most of the time)
+                    Ok(ffi::PyUnicode_DecodeFSDefaultAndSize(ptr, len)
                         .assume_owned(py)
-                        .cast_into_unchecked(),
-                )
+                        .cast_into_unchecked())
+                }
+            }
+            windows => {
+                let wstr: Vec<u16> = self.encode_wide().collect();
+                // SAFETY: passing valid pointer to python API
+                unsafe {
+                    // This will not panic because the data from encode_wide is well-formed Windows
+                    // string data
+                    Ok(
+                        ffi::PyUnicode_FromWideChar(wstr.as_ptr(), wstr.len() as ffi::Py_ssize_t)
+                            .assume_owned(py)
+                            .cast_into_unchecked(),
+                    )
+                }
             }
         }
     }
@@ -100,58 +96,55 @@ impl FromPyObject<'_, '_> for OsString {
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let pystring = ob.cast::<PyString>()?;
 
-        #[cfg(target_os = "wasi")]
-        {
-            Ok(pystring.to_cow()?.into_owned().into())
-        }
-
-        #[cfg(any(unix, target_os = "emscripten"))]
-        {
-            // Decode from Python's lossless bytes string representation back into raw bytes
-            // SAFETY: PyUnicode_EncodeFSDefault returns a new reference or null on error, known to
-            // be a `bytes` object, thread is attached to the interpreter
-            let fs_encoded_bytes = unsafe {
-                ffi::PyUnicode_EncodeFSDefault(pystring.as_ptr())
-                    .assume_owned_or_err(ob.py())?
-                    .cast_into_unchecked::<PyBytes>()
-            };
-
-            // Create an OsStr view into the raw bytes from Python
-            let os_str: &OsStr = OsStrExt::from_bytes(fs_encoded_bytes.as_bytes());
-
-            Ok(os_str.to_os_string())
-        }
-
-        #[cfg(windows)]
-        {
-            // Take the quick and easy shortcut if UTF-8
-            if let Ok(utf8_string) = pystring.to_cow() {
-                return Ok(utf8_string.into_owned().into());
+        cfg_select! {
+            target_os = "wasi" => {
+                Ok(pystring.to_cow()?.into_owned().into())
             }
+            any(unix, target_os = "emscripten") => {
+                 // Decode from Python's lossless bytes string representation back into raw bytes
+                // SAFETY: PyUnicode_EncodeFSDefault returns a new reference or null on error, known to
+                // be a `bytes` object, thread is attached to the interpreter
+                let fs_encoded_bytes = unsafe {
+                    ffi::PyUnicode_EncodeFSDefault(pystring.as_ptr())
+                        .assume_owned_or_err(ob.py())?
+                        .cast_into_unchecked::<PyBytes>()
+                };
 
-            // Get an owned allocated wide char buffer from PyString, which we have to deallocate
-            // ourselves
-            // SAFETY: passing valid pointer to python API
-            let size =
-                unsafe { ffi::PyUnicode_AsWideChar(pystring.as_ptr(), core::ptr::null_mut(), 0) };
-            crate::err::error_on_negative(ob.py(), size)?;
+                // Create an OsStr view into the raw bytes from Python
+                let os_str: &OsStr = OsStrExt::from_bytes(fs_encoded_bytes.as_bytes());
 
-            debug_assert!(
-                size > 0,
-                "PyUnicode_AsWideChar should return at least 1 for null terminator"
-            );
-            let size = size - 1; // exclude null terminator
+                Ok(os_str.to_os_string())
+            }
+            windows => {
+                // Take the quick and easy shortcut if UTF-8
+                if let Ok(utf8_string) = pystring.to_cow() {
+                    return Ok(utf8_string.into_owned().into());
+                }
 
-            let mut buffer = vec![0; size as usize];
-            // SAFETY: passing valid pointer to python API
-            let bytes_read =
-                unsafe { ffi::PyUnicode_AsWideChar(pystring.as_ptr(), buffer.as_mut_ptr(), size) };
-            assert_eq!(bytes_read, size);
+                // Get an owned allocated wide char buffer from PyString, which we have to deallocate
+                // ourselves
+                // SAFETY: passing valid pointer to python API
+                let size =
+                    unsafe { ffi::PyUnicode_AsWideChar(pystring.as_ptr(), core::ptr::null_mut(), 0) };
+                crate::err::error_on_negative(ob.py(), size)?;
 
-            // Copy wide char buffer into OsString
-            let os_string = std::os::windows::ffi::OsStringExt::from_wide(&buffer);
+                debug_assert!(
+                    size > 0,
+                    "PyUnicode_AsWideChar should return at least 1 for null terminator"
+                );
+                let size = size - 1; // exclude null terminator
 
-            Ok(os_string)
+                let mut buffer = vec![0; size as usize];
+                // SAFETY: passing valid pointer to python API
+                let bytes_read =
+                    unsafe { ffi::PyUnicode_AsWideChar(pystring.as_ptr(), buffer.as_mut_ptr(), size) };
+                assert_eq!(bytes_read, size);
+
+                // Copy wide char buffer into OsString
+                let os_string = std::os::windows::ffi::OsStringExt::from_wide(&buffer);
+
+                Ok(os_string)
+            }
         }
     }
 }

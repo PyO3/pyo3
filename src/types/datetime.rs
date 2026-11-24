@@ -6,18 +6,23 @@
 #[cfg(not(Py_LIMITED_API))]
 use crate::err::PyErr;
 use crate::err::PyResult;
-#[cfg(not(Py_LIMITED_API))]
-use crate::ffi::{
-    self, PyDate_FromTimestamp, PyDateTime_CAPI, PyDateTime_DATE_GET_FOLD,
-    PyDateTime_DATE_GET_HOUR, PyDateTime_DATE_GET_MICROSECOND, PyDateTime_DATE_GET_MINUTE,
-    PyDateTime_DATE_GET_SECOND, PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS,
-    PyDateTime_DELTA_GET_SECONDS, PyDateTime_FromTimestamp, PyDateTime_GET_DAY,
-    PyDateTime_GET_MONTH, PyDateTime_GET_YEAR, PyDateTime_IMPORT, PyDateTime_TIME_GET_FOLD,
-    PyDateTime_TIME_GET_HOUR, PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE,
-    PyDateTime_TIME_GET_SECOND,
-};
+#[cfg(Py_LIMITED_API)]
+use crate::exceptions::PyTypeError;
+use crate::ffi;
 #[cfg(all(Py_3_10, not(Py_LIMITED_API)))]
 use crate::ffi::{Py_IsNone, PyDateTime_DATE_GET_TZINFO, PyDateTime_TIME_GET_TZINFO};
+#[cfg(not(Py_LIMITED_API))]
+use crate::ffi::{
+    PyDate_FromTimestamp, PyDateTime_CAPI, PyDateTime_DATE_GET_FOLD, PyDateTime_DATE_GET_HOUR,
+    PyDateTime_DATE_GET_MICROSECOND, PyDateTime_DATE_GET_MINUTE, PyDateTime_DATE_GET_SECOND,
+    PyDateTime_DELTA_GET_DAYS, PyDateTime_DELTA_GET_MICROSECONDS, PyDateTime_DELTA_GET_SECONDS,
+    PyDateTime_FromTimestamp, PyDateTime_GET_DAY, PyDateTime_GET_MONTH, PyDateTime_GET_YEAR,
+    PyDateTime_IMPORT, PyDateTime_TIME_GET_FOLD, PyDateTime_TIME_GET_HOUR,
+    PyDateTime_TIME_GET_MICROSECOND, PyDateTime_TIME_GET_MINUTE, PyDateTime_TIME_GET_SECOND,
+};
+use crate::ffi_ptr_ext::FfiPtrExt;
+#[cfg(Py_LIMITED_API)]
+use crate::internal::get_slot::TP_DESCR_GET;
 #[cfg(Py_LIMITED_API)]
 use crate::type_object::PyTypeInfo;
 #[cfg(Py_LIMITED_API)]
@@ -27,7 +32,7 @@ use crate::types::typeobject::PyTypeMethods;
 use crate::types::{PyString, PyType, any::PyAnyMethods};
 use crate::{Borrowed, Bound, IntoPyObject, PyAny, Python};
 #[cfg(not(Py_LIMITED_API))]
-use crate::{BoundObject, ffi_ptr_ext::FfiPtrExt, py_result_ext::PyResultExt, types::PyTuple};
+use crate::{BoundObject, py_result_ext::PyResultExt, types::PyTuple};
 use crate::{Py, sync::PyOnceLock};
 #[cfg(not(Py_LIMITED_API))]
 use core::ffi::c_int;
@@ -50,19 +55,53 @@ fn expect_datetime_api(py: Python<'_>) -> &'static PyDateTime_CAPI {
     ensure_datetime_api(py).expect("failed to import `datetime` C API")
 }
 
+/// A field descriptor (e.g. `datetime.date.year`) of a datetime type, with that type and the
+/// `tp_descr_get` slot of the descriptor's type.
+#[cfg(Py_LIMITED_API)]
+struct LimitedApiFieldDescriptor {
+    descriptor: Py<PyAny>,
+    owner: Py<PyType>,
+    descr_get: ffi::descrgetfunc,
+}
+
+#[cfg(Py_LIMITED_API)]
+impl LimitedApiFieldDescriptor {
+    fn new(owner: Bound<'_, PyType>, attr: &str) -> PyResult<Self> {
+        let descriptor = owner.getattr(attr)?;
+        let descr_get = descriptor
+            .get_type()
+            .get_slot(TP_DESCR_GET)
+            .ok_or_else(|| PyTypeError::new_err(format!("`{attr}` is not a descriptor")))?;
+        Ok(Self {
+            descriptor: descriptor.unbind(),
+            owner: owner.unbind(),
+            descr_get,
+        })
+    }
+
+    /// Reads the field from `obj`, calling the `tp_descr_get` slot directly (avoids the
+    /// argument tuple and method-wrapper call of `descriptor.__get__(obj, owner)`).
+    #[inline]
+    fn get<'py>(&self, obj: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+        // SAFETY: `descr_get` is the `tp_descr_get` slot of the descriptor's type, all arguments
+        // are live objects, and it returns a new reference (or NULL with an exception set).
+        unsafe {
+            (self.descr_get)(self.descriptor.as_ptr(), obj.as_ptr(), self.owner.as_ptr())
+                .assume_owned_or_err(obj.py())
+        }
+    }
+}
+
 #[cfg(Py_LIMITED_API)]
 macro_rules! limited_api_descriptor_get {
     ($self:expr, $owner:ty, $attr:literal, $output:ty) => {{
         let py = $self.py();
-        static DESCRIPTOR_GET: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
-        DESCRIPTOR_GET
+        static DESCRIPTOR: PyOnceLock<LimitedApiFieldDescriptor> = PyOnceLock::new();
+        DESCRIPTOR
             .get_or_try_init(py, || {
-                <$owner>::type_object(py)
-                    .getattr($attr)
-                    .and_then(|descriptor| descriptor.getattr("__get__"))
-                    .map(|getter| getter.unbind())
+                LimitedApiFieldDescriptor::new(<$owner>::type_object(py), $attr)
             })
-            .and_then(|getter| getter.bind(py).call1(($self, <$owner>::type_object(py))))
+            .and_then(|descriptor| descriptor.get($self.as_any()))
             .and_then(|value| value.extract::<$output>())
             .unwrap_or_default()
     }};
@@ -110,7 +149,7 @@ ffi_fun_with_autoinit! {
     /// Check if `op` is a `PyDateTimeAPI.TimeType` or subtype.
     unsafe fn PyTime_Check(op: *mut PyObject) -> c_int;
 
-    /// Check if `op` is a `PyDateTimeAPI.DetaType` or subtype.
+    /// Check if `op` is a `PyDateTimeAPI.DeltaType` or subtype.
     unsafe fn PyDelta_Check(op: *mut PyObject) -> c_int;
 
     /// Check if `op` is a `PyDateTimeAPI.TZInfoType` or subtype.
@@ -876,9 +915,8 @@ impl PyTzInfo {
     {
         static ZONE_INFO: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
-        let zoneinfo = ZONE_INFO.import(py, "zoneinfo", "ZoneInfo");
-
-        zoneinfo?
+        ZONE_INFO
+            .import(py, "zoneinfo", "ZoneInfo")?
             .call1((iana_name,))?
             .cast_into()
             .map_err(Into::into)
@@ -1378,6 +1416,22 @@ class MyDate(datetime.date):
                 .cast_into()
                 .unwrap();
             assert_eq!(my_date.get_year(), 2024);
+        });
+    }
+
+    #[test]
+    #[cfg(Py_LIMITED_API)]
+    fn test_limited_api_field_descriptor_errors() {
+        use crate::exceptions::{PyAttributeError, PyTypeError};
+        use crate::type_object::PyTypeInfo;
+
+        Python::attach(|py| {
+            // (a missing attribute, and a class attribute that is not a descriptor)
+            let missing = LimitedApiFieldDescriptor::new(PyDate::type_object(py), "missing");
+            assert!(missing.is_err_and(|err| err.is_instance_of::<PyAttributeError>(py)));
+
+            let not_descriptor = LimitedApiFieldDescriptor::new(PyDate::type_object(py), "min");
+            assert!(not_descriptor.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));
         });
     }
 }

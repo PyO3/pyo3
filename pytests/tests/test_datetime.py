@@ -116,7 +116,7 @@ def test_time_typeerror(args):
 )
 def test_datetime(args, kwargs):
     act = rdt.make_datetime(*args, **kwargs)
-    exp = pdt.datetime(*args, **kwargs)  # noqa: DTZ001
+    exp = pdt.datetime(*args, **kwargs)
 
     assert act == exp
     assert act.tzinfo is exp.tzinfo

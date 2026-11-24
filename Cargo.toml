@@ -57,6 +57,7 @@ hashbrown = { version = ">= 0.15.0, < 0.18", optional = true, default-features =
 ] }
 indexmap = { version = ">= 2.5.0, < 3", optional = true }
 jiff-02 = { package = "jiff", version = "0.2", optional = true }
+jiff = { version = "1.0", optional = true }
 num-bigint = { version = "0.4.4", optional = true }
 num-complex = { version = ">= 0.4.6, < 0.5", optional = true }
 num-rational = { version = "0.4.1", optional = true }
@@ -67,8 +68,8 @@ time = { version = "0.3.38", default-features = false, optional = true }
 serde = { version = "1.0", optional = true }
 smallvec = { version = "1.0", optional = true }
 uuid = { version = "1.12.0", optional = true }
-lock_api = { version = "0.4", optional = true }
-parking_lot = { version = "0.12", optional = true }
+lock_api = { version = ">= 0.4, < 0.6", optional = true }
+parking_lot = { version = ">= 0.12, < 0.14", optional = true }
 iana-time-zone = { version = "0.1", optional = true, features = ["fallback"]}
 
 [target.'cfg(not(target_has_atomic = "64"))'.dependencies]
@@ -78,7 +79,7 @@ portable-atomic = "1.0"
 assert_approx_eq = "1.1.0"
 chrono = "0.4.25"
 chrono-tz = ">= 0.10, < 0.11"
-proptest = { version = "1.0", default-features = false, features = ["std"] }
+proptest = { version = "1.9", default-features = false, features = ["std"] }
 send_wrapper = "0.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.61"
@@ -87,7 +88,7 @@ futures = "0.3.28"
 tempfile = "3.12.0"
 static_assertions = "1.1.0"
 uuid = { version = "1.10.0", features = ["v4"] }
-parking_lot = { version = "0.12.3", features = ["arc_lock"] }
+parking_lot = { version = ">= 0.12.3, < 0.14", features = ["arc_lock"] }
 ui_test = "0.30.4"
 regex = "1.12.3"
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
@@ -175,7 +176,7 @@ full = [
     "eyre",
     "hashbrown",
     "indexmap",
-    "jiff-02",
+    "jiff",
     "lock_api",
     "num-bigint",
     "num-complex",

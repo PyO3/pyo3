@@ -85,20 +85,21 @@ impl PySlice {
     /// Constructs a new slice with the given elements.
     pub fn new(py: Python<'_>, start: isize, stop: isize, step: isize) -> Bound<'_, PySlice> {
         unsafe {
-            ffi::PySlice_New(
-                ffi::PyLong_FromSsize_t(start),
-                ffi::PyLong_FromSsize_t(stop),
-                ffi::PyLong_FromSsize_t(step),
-            )
-            .assume_owned(py)
-            .cast_into_unchecked()
+            let start = ffi::PyLong_FromSsize_t(start).assume_owned(py);
+            let stop = ffi::PyLong_FromSsize_t(stop).assume_owned(py);
+            let step = ffi::PyLong_FromSsize_t(step).assume_owned(py);
+            ffi::PySlice_New(start.as_ptr(), stop.as_ptr(), step.as_ptr())
+                .assume_owned(py)
+                .cast_into_unchecked()
         }
     }
 
     /// Constructs a new full slice that is equivalent to `::`.
     pub fn full(py: Python<'_>) -> Bound<'_, PySlice> {
+        // the interpreter accepts NULL as a substitute for None
+        let null = core::ptr::null_mut();
         unsafe {
-            ffi::PySlice_New(ffi::Py_None(), ffi::Py_None(), ffi::Py_None())
+            ffi::PySlice_New(null, null, null)
                 .assume_owned(py)
                 .cast_into_unchecked()
         }
