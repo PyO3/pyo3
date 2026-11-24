@@ -299,23 +299,14 @@ impl<'py> IntoPyObject<'py> for &ZonedDateTime {
     const OUTPUT_TYPE: PyStaticExpr = PyDateTime::TYPE_HINT;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        fn fold(zoned: &ZonedDateTime) -> Option<bool> {
-            let prev = zoned.time_zone().preceding(zoned.timestamp()).next()?;
-            let next = zoned.time_zone().following(prev.timestamp()).next()?;
-            let start_of_current_offset = if next.timestamp() == zoned.timestamp() {
-                next.timestamp()
-            } else {
-                prev.timestamp()
-            };
-            Some(zoned.timestamp() + (zoned.offset() - prev.offset()) <= start_of_current_offset)
-        }
+        let datetime = self.datetime();
+        let time_zone = self.time_zone();
+        let fold = matches!(
+            time_zone.to_ambiguous_timestamp(datetime).offset(),
+            AmbiguousOffset::Fold { after, .. } if self.offset() == after
+        );
 
-        datetime_to_pydatetime(
-            py,
-            self.datetime(),
-            fold(self).unwrap_or(false),
-            Some(self.time_zone()),
-        )
+        datetime_to_pydatetime(py, datetime, fold, Some(time_zone))
     }
 }
 
