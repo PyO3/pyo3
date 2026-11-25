@@ -73,7 +73,7 @@ updates:
       - "CI-skip-changelog"
 
   - package-ecosystem: "npm"
-    directory: "/.github/tools/netlify"
+    directory: "/ci/tools/netlify"
     schedule:
       interval: "quarterly"
     cooldown:
