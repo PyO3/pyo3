@@ -37,6 +37,10 @@ const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
 };
 
 /// PyPy releases which get a `PyPy_X_Y` cfg when building for that release or newer.
+///
+/// - 8.1: datetime structs, datetime accessor macros, and `Py_buffer` match CPython's layout.
+pub(crate) const PYPY_VERSION_CFGS: &[(u8, u8)] = &[(8, 1)];
+
 /// Maximum Python version that can be used as minimum required Python version with abi3.
 pub(crate) const STABLE_ABI_MAX_MINOR: u8 = 15;
 
