@@ -95,7 +95,11 @@ extern_libpython! {
     #[cfg(not(PyPy))]
     pub fn PyThreadState_Next(tstate: *mut PyThreadState) -> *mut PyThreadState;
 
-    #[cfg_attr(all(PyPy, not(Py_3_12)), link_name = "PyPyThreadState_DeleteCurrent")]
+    // PyPy 8.0 exported this unprefixed as part of abi3 by mistake; 8.1 restored the prefix.
+    #[cfg_attr(
+        all(PyPy, any(not(Py_3_12), PyPy_8_1)),
+        link_name = "PyPyThreadState_DeleteCurrent"
+    )]
     pub fn PyThreadState_DeleteCurrent();
 
     #[cfg(all(not(Py_3_11), not(PyPy)))]

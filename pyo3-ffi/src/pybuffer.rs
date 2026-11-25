@@ -18,11 +18,11 @@ pub struct Py_buffer {
     pub strides: *mut Py_ssize_t,
     pub suboffsets: *mut Py_ssize_t,
     pub internal: *mut c_void,
-    #[cfg(PyPy)]
+    #[cfg(all(PyPy, not(PyPy_8_1)))]
     pub flags: c_int,
-    #[cfg(PyPy)]
+    #[cfg(all(PyPy, not(PyPy_8_1)))]
     pub _strides: [Py_ssize_t; PyBUF_MAX_NDIM],
-    #[cfg(PyPy)]
+    #[cfg(all(PyPy, not(PyPy_8_1)))]
     pub _shape: [Py_ssize_t; PyBUF_MAX_NDIM],
 }
 
@@ -41,11 +41,11 @@ impl Py_buffer {
             strides: ptr::null_mut(),
             suboffsets: ptr::null_mut(),
             internal: ptr::null_mut(),
-            #[cfg(PyPy)]
+            #[cfg(all(PyPy, not(PyPy_8_1)))]
             flags: 0,
-            #[cfg(PyPy)]
+            #[cfg(all(PyPy, not(PyPy_8_1)))]
             _strides: [0; PyBUF_MAX_NDIM],
-            #[cfg(PyPy)]
+            #[cfg(all(PyPy, not(PyPy_8_1)))]
             _shape: [0; PyBUF_MAX_NDIM],
         }
     }
