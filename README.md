@@ -195,6 +195,7 @@ about this topic.
 - [blake3-py](https://github.com/oconnor663/blake3-py) _Python bindings for the [BLAKE3](https://github.com/BLAKE3-team/BLAKE3) cryptographic hash function._
     - Parallelized [builds](https://github.com/oconnor663/blake3-py/blob/master/.github/workflows/dists.yml) on GitHub Actions for MacOS, Linux, Windows, including free-threaded 3.13t wheels.
 - [cellular_raza](https://cellular-raza.com) _A cellular agent-based simulation framework for building complex models from a clean slate._
+- [citry-core](https://github.com/citry-dev/citry/tree/citry-core@2.1.2/crates/citry_core_py) _The Rust engine behind [Citry](https://github.com/citry-dev/citry), a Python frontend framework: template parsing and compiling, formatting, HTML transforms and translations._
 - [connector-x](https://github.com/sfu-db/connector-x/tree/main/connectorx-python) _Fastest library to load data from DB to DataFrames in Rust and Python._
 - [cryptography](https://github.com/pyca/cryptography/tree/main/src/rust) _Python cryptography library with some functionality in Rust._
 - [css-inline](https://github.com/Stranger6667/css-inline/tree/master/crates/css-inline-python) _CSS inlining for Python implemented in Rust._
