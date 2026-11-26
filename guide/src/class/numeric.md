@@ -9,7 +9,9 @@ There are three obvious solutions:
 
   <!-- no-glossary-link:wheel -->
   However that would be quite boring - we'd be reinventing the wheel.
+
 - We can raise exceptions whenever `Number` overflows, but that makes the API painful to use.
+
 - We can wrap around the boundary of `i32`.
   This is the approach we'll take here.
   To do that we'll just forward to `i32`'s `wrapping_*` methods.
