@@ -2,6 +2,6 @@
   "name": "pyo3-netlify",
   "private": true,
   "dependencies": {
-    "netlify-cli": "27.5.2"
+    "netlify-cli": "27.20.0"
   }
 }
