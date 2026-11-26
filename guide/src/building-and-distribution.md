@@ -369,6 +369,7 @@ Trying out PyO3 is much easier using dynamic embedding.
 The known complications are:
 
 - To import compiled extension modules (such as other Rust extension modules, or those written in C), your binary must have the correct linker flags set during compilation to export the original contents of `libpython.a` so that extensions can use them (e.g. `-Wl,--export-dynamic`).
+
 - The C compiler and flags which were used to create `libpython.a` must be compatible with your Rust compiler and flags, else you will experience compilation failures.
 
   Significantly different compiler versions may see errors like this:

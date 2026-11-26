@@ -46,7 +46,9 @@ The given signatures should be interpreted as follows:
 ### Basic object customization
 
 - `__str__(<self>) -> object (str)`
+
 - `__repr__(<self>) -> object (str)`
+
 - `__hash__(<self>) -> isize`
 
   Objects that compare equal must have the same hash value.
@@ -76,10 +78,15 @@ The given signatures should be interpreted as follows:
   </details>
 
 - `__lt__(<self>, object) -> object`
+
 - `__le__(<self>, object) -> object`
+
 - `__eq__(<self>, object) -> object`
+
 - `__ne__(<self>, object) -> object`
+
 - `__gt__(<self>, object) -> object`
+
 - `__ge__(<self>, object) -> object`
 
   The implementations of Python's "rich comparison" operators `<`, `<=`, `==`, `!=`, `>` and `>=` respectively.
@@ -129,7 +136,9 @@ The given signatures should be interpreted as follows:
   ```
 
   If the second argument `object` is not of the type specified in the signature, the generated code will automatically `return NotImplemented`. </details>
+
 - `__getattr__(<self>, object) -> object`
+
 - `__getattribute__(<self>, object) -> object`
 
     <details>
@@ -143,12 +152,15 @@ The given signatures should be interpreted as follows:
     </details>
 
 - `__setattr__(<self>, value: object) -> ()`
+
 - `__delattr__(<self>, object) -> ()`
 
   Overrides attribute access.
+
 - `__bool__(<self>) -> bool`
 
   Determines the "truthyness" of an object.
+
 - `__call__(<self>, ...) -> object` - here, any argument list can be defined as for normal `pymethods`
 
 ### Iterable objects
