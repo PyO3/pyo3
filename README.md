@@ -222,6 +222,7 @@ about this topic.
 - [jsonschema](https://github.com/Stranger6667/jsonschema/tree/master/crates/jsonschema-py) _A high-performance JSON Schema validator for Python._
 - [llm-token-visualizer](https://github.com/Mattbusel/LLM-Hallucination-Detection-Script/tree/main/python) _Flags the words of an LLM answer the model was unsure about, from OpenAI or vLLM token logprobs._
 - [mocpy](https://github.com/cds-astro/mocpy) _Astronomical Python library offering data structures for describing any arbitrary coverage regions on the unit sphere._
+- [monorm](https://github.com/UniForgeStack/monorm) _An async ORM for Python and TypeScript with a Rust core and a schema in Prisma syntax._
 - [obstore](https://github.com/developmentseed/obstore) _The simplest, highest-throughput Python interface to Amazon S3, Google Cloud Storage, Azure Storage, & other S3-compliant APIs, powered by Rust._
 - [opendal](https://github.com/apache/opendal/tree/main/bindings/python) _A data access layer that allows users to easily and efficiently retrieve data from various storage services in a unified way._
 - [orjson](https://github.com/ijl/orjson) _Fast Python JSON library._
