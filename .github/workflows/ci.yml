@@ -505,7 +505,7 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
           rustup default stable
-      - uses: taiki-e/install-action@v2.90.6
+      - uses: taiki-e/install-action@v2.90.8
         with:
           tool: valgrind
       - uses: astral-sh/setup-uv@v10.4.0
@@ -537,7 +537,7 @@ jobs:
         run: |
           rustup toolchain install nightly-2026-08-06 --profile minimal --no-self-update --component rust-src
           rustup default nightly-2026-08-06
-      - uses: taiki-e/install-action@v2.90.6
+      - uses: taiki-e/install-action@v2.90.8
         with:
           tool: cargo-careful
       - uses: astral-sh/setup-uv@v10.4.0
@@ -726,7 +726,7 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --no-self-update
           rustup default stable
-      - uses: taiki-e/install-action@v2.90.6
+      - uses: taiki-e/install-action@v2.90.8
         with:
           tool: cargo-hack,cargo-minimal-versions
       - uses: astral-sh/setup-uv@v10.4.0
