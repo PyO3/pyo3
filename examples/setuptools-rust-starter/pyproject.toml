@@ -5,7 +5,6 @@ requires = ["setuptools>=62.4", "setuptools_rust>=1.11"]
 name = "setuptools-rust-starter"
 version = "0.1.0"
 classifiers = [
-    "License :: OSI Approved :: MIT License",
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python",
@@ -13,6 +12,7 @@ classifiers = [
     "Operating System :: POSIX",
     "Operating System :: MacOS :: MacOS X",
 ]
+license = "MIT OR Apache-2.0"
 
 [project.optional-dependencies]
 dev = ["pytest"]
