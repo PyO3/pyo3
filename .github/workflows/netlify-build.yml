@@ -42,7 +42,7 @@ jobs:
           rustup default nightly
 
       - name: Setup mdBook
-        uses: taiki-e/install-action@v2.90.6
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: mdbook@0.5, mdbook-tabs@0.3, lychee
 
