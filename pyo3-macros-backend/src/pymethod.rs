@@ -1855,7 +1855,7 @@ impl SlotFragmentDef {
                     py: #pyo3_path::Python,
                     #(#arg_idents: #arg_types),*
                 ) -> #pyo3_path::PyResult<#ret_ty> {
-                    #cls::#wrapper_ident(py, #(#arg_idents),*)
+                    unsafe { #cls::#wrapper_ident(py, #(#arg_idents),*) }
                 }
             }
         })
