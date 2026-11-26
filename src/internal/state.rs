@@ -99,14 +99,14 @@ impl AttachGuard {
         }
 
         // SAFETY: always safe to call this
-        if unsafe { ffi::Py_IsInitialized() } == 0 {
-            return Err(AttachError::NotInitialized);
-        }
+        let is_initialized = unsafe { ffi::Py_IsInitialized() } != 0;
 
         // Py_IsInitialized() can return 1 while Py_InitializeEx is still
         // running (e.g. importing site.py). Block until any in-progress PyO3
         // initialization has fully completed.
-        crate::interpreter_lifecycle::wait_for_initialization();
+        if is_initialized {
+            crate::interpreter_lifecycle::wait_for_initialization();
+        }
 
         // Calling `PyGILState_Ensure` while finalizing may crash CPython in unpredictable
         // ways, we'll make a best effort attempt here to avoid that. (There's a time of
@@ -115,8 +115,11 @@ impl AttachGuard {
         // SAFETY: always safe to call this
         #[cfg(Py_3_13)]
         if unsafe { ffi::Py_IsFinalizing() } != 0 {
-            // If the interpreter is not initialized, we cannot attach.
             return Err(AttachError::Finalizing);
+        }
+
+        if !is_initialized {
+            return Err(AttachError::NotInitialized);
         }
 
         // SAFETY: We have done everything reasonable to ensure we're in a safe state to
