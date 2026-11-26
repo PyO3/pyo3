@@ -15,5 +15,5 @@ classifiers = [
     "Operating System :: MacOS :: MacOS X",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = ["pytest"]
