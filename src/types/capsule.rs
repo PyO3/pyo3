@@ -781,6 +781,7 @@ mod tests {
 
     #[test]
     fn test_pycapsule_import() {
+        #[derive(Debug)]
         #[repr(C)]
         struct Foo {
             pub val: u32,
@@ -797,11 +798,8 @@ mod tests {
 
             // check error when wrong named passed for capsule.
             // SAFETY: this function will fail so the cast is never done
-            let result: PyResult<&Foo> = unsafe { PyCapsule::import(py, c"builtins.non_existent") };
-            let Err(err) = result else {
-                panic!("importing a non-existent capsule should fail");
-            };
-            assert!(err.is_instance_of::<PyAttributeError>(py));
+            let result = unsafe { PyCapsule::import::<Foo>(py, c"builtins.non_existent") };
+            assert!(result.unwrap_err().is_instance_of::<PyAttributeError>(py));
 
             // correct name is okay.
             // SAFETY: we know the capsule at `name` contains a `Foo`
@@ -812,6 +810,7 @@ mod tests {
 
     #[test]
     fn test_misaligned_import() {
+        #[derive(Debug)]
         #[repr(align(128))]
         struct Align128 {
             _n: usize,
@@ -828,9 +827,7 @@ mod tests {
             module.add("misaligned_capsule", capsule).unwrap();
 
             // SAFETY: this should return an error so no reference will be created
-            let Err(err) = (unsafe { PyCapsule::import::<Align128>(py, name) }) else {
-                panic!("importing a misaligned capsule should fail");
-            };
+            let err = unsafe { PyCapsule::import::<Align128>(py, name) }.unwrap_err();
             assert!(err.is_instance_of::<PySystemError>(py));
             assert!(err.to_string().contains("is not aligned to rust type"));
         });
