@@ -10,10 +10,11 @@ use core::cell::UnsafeCell;
 
 use crate::sync::MutexExt;
 use crate::{
-    Bound, Py, PyAny, PyErrArguments, PyTypeInfo, Python,
+    Bound, Py, PyAny, PyErr, PyErrArguments, PyTypeInfo, Python,
     exceptions::{PyBaseException, PyTypeError},
     ffi,
     ffi_ptr_ext::FfiPtrExt,
+    pyclass::{PyGcTraversable, PyTraverseError, PyVisit},
     types::{PyAnyMethods, PyTraceback, PyType},
 };
 
@@ -133,6 +134,35 @@ impl PyErrState {
             _ => unreachable!(),
         }
     }
+}
+
+// SAFETY: traversing `PyErr` only reports the normalized exception object and does
+// not execute arbitrary Python code.
+unsafe impl PyGcTraversable for PyErr {
+    const MAY_CONTAIN_CYCLES: bool = true;
+
+    fn traverse(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        if !self.state.normalized.is_completed() {
+            return Ok(());
+        }
+
+        match unsafe {
+            // SAFETY: once normalized, `inner` is no longer mutated.
+            &*self.state.inner.get()
+        } {
+            Some(PyErrStateInner::Normalized(normalized)) => {
+                #[cfg(not(Py_3_12))]
+                visit.call(&normalized.ptype)?;
+                visit.call(&normalized.pvalue)?;
+                #[cfg(not(Py_3_12))]
+                normalized.ptraceback.traverse(visit)?;
+                Ok(())
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn clear(&mut self) {}
 }
 
 pub(crate) struct PyErrStateNormalized {
