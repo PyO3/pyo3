@@ -33,6 +33,7 @@ use target_lexicon::{Architecture, OperatingSystem};
 /// | `#[cfg(Py_LIMITED_API)]` | This marks code which is run when compiling with PyO3's `abi3` or abi3t feature enabled. |
 /// | `#[cfg(Py_GIL_DISABLED)]` | This marks code which is run on the free-threaded interpreter. |
 /// | `#[cfg(PyPy)]` | This marks code which is run when compiling for PyPy. |
+/// | `#[cfg(PyPy_8_1)]` | This marks code which is run when compiling for PyPy 8.1 **and newer**. |
 /// | `#[cfg(GraalPy)]` | This marks code which is run when compiling for GraalPy. |
 /// | `#[cfg(RustPython)]` | This marks code which is run when compiling for RustPython. |
 ///
@@ -157,6 +158,9 @@ pub fn print_expected_cfgs() {
     println!("cargo:rustc-check-cfg=cfg(Py_LIMITED_API)");
     println!("cargo:rustc-check-cfg=cfg(Py_GIL_DISABLED)");
     println!("cargo:rustc-check-cfg=cfg(PyPy)");
+    for (major, minor) in impl_::PYPY_VERSION_CFGS {
+        println!("cargo:rustc-check-cfg=cfg(PyPy_{major}_{minor})");
+    }
     println!("cargo:rustc-check-cfg=cfg(GraalPy)");
     println!("cargo:rustc-check-cfg=cfg(RustPython)");
     println!(

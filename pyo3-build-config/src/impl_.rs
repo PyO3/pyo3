@@ -36,6 +36,11 @@ const MINIMUM_SUPPORTED_VERSION_GRAALPY: PythonVersion = PythonVersion {
     minor: 0,
 };
 
+/// PyPy releases which get a `PyPy_X_Y` cfg when building for that release or newer.
+///
+/// - 8.1: datetime structs, datetime accessor macros, and `Py_buffer` match CPython's layout.
+pub(crate) const PYPY_VERSION_CFGS: &[(u8, u8)] = &[(8, 1)];
+
 /// Maximum Python version that can be used as minimum required Python version with abi3.
 pub(crate) const STABLE_ABI_MAX_MINOR: u8 = 15;
 
@@ -270,6 +275,7 @@ pub struct InterpreterConfig {
         note = "please use `.python_framework_prefix()` getter or `InterpreterConfigBuilder` instead"
     )]
     pub python_framework_prefix: Option<String>,
+    pypy_version: Option<PythonVersion>,
 }
 
 // Should no longer be deprecated once the internal fields are private
@@ -374,6 +380,10 @@ impl InterpreterConfig {
         self.python_framework_prefix.as_deref()
     }
 
+    pub fn pypy_version(&self) -> Option<PythonVersion> {
+        self.pypy_version
+    }
+
     #[doc(hidden)]
     pub fn build_script_outputs(&self) -> Vec<String> {
         // This should have been checked during pyo3-build-config build time.
@@ -387,7 +397,16 @@ impl InterpreterConfig {
 
         match self.target_abi.implementation() {
             PythonImplementation::CPython => {}
-            PythonImplementation::PyPy => out.push("cargo:rustc-cfg=PyPy".to_owned()),
+            PythonImplementation::PyPy => {
+                out.push("cargo:rustc-cfg=PyPy".to_owned());
+                if let Some(pypy_version) = self.pypy_version {
+                    for &(major, minor) in PYPY_VERSION_CFGS {
+                        if pypy_version >= (PythonVersion { major, minor }) {
+                            out.push(format!("cargo:rustc-cfg=PyPy_{major}_{minor}"));
+                        }
+                    }
+                }
+            }
             PythonImplementation::GraalPy => out.push("cargo:rustc-cfg=GraalPy".to_owned()),
             PythonImplementation::RustPython => out.push("cargo:rustc-cfg=RustPython".to_owned()),
         }
@@ -433,6 +452,9 @@ from sysconfig import get_config_var, get_platform
 
 PYPY = platform.python_implementation() == "PyPy"
 GRAALPY = platform.python_implementation() == "GraalVM"
+
+if PYPY:
+    print("pypy_version", "{}.{}".format(*sys.pypy_version_info[:2]))
 
 if GRAALPY:
     graalpy_ver = map(int, __graalpython__.get_graalvm_version().split('.'));
@@ -510,6 +532,12 @@ print("debug", bool(debug))
             );
         };
 
+        let pypy_version = map
+            .get("pypy_version")
+            .map(|v| v.parse())
+            .transpose()
+            .context("failed to parse PyPy version")?;
+
         let shared = map["shared"].as_str() == "True";
         let python_framework_prefix = map.get("python_framework_prefix").cloned();
 
@@ -579,6 +607,7 @@ print("debug", bool(debug))
             .pointer_width(calcsize_pointer * 8)
             .build_flags(BuildFlags::from_interpreter(interpreter)?)
             .python_framework_prefix(python_framework_prefix)
+            .pypy_version(pypy_version)
             .finalize()
     }
 
@@ -725,6 +754,7 @@ print("debug", bool(debug))
         let mut suppress_build_script_link_lines: Option<bool> = None;
         let mut extra_build_script_lines = vec![];
         let mut python_framework_prefix = None;
+        let mut pypy_version = None;
 
         for (i, line) in lines.enumerate() {
             let line = line.context("failed to read line from config")?;
@@ -755,6 +785,7 @@ print("debug", bool(debug))
                     extra_build_script_lines.push(value.to_string());
                 }
                 "python_framework_prefix" => parse_value!(python_framework_prefix, value),
+                "pypy_version" => parse_value!(pypy_version, value),
                 unknown => warn!("unknown config key `{}`", unknown),
             }
         }
@@ -794,7 +825,8 @@ print("debug", bool(debug))
             .build_flags(build_flags)
             .suppress_build_script_link_lines(suppress_build_script_link_lines.unwrap_or(false))
             .extra_build_script_lines(extra_build_script_lines)
-            .python_framework_prefix(python_framework_prefix);
+            .python_framework_prefix(python_framework_prefix)
+            .pypy_version(pypy_version);
 
         builder.finalize()
     }
@@ -854,6 +886,7 @@ print("debug", bool(debug))
         write_option_line!(pointer_width)?;
         write_line!(build_flags)?;
         write_option_line!(python_framework_prefix)?;
+        write_option_line!(pypy_version)?;
         write_line!(suppress_build_script_link_lines)?;
         for line in &self.extra_build_script_lines {
             writeln!(writer, "extra_build_script_line={line}")
@@ -1276,6 +1309,7 @@ pub struct InterpreterConfigBuilder {
     suppress_build_script_link_lines: bool,
     extra_build_script_lines: Vec<String>,
     python_framework_prefix: Option<String>,
+    pypy_version: Option<PythonVersion>,
 }
 
 impl InterpreterConfigBuilder {
@@ -1296,6 +1330,7 @@ impl InterpreterConfigBuilder {
             suppress_build_script_link_lines: false,
             extra_build_script_lines: vec![],
             python_framework_prefix: None,
+            pypy_version: None,
         }
     }
 
@@ -1387,6 +1422,14 @@ impl InterpreterConfigBuilder {
         self
     }
 
+    pub fn pypy_version(
+        mut self,
+        pypy_version: impl Into<Option<PythonVersion>>,
+    ) -> InterpreterConfigBuilder {
+        self.pypy_version = pypy_version.into();
+        self
+    }
+
     pub fn finalize(self) -> Result<InterpreterConfig> {
         let mut build_flags = self.build_flags;
         let py_gil_disabled = build_flags.0.contains(&BuildFlag::Py_GIL_DISABLED);
@@ -1469,6 +1512,7 @@ impl InterpreterConfigBuilder {
             suppress_build_script_link_lines: self.suppress_build_script_link_lines,
             extra_build_script_lines: self.extra_build_script_lines,
             python_framework_prefix: self.python_framework_prefix,
+            pypy_version: self.pypy_version,
         })
     }
 }
