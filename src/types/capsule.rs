@@ -693,6 +693,7 @@ fn name_ptr(name: Option<&CStr>) -> *const c_char {
 mod tests {
     extern crate std;
 
+    use crate::exceptions::{PyAttributeError, PyImportError, PySystemError, PyValueError};
     use crate::platform::prelude::*;
     use crate::prelude::PyModule;
     use crate::types::capsule::PyCapsuleMethods;
@@ -780,6 +781,7 @@ mod tests {
 
     #[test]
     fn test_pycapsule_import() {
+        #[derive(Debug)]
         #[repr(C)]
         struct Foo {
             pub val: u32,
@@ -796,8 +798,8 @@ mod tests {
 
             // check error when wrong named passed for capsule.
             // SAFETY: this function will fail so the cast is never done
-            let result: PyResult<&Foo> = unsafe { PyCapsule::import(py, c"builtins.non_existent") };
-            assert!(result.is_err());
+            let result = unsafe { PyCapsule::import::<Foo>(py, c"builtins.non_existent") };
+            assert!(result.unwrap_err().is_instance_of::<PyAttributeError>(py));
 
             // correct name is okay.
             // SAFETY: we know the capsule at `name` contains a `Foo`
@@ -808,6 +810,7 @@ mod tests {
 
     #[test]
     fn test_misaligned_import() {
+        #[derive(Debug)]
         #[repr(align(128))]
         struct Align128 {
             _n: usize,
@@ -815,16 +818,18 @@ mod tests {
 
         Python::attach(|py| {
             let ptr = NonNull::new(129 as *mut c_void).unwrap();
-            let name = c"builtins.capsule";
+            let name = c"builtins.misaligned_capsule";
 
             // SAFETY: the pointer will never be dereferenced
             let capsule = unsafe { PyCapsule::new_with_pointer(py, ptr, name) }.unwrap();
 
             let module = PyModule::import(py, "builtins").unwrap();
-            module.add("capsule", capsule).unwrap();
+            module.add("misaligned_capsule", capsule).unwrap();
 
             // SAFETY: this should return an error so no reference will be created
-            assert!(unsafe { PyCapsule::import::<Align128>(py, name) }.is_err());
+            let err = unsafe { PyCapsule::import::<Align128>(py, name) }.unwrap_err();
+            assert!(err.is_instance_of::<PySystemError>(py));
+            assert!(err.to_string().contains("is not aligned to rust type"));
         });
     }
 
@@ -981,11 +986,11 @@ mod tests {
 
             // Requesting with wrong name should fail
             let result = cap.pointer_checked(Some(c"wrong.name"));
-            assert!(result.is_err());
+            assert!(result.unwrap_err().is_instance_of::<PyValueError>(py));
 
             // Requesting with None when capsule has a name should also fail
             let result = cap.pointer_checked(None);
-            assert!(result.is_err());
+            assert!(result.unwrap_err().is_instance_of::<PyValueError>(py));
         });
     }
 
@@ -1001,7 +1006,7 @@ mod tests {
 
             // Should fail with Some(name)
             let result = cap_no_name.pointer_checked(Some(c"some.name"));
-            assert!(result.is_err());
+            assert!(result.unwrap_err().is_instance_of::<PyValueError>(py));
         });
     }
 
@@ -1047,8 +1052,11 @@ mod tests {
             }
 
             // context() on invalid capsule should fail
-            let result = cap.context();
-            assert!(result.is_err());
+            assert!(
+                cap.context()
+                    .unwrap_err()
+                    .is_instance_of::<PyValueError>(py)
+            );
         });
     }
 
@@ -1059,7 +1067,7 @@ mod tests {
             // SAFETY: we expect this to fail, no cast will occur
             let result: PyResult<&u32> =
                 unsafe { PyCapsule::import(py, c"nonexistent_module.capsule") };
-            assert!(result.is_err());
+            assert!(result.unwrap_err().is_instance_of::<PyImportError>(py));
         });
     }
 
@@ -1075,7 +1083,7 @@ mod tests {
             // SAFETY: we expect this to fail
             let result: PyResult<&u32> =
                 unsafe { PyCapsule::import(py, c"builtins.wrong_attribute") };
-            assert!(result.is_err());
+            assert!(result.unwrap_err().is_instance_of::<PyAttributeError>(py));
         });
     }
 
