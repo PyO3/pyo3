@@ -291,7 +291,7 @@ impl UnsendableChild {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
-    let (keep_obj_here, obj) = Python::attach(|py| -> PyResult<_> {
+    let obj = Python::attach(|py| -> PyResult<_> {
         let obj: Py<T> = PyType::new::<T>(py).call1((5,))?.extract()?;
 
         // Accessing the value inside this thread should not panic
@@ -304,18 +304,20 @@ fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
 
         assert!(!caught_panic);
 
-        Ok((obj.clone_ref(py), obj))
+        Ok(obj)
     })?;
 
-    let caught_panic = std::thread::spawn(move || {
-        // This access must panic
-        Python::attach(move |py| {
-            obj.borrow(py);
-        });
-    })
-    .join();
+    let caught_panic = std::thread::scope(|s| {
+        s.spawn(|| {
+            // This access must panic
+            Python::attach(|py| {
+                obj.getattr(py, "value").unwrap();
+            });
+        })
+        .join()
+    });
 
-    Python::attach(|_py| drop(keep_obj_here));
+    Python::attach(|_py| drop(obj));
 
     if let Err(err) = caught_panic {
         if let Some(msg) = err.downcast_ref::<String>() {
