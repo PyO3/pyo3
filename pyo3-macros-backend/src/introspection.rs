@@ -230,7 +230,7 @@ fn function_introspection_data<'a>(
                 .as_ref()
                 .and_then(|attribute| attribute.value.returns.as_ref())
             {
-                returns.as_type_hint().into()
+                returns.to_py_expr().into()
             } else {
                 returns.into()
             },

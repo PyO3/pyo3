@@ -52,16 +52,64 @@ error: arguments of type `Python` must not be part of the signature
 56 | #[pyfunction(signature = (py))]
    |                           ^^
 
-error: expected argument from function definition `args` but got argument `kwargs`
-  --> tests/ui/invalid_pyfunction_signatures.rs:67:27
+error: subscripts must not be empty, use `[()]` for an empty tuple
+  --> tests/ui/invalid_pyfunction_signatures.rs:62:34
    |
-67 |     #[pyo3(signature = (**kwargs, *, *args, x))]
-   |                           ^^^^^^
+62 | #[pyfunction(signature = (a: list[]))]
+   |                                  ^^
+
+error: use the Python spelling `True` for booleans in type annotations
+  --> tests/ui/invalid_pyfunction_signatures.rs:68:45
+   |
+68 | #[pyfunction(signature = (a: typing.Literal[true]))]
+   |                                             ^^^^
+
+error: float literals are not valid in type annotations
+  --> tests/ui/invalid_pyfunction_signatures.rs:74:45
+   |
+74 | #[pyfunction(signature = (a: typing.Literal[1.5]))]
+   |                                             ^^^
+
+error: literal suffixes are not supported in type annotations
+  --> tests/ui/invalid_pyfunction_signatures.rs:80:45
+   |
+80 | #[pyfunction(signature = (a: typing.Literal[1u8]))]
+   |                                             ^^^
+
+error: literal suffixes are not supported in type annotations
+  --> tests/ui/invalid_pyfunction_signatures.rs:86:45
+   |
+86 | #[pyfunction(signature = (a: typing.Literal["foo"bar]))]
+   |                                             ^^^^^^^^
+
+error: only integers can be negated in type annotations
+  --> tests/ui/invalid_pyfunction_signatures.rs:92:46
+   |
+92 | #[pyfunction(signature = (a: typing.Literal[-"foo"]))]
+   |                                              ^^^^^
+
+error: unsupported literal in type annotation, only strings and integers are supported
+  --> tests/ui/invalid_pyfunction_signatures.rs:98:45
+   |
+98 | #[pyfunction(signature = (a: typing.Literal['c']))]
+   |                                             ^^^
+
+error: expected `,`
+   --> tests/ui/invalid_pyfunction_signatures.rs:104:34
+    |
+104 | #[pyfunction(signature = (a: int +))]
+    |                                  ^
+
+error: expected argument from function definition `args` but got argument `kwargs`
+   --> tests/ui/invalid_pyfunction_signatures.rs:115:27
+    |
+115 |     #[pyo3(signature = (**kwargs, *, *args, x))]
+    |                           ^^^^^^
 
 error: expected argument from function definition `x` but got argument `kwargs`
-  --> tests/ui/invalid_pyfunction_signatures.rs:75:27
-   |
-75 |     #[pyo3(signature = (**kwargs, *, *args, x))]
-   |                           ^^^^^^
+   --> tests/ui/invalid_pyfunction_signatures.rs:123:27
+    |
+123 |     #[pyo3(signature = (**kwargs, *, *args, x))]
+    |                           ^^^^^^
 
-error: aborting due to 11 previous errors
+error: aborting due to 19 previous errors

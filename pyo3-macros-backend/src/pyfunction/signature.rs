@@ -1,15 +1,17 @@
 #[cfg(feature = "experimental-inspect")]
-use crate::py_expr::PyExpr;
+use crate::py_expr::{PyConstant, PyExpr};
 use crate::{
     attributes::{KeywordAttribute, kw},
     method::FnArg,
     utils::expr_to_python,
 };
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
+use syn::token::{Brace, Bracket, Paren};
 use syn::{
-    Expr, Token,
+    Expr, Lit, LitInt, LitStr, Token, braced, bracketed,
     ext::IdentExt,
+    parenthesized,
     parse::{Parse, ParseStream},
     parse_quote,
     punctuated::Punctuated,
@@ -238,24 +240,230 @@ impl ToTokens for SignatureItemPosargsSep {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PyTypeAnnotation(syn::LitStr);
+pub enum PyTypeAnnotation {
+    /// A dotted path like `int` or `collections.abc.Iterable`
+    Path(Punctuated<Ident, Token![.]>),
+    /// A string literal like `"foo"`
+    Str(LitStr),
+    /// An integer literal like `1` or `-1`
+    Int {
+        minus: Option<Token![-]>,
+        lit: LitInt,
+    },
+    /// `...`
+    Ellipsis(Token![...]),
+    /// `{ SOME_RUST_EXPR }`
+    RustExpr { braces: Brace, expr: Box<Expr> },
+    /// `[a, b]`
+    List {
+        brackets: Bracket,
+        elts: Punctuated<Self, Token![,]>,
+    },
+    /// `(a, b)`, `()` or a parenthesized expression `(a)`
+    Tuple {
+        parens: Paren,
+        elts: Punctuated<Self, Token![,]>,
+    },
+    /// `value[slice]`
+    Subscript {
+        value: Box<Self>,
+        brackets: Bracket,
+        slice: Punctuated<Self, Token![,]>,
+    },
+    /// `left | right`
+    Union {
+        left: Box<Self>,
+        pipe: Token![|],
+        right: Box<Self>,
+    },
+}
 
 impl Parse for PyTypeAnnotation {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        Ok(Self(input.parse()?))
+        Self::parse_union(input)
+    }
+}
+
+impl PyTypeAnnotation {
+    /// Parses a union of possibly subscribed atoms
+    fn parse_union(input: ParseStream<'_>) -> syn::Result<Self> {
+        let mut annotation = Self::parse_subscript(input)?;
+        while input.peek(Token![|]) {
+            annotation = Self::Union {
+                left: Box::new(annotation),
+                pipe: input.parse()?,
+                right: Box::new(Self::parse_subscript(input)?),
+            };
+        }
+        Ok(annotation)
+    }
+
+    /// Parses an atom followed by any number of subscripts
+    fn parse_subscript(input: ParseStream<'_>) -> syn::Result<Self> {
+        let mut annotation = Self::parse_atom(input)?;
+        while input.peek(Bracket) {
+            let content;
+            let brackets = bracketed!(content in input);
+            let slice = Self::parse_elts(&content)?;
+            ensure_spanned!(!slice.is_empty(), brackets.span.join() => "subscripts must not be empty, use `[()]` for an empty tuple");
+            annotation = Self::Subscript {
+                value: Box::new(annotation),
+                brackets,
+                slice,
+            };
+        }
+        Ok(annotation)
+    }
+
+    fn parse_atom(input: ParseStream<'_>) -> syn::Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(Brace) {
+            let content;
+            Ok(Self::RustExpr {
+                braces: braced!(content in input),
+                expr: content.parse()?,
+            })
+        } else if lookahead.peek(Bracket) {
+            let content;
+            Ok(Self::List {
+                brackets: bracketed!(content in input),
+                elts: Self::parse_elts(&content)?,
+            })
+        } else if lookahead.peek(Paren) {
+            let content;
+            Ok(Self::Tuple {
+                parens: parenthesized!(content in input),
+                elts: Self::parse_elts(&content)?,
+            })
+        } else if lookahead.peek(Token![...]) {
+            Ok(Self::Ellipsis(input.parse()?))
+        } else if lookahead.peek(Token![-]) {
+            let minus = input.parse()?;
+            Self::literal(Some(minus), input.parse()?)
+        } else if lookahead.peek(Lit) {
+            Self::literal(None, input.parse()?)
+        } else if lookahead.peek(Ident::peek_any) {
+            Ok(Self::Path(Punctuated::parse_separated_nonempty_with(
+                input,
+                Ident::parse_any,
+            )?))
+        } else {
+            Err(lookahead.error())
+        }
+    }
+
+    fn literal(minus: Option<Token![-]>, lit: Lit) -> syn::Result<Self> {
+        match lit {
+            Lit::Int(lit) => {
+                ensure_spanned!(lit.suffix().is_empty(), lit.span() => "literal suffixes are not supported in type annotations");
+                Ok(Self::Int { minus, lit })
+            }
+            lit if minus.is_some() => {
+                bail_spanned!(lit.span() => "only integers can be negated in type annotations")
+            }
+            Lit::Str(lit) => {
+                ensure_spanned!(lit.suffix().is_empty(), lit.span() => "literal suffixes are not supported in type annotations");
+                Ok(Self::Str(lit))
+            }
+            Lit::Bool(b) => {
+                let python = if b.value() { "True" } else { "False" };
+                bail_spanned!(b.span() => format!("use the Python spelling `{python}` for booleans in type annotations"))
+            }
+            Lit::Float(f) => {
+                bail_spanned!(f.span() => "float literals are not valid in type annotations")
+            }
+            lit => {
+                bail_spanned!(lit.span() => "unsupported literal in type annotation, only strings and integers are supported")
+            }
+        }
+    }
+
+    fn parse_elts(input: ParseStream<'_>) -> syn::Result<Punctuated<Self, Token![,]>> {
+        Punctuated::parse_terminated(input)
     }
 }
 
 impl ToTokens for PyTypeAnnotation {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
+        match self {
+            Self::Path(path) => path.to_tokens(tokens),
+            Self::Str(lit) => lit.to_tokens(tokens),
+            Self::Int { minus, lit } => {
+                minus.to_tokens(tokens);
+                lit.to_tokens(tokens);
+            }
+            Self::Ellipsis(ellipsis) => ellipsis.to_tokens(tokens),
+            Self::RustExpr { braces, expr } => {
+                braces.surround(tokens, |tokens| expr.to_tokens(tokens))
+            }
+            Self::List { brackets, elts } => {
+                brackets.surround(tokens, |tokens| elts.to_tokens(tokens))
+            }
+            Self::Tuple { parens, elts } => {
+                parens.surround(tokens, |tokens| elts.to_tokens(tokens))
+            }
+            Self::Subscript {
+                value,
+                brackets,
+                slice,
+            } => {
+                value.to_tokens(tokens);
+                brackets.surround(tokens, |tokens| slice.to_tokens(tokens));
+            }
+            Self::Union { left, pipe, right } => {
+                left.to_tokens(tokens);
+                pipe.to_tokens(tokens);
+                right.to_tokens(tokens);
+            }
+        }
     }
 }
 
 impl PyTypeAnnotation {
     #[cfg(feature = "experimental-inspect")]
-    pub fn as_type_hint(&self) -> PyExpr {
-        PyExpr::str_constant(self.0.value())
+    pub fn to_py_expr(&self) -> PyExpr {
+        match self {
+            Self::Path(path) => {
+                let mut segments = path.iter().map(|segment| segment.unraw().to_string());
+                let name = segments.next_back().expect("paths are never empty");
+                let module = segments.collect::<Vec<_>>();
+                if module.is_empty() {
+                    match name.as_str() {
+                        "None" => PyExpr::none(),
+                        "True" => PyExpr::Constant(PyConstant::Bool(true)),
+                        "False" => PyExpr::Constant(PyConstant::Bool(false)),
+                        _ => PyExpr::builtin(name),
+                    }
+                } else {
+                    PyExpr::module_attr(module.join("."), name)
+                }
+            }
+            Self::Str(lit) => PyExpr::str_constant(lit.value()),
+            Self::Int { minus, lit } => {
+                let sign = if minus.is_some() { "-" } else { "" };
+                PyExpr::Constant(PyConstant::Int(format!("{sign}{}", lit.base10_digits())))
+            }
+            Self::Ellipsis(_) => PyExpr::ellipsis(),
+            Self::RustExpr { expr, .. } => PyExpr::RustExpr {
+                expr: (**expr).clone(),
+            },
+            Self::List { elts, .. } => PyExpr::list(elts.iter().map(Self::to_py_expr)),
+            Self::Tuple { elts, .. } => Self::elts_to_py_expr(elts),
+            Self::Subscript { value, slice, .. } => {
+                PyExpr::subscript(value.to_py_expr(), Self::elts_to_py_expr(slice))
+            }
+            Self::Union { left, right, .. } => PyExpr::union(left.to_py_expr(), right.to_py_expr()),
+        }
+    }
+
+    /// A single element without trailing comma is the element itself, like in Python
+    #[cfg(feature = "experimental-inspect")]
+    fn elts_to_py_expr(elts: &Punctuated<Self, Token![,]>) -> PyExpr {
+        if elts.len() == 1 && !elts.trailing_punct() {
+            elts[0].to_py_expr()
+        } else {
+            PyExpr::tuple(elts.iter().map(Self::to_py_expr))
+        }
     }
 }
 
@@ -505,7 +713,7 @@ impl<'a> FunctionSignature<'a> {
                     }
                     #[cfg(feature = "experimental-inspect")]
                     if let Some((_, annotation)) = &arg.colon_and_annotation {
-                        fn_arg.annotation = Some(annotation.as_type_hint());
+                        fn_arg.annotation = Some(annotation.to_py_expr());
                     }
                 }
                 SignatureItem::VarargsSep(sep) => {
@@ -524,7 +732,7 @@ impl<'a> FunctionSignature<'a> {
                                 once, this has to be a regular argument."
                             );
                         };
-                        fn_arg.annotation = Some(annotation.as_type_hint());
+                        fn_arg.annotation = Some(annotation.to_py_expr());
                     }
                 }
                 SignatureItem::Kwargs(kwargs) => {
@@ -540,7 +748,7 @@ impl<'a> FunctionSignature<'a> {
                                 once, this has to be a regular argument."
                             );
                         };
-                        fn_arg.annotation = Some(annotation.as_type_hint());
+                        fn_arg.annotation = Some(annotation.to_py_expr());
                     }
                 }
                 SignatureItem::PosargsSep(sep) => {
