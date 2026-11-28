@@ -1,6 +1,7 @@
 //! Contains a non-poisoning variant of [`PyMutex`].
 
 use core::cell::UnsafeCell;
+use core::fmt;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 
@@ -133,6 +134,20 @@ impl<'a, T> DerefMut for PyMutexGuard<'a, T> {
     }
 }
 
+impl<'a, T: fmt::Debug> fmt::Debug for PyMutexGuard<'a, T> {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (**self).fmt(f)
+    }
+}
+
+impl<'a, T: fmt::Display> fmt::Display for PyMutexGuard<'a, T> {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (**self).fmt(f)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     extern crate std;
@@ -251,5 +266,13 @@ mod tests {
 
         assert!(value_of!(IsSend, PyMutex<i32>));
         assert!(value_of!(IsSync, PyMutex<i32>));
+    }
+
+    #[test]
+    fn test_mutex_debug_display() {
+        let mutex = PyMutex::new("foo");
+        let guard = mutex.lock();
+        assert_eq!(format!("{:?}", guard), "\"foo\"");
+        assert_eq!(format!("{}", guard), "foo");
     }
 }
