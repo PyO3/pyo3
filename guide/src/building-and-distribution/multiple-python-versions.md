@@ -1,6 +1,7 @@
 # Supporting multiple Python versions
 
 PyO3 supports all actively-supported Python 3 and PyPy versions.
+For PyPy, PyO3 generally only tests against the latest patch release, so older patch releases may lack required C API symbols.
 As much as possible, this is done internally to PyO3 so that your crate's code does not need to adapt to the differences between each version.
 However, as Python features grow and change between versions, PyO3 cannot offer a completely identical API for every Python version.
 This may require you to add conditional compilation to your crate or runtime checks for the Python version.
