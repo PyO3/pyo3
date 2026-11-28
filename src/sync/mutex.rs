@@ -272,12 +272,14 @@ impl<'a, T> DerefMut for PyMutexGuard<'a, T> {
 }
 
 impl<'a, T: fmt::Debug> fmt::Debug for PyMutexGuard<'a, T> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (**self).fmt(f)
     }
 }
 
 impl<'a, T: fmt::Display> fmt::Display for PyMutexGuard<'a, T> {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (**self).fmt(f)
     }
