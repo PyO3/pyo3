@@ -1,4 +1,5 @@
 use core::cell::UnsafeCell;
+use core::fmt;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 #[cfg(panic = "unwind")]
@@ -270,6 +271,20 @@ impl<'a, T> DerefMut for PyMutexGuard<'a, T> {
     }
 }
 
+impl<'a, T: fmt::Debug> fmt::Debug for PyMutexGuard<'a, T> {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (**self).fmt(f)
+    }
+}
+
+impl<'a, T: fmt::Display> fmt::Display for PyMutexGuard<'a, T> {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (**self).fmt(f)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[cfg(not(target_arch = "wasm32"))]
@@ -406,23 +421,18 @@ mod tests {
         .expect_err("thread should have panicked");
 
         // by now the lock is poisoned, use into_inner to recover the value despite that
-        let guard = match mutex.lock() {
-            Ok(_) => {
-                unreachable!();
-            }
-            Err(poisoned) => poisoned.into_inner(),
-        };
+        let guard = mutex.lock().expect_err("mutex is poisoned").into_inner();
 
         Python::attach(|py| {
-            assert!(
+            assert_eq!(
                 (*guard)
                     .bind(py)
                     .get_item("hello")
                     .unwrap()
                     .unwrap()
                     .extract::<&str>()
-                    .unwrap()
-                    == "world"
+                    .unwrap(),
+                "world"
             );
         });
 
@@ -441,14 +451,13 @@ mod tests {
             .join()
         });
 
-        match mutex.into_inner() {
-            Ok(_) => {
-                unreachable!()
-            }
-            Err(e) => {
-                assert!(e.into_inner() == 0)
-            }
-        }
+        assert_eq!(
+            mutex
+                .into_inner()
+                .expect_err("mutex is poisoned")
+                .into_inner(),
+            0
+        );
 
         // now test recovering via PyMutex::clear_poison
         let mutex = PyMutex::new(0);
@@ -474,5 +483,13 @@ mod tests {
 
         assert!(value_of!(IsSend, PyMutex<i32>));
         assert!(value_of!(IsSync, PyMutex<i32>));
+    }
+
+    #[test]
+    fn test_mutex_debug_display() {
+        let mutex = PyMutex::new("foo");
+        let guard = mutex.lock().unwrap();
+        assert_eq!(format!("{:?}", guard), "\"foo\"");
+        assert_eq!(format!("{}", guard), "foo");
     }
 }
