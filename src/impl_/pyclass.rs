@@ -18,7 +18,7 @@ use crate::{
     },
     internal::pyclass_init::PyObjectInit,
     pycell::{PyBorrowError, impl_::PyClassObjectLayout},
-    pyclass::PyClassGuardError,
+    pyclass::{CompareOp, PyClassGuardError},
     types::{PyBool, any::PyAnyMethods},
 };
 
@@ -62,6 +62,31 @@ pub fn extract_pyclass_with_clone<'a, 'py, T: PyClass + Clone>(
 ) -> Result<T, PyClassGuardError<'a, 'py>> {
     let guard = <PyClassGuard<'a, T> as FromPyObject<'a, 'py>>::extract(obj)?;
     Ok(T::clone(&guard))
+}
+
+/// Tests equality or inequality, returning `NotImplemented` if missing
+#[inline]
+pub fn compare_eq<T: PartialEq>(py: Python<'_>, left: &T, right: &T, op: CompareOp) -> Py<PyAny> {
+    let compares_true = match op {
+        CompareOp::Eq => left == right,
+        CompareOp::Ne => left != right,
+        _ => return py.NotImplemented(),
+    };
+    PyBool::new(py, compares_true).to_owned().into()
+}
+
+/// Similar to [`compare_eq`], but for full ordering comparisons.
+#[inline]
+pub fn compare_ord<T: PartialOrd>(py: Python<'_>, left: &T, right: &T, op: CompareOp) -> Py<PyAny> {
+    let compares_true = match op {
+        CompareOp::Eq => left == right,
+        CompareOp::Ne => left != right,
+        CompareOp::Lt => left < right,
+        CompareOp::Le => left <= right,
+        CompareOp::Gt => left > right,
+        CompareOp::Ge => left >= right,
+    };
+    PyBool::new(py, compares_true).to_owned().into()
 }
 
 mod sealed {

@@ -49,8 +49,7 @@ struct CannotBeMappingAndSequence {}
 //~^ ERROR: a `#[pyclass]` cannot be both a `mapping` and a `sequence`
 
 #[pyclass(eq)]
-//~^ ERROR: binary operation `==` cannot be applied to type `&EqOptRequiresEq`
-//~| ERROR: binary operation `!=` cannot be applied to type `&EqOptRequiresEq`
+//~^ ERROR: can't compare `EqOptRequiresEq` with `EqOptRequiresEq`
 struct EqOptRequiresEq {}
 
 #[pyclass(eq)]

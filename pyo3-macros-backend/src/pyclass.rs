@@ -2310,56 +2310,28 @@ fn impl_pytypeinfo(cls: &Ident, attr: &PyClassArgs, ctx: &Ctx) -> TokenStream {
     }
 }
 
-fn pyclass_richcmp_arms(
-    options: &PyClassPyO3Options,
-    ctx: &Ctx,
-) -> std::result::Result<TokenStream, syn::Error> {
+fn pyclass_richcmp_expr(options: &PyClassPyO3Options, ctx: &Ctx) -> Result<Option<TokenStream>> {
     let Ctx { pyo3_path, .. } = ctx;
 
-    let eq_arms = options
-        .eq
-        .map(|eq| eq.span)
-        .or(options.eq_int.map(|eq_int| eq_int.span))
-        .map(|span| {
-            quote_spanned! { span =>
-                #pyo3_path::pyclass::CompareOp::Eq => {
-                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val == other, py)
-                },
-                #pyo3_path::pyclass::CompareOp::Ne => {
-                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val != other, py)
-                },
-            }
-        })
-        .unwrap_or_default();
+    let Some(eq) = options.eq else {
+        if let Some(eq_int) = options.eq_int {
+            bail_spanned!(eq_int.span() => "The `eq_int` option requires the `eq` option.");
+        }
+        if let Some(ord) = options.ord {
+            bail_spanned!(ord.span() => "The `ord` option requires the `eq` option.");
+        }
+        return Ok(None);
+    };
 
-    if let Some(ord) = options.ord {
-        ensure_spanned!(options.eq.is_some(), ord.span() => "The `ord` option requires the `eq` option.");
-    }
-
-    let ord_arms = options
-        .ord
-        .map(|ord| {
-            quote_spanned! { ord.span() =>
-                #pyo3_path::pyclass::CompareOp::Gt => {
-                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val > other, py)
-                },
-                #pyo3_path::pyclass::CompareOp::Lt => {
-                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val < other, py)
-                 },
-                #pyo3_path::pyclass::CompareOp::Le => {
-                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val <= other, py)
-                 },
-                #pyo3_path::pyclass::CompareOp::Ge => {
-                    #pyo3_path::IntoPyObjectExt::into_py_any(self_val >= other, py)
-                 },
-            }
-        })
-        .unwrap_or_else(|| quote! { _ => ::core::result::Result::Ok(py.NotImplemented()) });
-
-    Ok(quote! {
-        #eq_arms
-        #ord_arms
-    })
+    Ok(Some(if let Some(ord) = options.ord {
+        quote_spanned! { ord.span() =>
+            #pyo3_path::impl_::pyclass::compare_ord(py, self_val, other, op)
+        }
+    } else {
+        quote_spanned! { eq.span() =>
+            #pyo3_path::impl_::pyclass::compare_eq(py, self_val, other, op)
+        }
+    }))
 }
 
 fn pyclass_richcmp_simple_enum(
@@ -2369,37 +2341,27 @@ fn pyclass_richcmp_simple_enum(
     ctx: &Ctx,
 ) -> Result<(Option<syn::ImplItemFn>, Option<MethodAndSlotDef>)> {
     let Ctx { pyo3_path, .. } = ctx;
-    if let Some(eq_int) = options.eq_int {
-        ensure_spanned!(options.eq.is_some(), eq_int.span() => "The `eq_int` option requires the `eq` option.");
-    }
 
-    if options.eq.is_none() && options.eq_int.is_none() {
+    let Some(comparison) = pyclass_richcmp_expr(options, ctx)? else {
         return Ok((None, None));
-    }
-
-    let arms = pyclass_richcmp_arms(options, ctx)?;
+    };
 
     let eq = options.eq.map(|eq| {
         quote_spanned! { eq.span() =>
             let self_val = self;
             if let ::core::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::extract::<#pyo3_path::PyClassGuard<'_, Self>>(other) {
                 let other = &*other;
-                return match op {
-                    #arms
-                }
+                return #comparison;
             }
         }
     });
 
     let eq_int = options.eq_int.map(|eq_int| {
         quote_spanned! { eq_int.span() =>
-            let self_val = self.__pyo3__int__();
-            if let ::core::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::extract::<#repr_type>(other).or_else(|_| {
-                #pyo3_path::types::PyAnyMethods::extract::<#pyo3_path::PyClassGuard<'_, Self>>(other).map(|o| o.__pyo3__int__())
-            }) {
-                return match op {
-                    #arms
-                }
+            if let ::core::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::extract::<#repr_type>(other) {
+                let self_val = &self.__pyo3__int__();
+                let other = &other;
+                return #comparison;
             }
         }
     });
@@ -2410,12 +2372,12 @@ fn pyclass_richcmp_simple_enum(
             py: #pyo3_path::Python,
             other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
             op: #pyo3_path::pyclass::CompareOp
-        ) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
+        ) -> #pyo3_path::Py<#pyo3_path::PyAny> {
             #eq
 
             #eq_int
 
-            ::core::result::Result::Ok(py.NotImplemented())
+            py.NotImplemented()
         }
     };
     #[cfg(feature = "experimental-inspect")]
@@ -2468,56 +2430,53 @@ fn pyclass_richcmp(
         bail_spanned!(eq_int.span() => "`eq_int` can only be used on simple enums.")
     }
 
-    let arms = pyclass_richcmp_arms(options, ctx)?;
-    if options.eq.is_some() {
-        let mut richcmp_impl = parse_quote! {
-            fn __pyo3__generated____richcmp__(
-                &self,
-                py: #pyo3_path::Python,
-                other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
-                op: #pyo3_path::pyclass::CompareOp
-            ) -> #pyo3_path::PyResult<#pyo3_path::Py<#pyo3_path::PyAny>> {
-                let self_val = self;
-                if let ::core::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::extract::<#pyo3_path::PyClassGuard<'_, Self>>(other) {
-                    let other = &*other;
-                    match op {
-                        #arms
-                    }
-                } else {
-                    ::core::result::Result::Ok(py.NotImplemented())
-                }
+    let Some(comparison) = pyclass_richcmp_expr(options, ctx)? else {
+        return Ok((None, None));
+    };
+
+    let mut richcmp_impl = parse_quote! {
+        fn __pyo3__generated____richcmp__(
+            &self,
+            py: #pyo3_path::Python,
+            other: &#pyo3_path::Bound<'_, #pyo3_path::PyAny>,
+            op: #pyo3_path::pyclass::CompareOp
+        ) -> #pyo3_path::Py<#pyo3_path::PyAny> {
+            let self_val = self;
+            if let ::core::result::Result::Ok(other) = #pyo3_path::types::PyAnyMethods::extract::<#pyo3_path::PyClassGuard<'_, Self>>(other) {
+                let other = &*other;
+                #comparison
+            } else {
+                py.NotImplemented()
             }
-        };
-        let richcmp_slot = generate_protocol_slot(
-            cls,
-            &mut richcmp_impl,
-            &__RICHCMP__,
-            "__richcmp__",
-            #[cfg(feature = "experimental-inspect")]
-            FunctionIntrospectionData {
-                names: if options.ord.is_some() {
-                    &["__eq__", "__ne__", "__lt__", "__le__", "__gt__", "__ge__"]
-                } else {
-                    &["__eq__", "__ne__"]
-                },
-                // `value` is the parameter name CPython uses in the `tp_richcompare` slot wrappers
-                arguments: vec![FnArg::Regular(RegularArg {
-                    name: Cow::Owned(format_ident!("value")),
-                    ty: &parse_quote!(&#cls),
-                    from_py_with: None,
-                    default_value: None,
-                    option_wrapped_type: None,
-                    annotation: None,
-                })],
-                returns: parse_quote! { ::core::primitive::bool },
-                is_returning_not_implemented_on_extraction_error: true,
+        }
+    };
+    let richcmp_slot = generate_protocol_slot(
+        cls,
+        &mut richcmp_impl,
+        &__RICHCMP__,
+        "__richcmp__",
+        #[cfg(feature = "experimental-inspect")]
+        FunctionIntrospectionData {
+            names: if options.ord.is_some() {
+                &["__eq__", "__ne__", "__lt__", "__le__", "__gt__", "__ge__"]
+            } else {
+                &["__eq__", "__ne__"]
             },
-            ctx,
-        )?;
-        Ok((Some(richcmp_impl), Some(richcmp_slot)))
-    } else {
-        Ok((None, None))
-    }
+            // `value` is the parameter name CPython uses in the `tp_richcompare` slot wrappers
+            arguments: vec![FnArg::Regular(RegularArg {
+                name: Cow::Owned(format_ident!("value")),
+                ty: &parse_quote!(&#cls),
+                from_py_with: None,
+                default_value: None,
+                option_wrapped_type: None,
+                annotation: None,
+            })],
+            returns: parse_quote! { ::core::primitive::bool },
+            is_returning_not_implemented_on_extraction_error: true,
+        },
+        ctx,
+    )?;
+    Ok((Some(richcmp_impl), Some(richcmp_slot)))
 }
 
 fn pyclass_hash(
