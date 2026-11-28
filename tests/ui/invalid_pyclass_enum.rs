@@ -38,16 +38,14 @@ enum SimpleNoSignature {
 }
 
 #[pyclass(eq, eq_int)]
-//~^ ERROR: binary operation `==` cannot be applied to type `&SimpleEqOptRequiresPartialEq`
-//~| ERROR: binary operation `!=` cannot be applied to type `&SimpleEqOptRequiresPartialEq`
+//~^ ERROR: can't compare `SimpleEqOptRequiresPartialEq` with `SimpleEqOptRequiresPartialEq`
 enum SimpleEqOptRequiresPartialEq {
     A,
     B,
 }
 
 #[pyclass(eq)]
-//~^ ERROR: binary operation `==` cannot be applied to type `&ComplexEqOptRequiresPartialEq`
-//~| ERROR: binary operation `!=` cannot be applied to type `&ComplexEqOptRequiresPartialEq`
+//~^ ERROR: can't compare `ComplexEqOptRequiresPartialEq` with `ComplexEqOptRequiresPartialEq`
 enum ComplexEqOptRequiresPartialEq {
     A(i32),
     B { msg: String },
@@ -110,10 +108,7 @@ enum InvalidOrderedComplexEnum {
 }
 
 #[pyclass(eq, ord)]
-//~^ ERROR: binary operation `>` cannot be applied to type `&InvalidOrderedComplexEnum2`
-//~| ERROR: binary operation `<` cannot be applied to type `&InvalidOrderedComplexEnum2`
-//~| ERROR: binary operation `<=` cannot be applied to type `&InvalidOrderedComplexEnum2`
-//~| ERROR: binary operation `>=` cannot be applied to type `&InvalidOrderedComplexEnum2`
+//~^ ERROR: can't compare `InvalidOrderedComplexEnum2` with `InvalidOrderedComplexEnum2`
 #[derive(PartialEq)]
 enum InvalidOrderedComplexEnum2 {
     VariantA(i32),
