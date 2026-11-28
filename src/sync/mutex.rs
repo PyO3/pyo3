@@ -288,8 +288,6 @@ impl<'a, T: fmt::Display> fmt::Display for PyMutexGuard<'a, T> {
 #[cfg(test)]
 mod tests {
     #[cfg(not(target_arch = "wasm32"))]
-    use alloc::sync::Arc;
-    #[cfg(not(target_arch = "wasm32"))]
     use core::sync::atomic::{AtomicBool, Ordering};
     #[cfg(not(target_arch = "wasm32"))]
     use std::sync::Barrier;
@@ -309,29 +307,34 @@ mod tests {
             let d = PyDict::new(py);
             PyMutex::new(d.unbind())
         });
-        #[cfg_attr(not(Py_3_14), allow(unused_variables))]
-        let mutex = Python::attach(|py| {
-            let mutex = py.detach(|| -> PyMutex<Py<PyDict>> {
-                std::thread::spawn(|| {
-                    let dict_guard = mutex.lock().unwrap();
-                    Python::attach(|py| {
-                        let dict = dict_guard.bind(py);
-                        dict.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
+
+        Python::attach(|py| {
+            py.detach(|| {
+                std::thread::scope(|s| {
+                    s.spawn(|| {
+                        let dict_guard = mutex.lock().unwrap();
+
+                        Python::attach(|py| {
+                            let dict = dict_guard.bind(py);
+                            dict.set_item(PyNone::get(py), PyNone::get(py)).unwrap();
+                        });
+
+                        #[cfg(Py_3_14)]
+                        assert!(mutex.is_locked());
+
+                        drop(dict_guard);
+
+                        #[cfg(Py_3_14)]
+                        assert!(!mutex.is_locked());
                     });
-                    #[cfg(Py_3_14)]
-                    assert!(mutex.is_locked());
-                    drop(dict_guard);
-                    #[cfg(Py_3_14)]
-                    assert!(!mutex.is_locked());
-                    mutex
                 })
-                .join()
-                .unwrap()
             });
 
             let dict_guard = mutex.lock().unwrap();
+
             #[cfg(Py_3_14)]
             assert!(mutex.is_locked());
+
             let d = dict_guard.bind(py);
 
             assert!(
@@ -341,13 +344,16 @@ mod tests {
                     .eq(PyNone::get(py))
                     .unwrap()
             );
+
             #[cfg(Py_3_14)]
             assert!(mutex.is_locked());
+
             drop(dict_guard);
+
             #[cfg(Py_3_14)]
             assert!(!mutex.is_locked());
-            mutex
         });
+
         #[cfg(Py_3_14)]
         assert!(!mutex.is_locked());
     }
@@ -403,19 +409,19 @@ mod tests {
             PyMutex::new(d.unbind())
         });
 
-        let lock = Arc::new(mutex);
-        let lock2 = Arc::clone(&lock);
+        thread::scope(|s| {
+            s.spawn(|| {
+                let _guard = mutex.lock().unwrap();
 
-        let _ = thread::spawn(move || {
-            let _guard = lock2.lock().unwrap();
-
-            // poison the mutex
-            panic!();
+                // poison the mutex
+                panic!();
+            })
+            .join()
         })
-        .join();
+        .expect_err("thread should have panicked");
 
         // by now the lock is poisoned, use into_inner to recover the value despite that
-        let guard = lock.lock().expect_err("mutex is poisoned").into_inner();
+        let guard = mutex.lock().expect_err("mutex is poisoned").into_inner();
 
         Python::attach(|py| {
             assert_eq!(

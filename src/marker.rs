@@ -849,15 +849,14 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_detach_releases_and_acquires_gil() {
         Python::attach(|py| {
-            let b = alloc::sync::Arc::new(std::sync::Barrier::new(2));
+            let b = std::sync::Barrier::new(2);
 
-            let b2 = b.clone();
-            std::thread::spawn(move || Python::attach(|_| b2.wait()));
+            std::thread::scope(|s| {
+                s.spawn(|| Python::attach(|_| b.wait()));
 
-            py.detach(|| {
                 // If `detach` does not release the GIL, this will deadlock because
                 // the thread spawned above will never be able to acquire the GIL.
-                b.wait();
+                py.detach(|| b.wait());
             });
 
             unsafe {

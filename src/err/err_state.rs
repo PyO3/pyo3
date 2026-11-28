@@ -413,7 +413,7 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     mod thread {
         extern crate std;
-        pub use std::thread::{sleep, spawn};
+        pub use std::thread::{scope, sleep};
     }
 
     #[test]
@@ -443,8 +443,6 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))] // We are building wasm Python with pthreads disabled
     fn test_no_deadlock_thread_switch() {
-        static ERR: PyOnceLock<PyErr> = PyOnceLock::new();
-
         struct GILSwitchArgs;
 
         impl PyErrArguments for GILSwitchArgs {
@@ -458,31 +456,21 @@ mod tests {
             }
         }
 
-        Python::attach(|py| ERR.set(py, PyValueError::new_err(GILSwitchArgs)).unwrap());
+        let err = PyValueError::new_err(GILSwitchArgs);
 
         // Let many threads attempt to read the normalized value at the same time
-        let handles = (0..10)
-            .map(|_| {
-                thread::spawn(|| {
+        thread::scope(|s| {
+            for _ in 0..10 {
+                s.spawn(|| {
                     Python::attach(|py| {
-                        ERR.get(py).expect("is set just above").value(py);
+                        err.value(py);
                     });
-                })
-            })
-            .collect::<Vec<_>>();
-
-        for handle in handles {
-            handle.join().unwrap();
-        }
+                });
+            }
+        });
 
         // We should never have deadlocked, and should be able to run
         // this assertion
-        Python::attach(|py| {
-            assert!(
-                ERR.get(py)
-                    .expect("is set above")
-                    .is_instance_of::<PyValueError>(py)
-            )
-        });
+        Python::attach(|py| assert!(err.is_instance_of::<PyValueError>(py)));
     }
 }
