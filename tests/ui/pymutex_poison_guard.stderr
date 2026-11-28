@@ -1,0 +1,30 @@
+error[E0603]: module `mutex_trait_sealed` is private
+   --> tests/ui/pymutex_poison_guard.rs:12:49
+    |
+ 12 |     let _guard = mutex.poison_guard(pyo3::sync::mutex_trait_sealed::Token);
+    |                                                 ^^^^^^^^^^^^^^^^^^  ----- unit struct `Token` is not publicly re-exported
+    |                                                 |
+    |                                                 private module
+    |
+
+error[E0061]: this method takes 1 argument but 0 arguments were supplied
+   --> tests/ui/pymutex_poison_guard.rs:7:24
+    |
+  7 |     let _guard = mutex.poison_guard();
+    |                        ^^^^^^^^^^^^-- argument #1 of type `pyo3::sync::mutex_trait_sealed::Token` is missing
+    |
+help: provide the argument
+    |
+  7 |     let _guard = mutex.poison_guard(/* Token */);
+    |                                     +++++++++++
+
+error[E0277]: the trait bound `pyo3::sync::mutex_trait_sealed::Token: Default` is not satisfied
+  --> tests/ui/pymutex_poison_guard.rs:17:37
+   |
+17 |     let _guard = mutex.poison_guard(Default::default());
+   |                                     ^^^^^^^^^^^^^^^^^^ the trait `Default` is not implemented for `pyo3::sync::mutex_trait_sealed::Token`
+
+error: aborting due to 3 previous errors
+
+Some errors have detailed explanations: E0061, E0277, E0603.
+For more information about an error, try `rustc --explain E0061`.
