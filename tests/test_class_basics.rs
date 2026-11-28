@@ -290,34 +290,41 @@ impl UnsendableChild {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
-    let obj = Python::attach(|py| -> PyResult<_> {
-        let obj: Py<T> = PyType::new::<T>(py).call1((5,))?.extract()?;
+fn test_unsendable<T: PyClass + 'static>(py: Python<'_>) -> PyResult<()> {
+    let obj: Py<T> = PyType::new::<T>(py).call1((5,))?.extract()?;
 
-        // Accessing the value inside this thread should not panic
-        let caught_panic =
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> PyResult<_> {
-                assert_eq!(obj.getattr(py, "value")?.extract::<usize>(py)?, 5);
-                Ok(())
-            }))
-            .is_err();
+    // Accessing the value inside this thread should not panic
+    let caught_panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> PyResult<_> {
+        assert_eq!(obj.getattr(py, "value")?.extract::<usize>(py)?, 5);
+        Ok(())
+    }))
+    .is_err();
 
-        assert!(!caught_panic);
+    assert!(!caught_panic);
 
-        Ok(obj)
-    })?;
-
-    let caught_panic = std::thread::scope(|s| {
-        s.spawn(|| {
-            // This access must panic
-            Python::attach(|py| {
-                let _ = obj.borrow(py);
-            });
+    // Nesting with `py.detach()` is necessary, rather than separate
+    // `Python::attach()` calls for the creation above and drop below,
+    // because if the `Python::attach` calls
+    // are at top level they own (and so delete) the Python thread state.
+    //
+    // ... and then on free-threaded Python, once the thread state is
+    // torn down it's possible for the object's allocation to be
+    // marked as owned by a different thread. This will then cause
+    // the decref to be treated as non-local, which may defer it until a
+    // later refcount merge on that other thread.
+    let caught_panic = py.detach(|| {
+        std::thread::scope(|s| {
+            s.spawn(|| {
+                // This access must panic
+                Python::attach(|py| {
+                    let _ = obj.borrow(py);
+                });
+            })
+            .join()
         })
-        .join()
     });
 
-    Python::attach(|_py| drop(obj));
+    drop(obj);
 
     if let Err(err) = caught_panic {
         if let Some(msg) = err.downcast_ref::<String>() {
@@ -335,7 +342,7 @@ fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
     expected = "test_class_basics::UnsendableBase is unsendable, but sent to another thread"
 )]
 fn panic_unsendable_base() {
-    test_unsendable::<UnsendableBase>().unwrap();
+    Python::attach(test_unsendable::<UnsendableBase>).unwrap();
 }
 
 #[test]
@@ -344,7 +351,7 @@ fn panic_unsendable_base() {
     expected = "test_class_basics::UnsendableBase is unsendable, but sent to another thread"
 )]
 fn panic_unsendable_child() {
-    test_unsendable::<UnsendableChild>().unwrap();
+    Python::attach(test_unsendable::<UnsendableChild>).unwrap();
 }
 
 fn get_length(obj: &Bound<'_, PyAny>) -> PyResult<usize> {
