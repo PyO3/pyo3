@@ -1206,7 +1206,7 @@ A simple enum (a.k.a.
 C-like enum) has only unit variants.
 
 PyO3 adds a class attribute for each variant, so you can access them in Python without defining `#[new]`.
-PyO3 also provides default implementations of `__richcmp__` and `__int__`, so they can be compared using `==`:
+PyO3 also provides a default implementation of `__int__` returning the variant's discriminant, and `eq` provides `__richcmp__` so variants can be compared using `==`:
 
 ```rust
 # use pyo3::prelude::*;
@@ -1229,7 +1229,8 @@ Python::attach(|py| {
 })
 ```
 
-You can also convert your simple enums into `int`:
+You can also convert your simple enums into `int`, because `__int__()` returns the enum's discriminant value (for example, `MyEnum::OtherVariant as isize` in Rust, or the enum's `#[repr]` integer type).
+When `eq_int` is specified alongside `eq`, simple enums can also be compared for equality with integers in addition to other instances of the enum:
 
 ```rust
 # use pyo3::prelude::*;
@@ -1246,6 +1247,9 @@ Python::attach(|py| {
     pyo3::py_run!(py, cls x, r#"
         assert int(cls.Variant) == x
         assert int(cls.OtherVariant) == 10
+        assert cls.OtherVariant == 10
+        assert 10 == cls.OtherVariant
+        assert cls.Variant != 10
     "#)
 })
 ```
@@ -1317,6 +1321,7 @@ Python::attach(|py| {
 ```
 
 Ordering of enum variants is optionally added using `#[pyo3(ord)]`.
+When `eq_int` is also enabled, variants can be ordered against integers as well.
 > [!NOTE]
 > Implementation of the `PartialOrd` trait is required when passing the `ord` argument.
 > If not implemented, a compile time error is raised.
