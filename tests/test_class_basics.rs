@@ -311,7 +311,7 @@ fn test_unsendable<T: PyClass + 'static>() -> PyResult<()> {
         s.spawn(|| {
             // This access must panic
             Python::attach(|py| {
-                obj.getattr(py, "value").unwrap();
+                let _ = obj.borrow(py);
             });
         })
         .join()
