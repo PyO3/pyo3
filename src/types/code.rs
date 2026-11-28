@@ -105,6 +105,7 @@ pub trait PyCodeMethods<'py> {
 }
 
 impl<'py> PyCodeMethods<'py> for Bound<'py, PyCode> {
+    #[track_caller]
     fn run(
         &self,
         globals: Option<&Bound<'py, PyDict>>,
